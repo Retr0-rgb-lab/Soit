@@ -1,11 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "enables the default permissions",
-  "windows": [
-    "main"
-  ],
+  "description": "Minimal permissions for Wave 1 shell + bootstrap",
+  "windows": ["main"],
   "permissions": [
-    "core:default"
+    "core:default",
+    "allow-get-bootstrap-state",
+    "allow-get-workspace-snapshot",
+    "allow-select-vault",
+    "allow-ping"
   ]
 }

@@ -1,0 +1,19 @@
+[[permission]]
+identifier = "allow-get-bootstrap-state"
+description = "Allow get_bootstrap_state command"
+commands.allow = ["get_bootstrap_state"]
+
+[[permission]]
+identifier = "allow-get-workspace-snapshot"
+description = "Allow get_workspace_snapshot command"
+commands.allow = ["get_workspace_snapshot"]
+
+[[permission]]
+identifier = "allow-select-vault"
+description = "Allow select_vault command"
+commands.allow = ["select_vault"]
+
+[[permission]]
+identifier = "allow-ping"
+description = "Allow ping command"
+commands.allow = ["ping"]
