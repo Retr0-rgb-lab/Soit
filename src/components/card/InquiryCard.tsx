@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { termExplanation } from "../../lib/marks";
 import { ancestorChain } from "../../lib/treeNav";
 import { useWorkspace } from "../../state/workspaceStore";
+import type { SourceSpan } from "../../types";
 import DirectionChooser from "../overlays/DirectionChooser";
 import SelectionBar, {
   type SelectionBarState,
@@ -21,14 +22,19 @@ function copyText(text: string) {
   }
 }
 
+const HIGHLIGHT_MS = 1200;
+
 export default function InquiryCard() {
   const nodes = useWorkspace((s) => s.nodes);
   const focusId = useWorkspace((s) => s.focusId);
   const turnsByCardId = useWorkspace((s) => s.turnsByCardId);
+  const edges = useWorkspace((s) => s.edges);
+  const highlightSpan = useWorkspace((s) => s.highlightSpan);
   const focusNode = useWorkspace((s) => s.focusNode);
   const setMode = useWorkspace((s) => s.setWorkspaceMode);
-  const spawnDeepen = useWorkspace((s) => s.spawnDeepen);
-  const spawnDiverge = useWorkspace((s) => s.spawnDiverge);
+  const spawnInquiry = useWorkspace((s) => s.spawnInquiry);
+  const returnToSource = useWorkspace((s) => s.returnToSource);
+  const clearHighlight = useWorkspace((s) => s.clearHighlight);
   const regenerateTurn = useWorkspace((s) => s.regenerateTurn);
   const deleteTurn = useWorkspace((s) => s.deleteTurn);
   const toggleTurnCollapsed = useWorkspace((s) => s.toggleTurnCollapsed);
@@ -49,6 +55,11 @@ export default function InquiryCard() {
     return nodes.find((n) => n.id === focus.parentId) ?? null;
   }, [focus, nodes]);
 
+  const inbound = useMemo(
+    () => edges.find((e) => e.toCardId === focusId) ?? null,
+    [edges, focusId],
+  );
+
   const [draft, setDraft] = useState("");
   const [quote, setQuote] = useState("");
   const [enterOn, setEnterOn] = useState(false);
@@ -56,12 +67,18 @@ export default function InquiryCard() {
   const [navKind, setNavKind] = useState<"jump" | "deepen" | "diverge" | "back">(
     "jump",
   );
-  const [float, setFloat] = useState<TermFloatState | null>(null);
-  const [selBar, setSelBar] = useState<SelectionBarState | null>(null);
+  const [float, setFloat] = useState<
+    (TermFloatState & { turnId?: string; markId?: string }) | null
+  >(null);
+  const [selBar, setSelBar] = useState<
+    (SelectionBarState & { turnId?: string }) | null
+  >(null);
   const [chooser, setChooser] = useState<{
     x: number;
     y: number;
     label: string;
+    turnId?: string;
+    markId?: string;
   } | null>(null);
   const prevFocusRef = useRef(focusId);
 
@@ -74,7 +91,6 @@ export default function InquiryCard() {
     setChooser(null);
     if (!focusId) return;
 
-    // Infer back vs jump when not from deepen/diverge
     const prev = prevFocusRef.current;
     if (prev && prev !== focusId && navKind === "jump") {
       const prevNode = nodes.find((n) => n.id === prev);
@@ -96,28 +112,94 @@ export default function InquiryCard() {
     return () => document.body.classList.remove("has-selbar");
   }, [selBar]);
 
+  // Return-to-source: expand turn, scroll mark into view, flash highlight
+  useEffect(() => {
+    if (!highlightSpan || !focusId) return;
+
+    const span = highlightSpan;
+    // Expand collapsed target turn if needed
+    const turn = (turnsByCardId[focusId] ?? []).find((t) => t.id === span.turnId);
+    if (turn?.collapsed) {
+      toggleTurnCollapsed(turn.id);
+    }
+
+    const timer = window.setTimeout(() => {
+      const root =
+        document.querySelector(`[data-turn="${CSS.escape(span.turnId)}"]`) ??
+        document.querySelector(`[data-turn-id="${CSS.escape(span.turnId)}"]`);
+      if (!root) {
+        clearHighlight();
+        return;
+      }
+
+      let mark: Element | null = null;
+      if (span.markId) {
+        mark =
+          root.querySelector(`.mark[data-mark-id="${CSS.escape(span.markId)}"]`) ??
+          root.querySelector(`.mark[data-term="${CSS.escape(span.markId)}"]`);
+      }
+      if (!mark && span.text) {
+        const marks = root.querySelectorAll(".mark");
+        for (const m of marks) {
+          const term = m.getAttribute("data-term") || m.textContent || "";
+          if (term === span.text || (m.textContent || "").includes(span.text)) {
+            mark = m;
+            break;
+          }
+        }
+      }
+      // Fallback: highlight the whole AI block if no mark match
+      const target = mark ?? root.querySelector(".ai-html") ?? root;
+      target.classList.add("mark-highlight");
+      target.scrollIntoView({ block: "center", behavior: "smooth" });
+
+      window.setTimeout(() => {
+        target.classList.remove("mark-highlight");
+        clearHighlight();
+      }, HIGHLIGHT_MS);
+    }, 40);
+
+    return () => window.clearTimeout(timer);
+  }, [highlightSpan, focusId, turnsByCardId, toggleTurnCollapsed, clearHighlight]);
+
   const sourceLabel = focus?.title || "概念";
 
-  const onDeepen = useCallback(
-    (label?: string) => {
-      setNavKind("deepen");
-      spawnDeepen((label || sourceLabel).slice(0, 48));
+  const runSpawn = useCallback(
+    (
+      kind: "deepen" | "diverge",
+      label: string,
+      extra?: { turnId?: string; markId?: string },
+    ) => {
+      setNavKind(kind);
+      const text = (label || sourceLabel).slice(0, 48);
+      const turns = focusId ? (turnsByCardId[focusId] ?? []) : [];
+      const turnId =
+        extra?.turnId || turns[turns.length - 1]?.id || "";
+      const source: SourceSpan = {
+        turnId,
+        text,
+        markId: extra?.markId,
+      };
+      void spawnInquiry({ kind, source, actor: "user" });
       setFloat(null);
       setSelBar(null);
       setChooser(null);
     },
-    [spawnDeepen, sourceLabel],
+    [spawnInquiry, sourceLabel, focusId, turnsByCardId],
+  );
+
+  const onDeepen = useCallback(
+    (label?: string, extra?: { turnId?: string; markId?: string }) => {
+      runSpawn("deepen", label || sourceLabel, extra);
+    },
+    [runSpawn, sourceLabel],
   );
 
   const onDiverge = useCallback(
-    (label?: string) => {
-      setNavKind("diverge");
-      spawnDiverge((label || sourceLabel).slice(0, 48));
-      setFloat(null);
-      setSelBar(null);
-      setChooser(null);
+    (label?: string, extra?: { turnId?: string; markId?: string }) => {
+      runSpawn("diverge", label || sourceLabel, extra);
     },
-    [spawnDiverge, sourceLabel],
+    [runSpawn, sourceLabel],
   );
 
   const onSend = useCallback(() => {
@@ -128,19 +210,28 @@ export default function InquiryCard() {
     setQuote("");
   }, [appendUserMessage, draft, focusId, quote]);
 
-  const onMarkClick = useCallback((term: string, x: number, y: number) => {
-    setSelBar(null);
-    setChooser(null);
-    setFloat({
-      term,
-      body: termExplanation(term),
-      x: x + 12,
-      y: y + 12,
-    });
-  }, []);
+  const onMarkClick = useCallback(
+    (
+      term: string,
+      x: number,
+      y: number,
+      meta: { turnId: string; markId?: string },
+    ) => {
+      setSelBar(null);
+      setChooser(null);
+      setFloat({
+        term,
+        body: termExplanation(term),
+        x: x + 12,
+        y: y + 12,
+        turnId: meta.turnId,
+        markId: meta.markId,
+      });
+    },
+    [],
+  );
 
-  const onAiMouseUp = useCallback((e: React.MouseEvent) => {
-    // ignore clicks that open a mark float
+  const onAiMouseUp = useCallback((e: React.MouseEvent, turnId: string) => {
     const t = e.target;
     if (t instanceof Element && t.closest(".mark")) return;
 
@@ -150,7 +241,6 @@ export default function InquiryCard() {
       setSelBar(null);
       return;
     }
-    // only when selection is inside .ai-html
     const anchor = sel?.anchorNode;
     const el =
       anchor instanceof Element
@@ -166,10 +256,9 @@ export default function InquiryCard() {
     const y = rect ? rect.top - 8 : e.clientY;
     setFloat(null);
     setChooser(null);
-    setSelBar({ text, x, y: Math.max(8, y - 40) });
+    setSelBar({ text, x, y: Math.max(8, y - 40), turnId });
   }, []);
 
-  // dismiss float/sel when clicking outside
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       const t = e.target;
@@ -202,6 +291,8 @@ export default function InquiryCard() {
     );
   }
 
+  const highlightTurnId = highlightSpan?.turnId;
+
   return (
     <div className="inquiry-root">
       <div className="inquiry-stage">
@@ -232,6 +323,10 @@ export default function InquiryCard() {
                   focusNode(id);
                   setMode("focus");
                 }}
+                onReturnToSource={() => {
+                  setNavKind("back");
+                  returnToSource(inbound?.source ?? null);
+                }}
                 onOpenMap={() => setMode("map")}
                 onOpenPalette={() =>
                   window.dispatchEvent(new CustomEvent("soit:open-palette"))
@@ -239,19 +334,32 @@ export default function InquiryCard() {
               />
               <div className="ic-body">
                 <div className="ic-msgs">
-                  {turns.map((t) => (
-                    <TurnItem
-                      key={t.id}
-                      turn={t}
-                      onToggleCollapsed={() => toggleTurnCollapsed(t.id)}
-                      onDeepen={(label) => onDeepen(label)}
-                      onDiverge={(label) => onDiverge(label)}
-                      onRegenerate={() => regenerateTurn(t.id)}
-                      onDelete={() => deleteTurn(t.id)}
-                      onMarkClick={onMarkClick}
-                      onAiMouseUp={onAiMouseUp}
-                    />
-                  ))}
+                  {turns.length === 0 ? (
+                    <p className="inquiry-empty" style={{ padding: "12px 0" }}>
+                      {focus.kind === "diverge"
+                        ? "发散卡：空白对话。从输入框开始，或点「来自」回源。"
+                        : "本卡尚无轮次。"}
+                    </p>
+                  ) : (
+                    turns.map((t) => (
+                      <TurnItem
+                        key={t.id}
+                        turn={t}
+                        forceExpand={highlightTurnId === t.id}
+                        onToggleCollapsed={() => toggleTurnCollapsed(t.id)}
+                        onDeepen={(label, turnId) =>
+                          onDeepen(label, { turnId })
+                        }
+                        onDiverge={(label, turnId) =>
+                          onDiverge(label, { turnId })
+                        }
+                        onRegenerate={() => regenerateTurn(t.id)}
+                        onDelete={() => deleteTurn(t.id)}
+                        onMarkClick={onMarkClick}
+                        onAiMouseUp={onAiMouseUp}
+                      />
+                    ))
+                  )}
                 </div>
               </div>
             </article>
@@ -276,8 +384,12 @@ export default function InquiryCard() {
         <TermFloat
           float={float}
           onClose={() => setFloat(null)}
-          onDeepen={(term) => onDeepen(term)}
-          onDiverge={(term) => onDiverge(term)}
+          onDeepen={(term) =>
+            onDeepen(term, { turnId: float.turnId, markId: float.markId })
+          }
+          onDiverge={(term) =>
+            onDiverge(term, { turnId: float.turnId, markId: float.markId })
+          }
         />
       ) : null}
 
@@ -289,6 +401,7 @@ export default function InquiryCard() {
               x: selBar.x,
               y: selBar.y,
               label: selBar.text.slice(0, 48),
+              turnId: selBar.turnId,
             });
             setSelBar(null);
           }}
@@ -308,8 +421,23 @@ export default function InquiryCard() {
           x={chooser.x}
           y={chooser.y}
           sourceLabel={chooser.label}
-          onDeepen={(label) => onDeepen(label)}
-          onDiverge={(label) => onDiverge(label)}
+          sourceSpan={
+            chooser.turnId
+              ? { turnId: chooser.turnId, markId: chooser.markId }
+              : undefined
+          }
+          onDeepen={(label, span) =>
+            onDeepen(label, {
+              turnId: span?.turnId ?? chooser.turnId,
+              markId: span?.markId ?? chooser.markId,
+            })
+          }
+          onDiverge={(label, span) =>
+            onDiverge(label, {
+              turnId: span?.turnId ?? chooser.turnId,
+              markId: span?.markId ?? chooser.markId,
+            })
+          }
         />
       ) : null}
 

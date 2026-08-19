@@ -7,7 +7,13 @@ import {
 } from "../lib/liveSet";
 import type { MapScopeMode } from "../lib/mapScope";
 import { rootOf, subtreeIds } from "../lib/threadDebt";
-import type { InquiryNode, NodeKind, Turn, WorkspaceSnapshot } from "../types";
+import type {
+  Edge,
+  InquiryNode,
+  SourceSpan,
+  Turn,
+  WorkspaceSnapshot,
+} from "../types";
 
 export type WorkspaceMode = "focus" | "map";
 
@@ -15,9 +21,19 @@ const RECENT_MAX = 8;
 export const UNREAD_RAIL_CAP = 12;
 export { LIVE_MAX };
 
+export interface SpawnInquiryInput {
+  kind: "deepen" | "diverge";
+  source: SourceSpan;
+  why?: string;
+  actor?: "user" | "agent";
+  /** Parent card id; defaults to current focusId */
+  fromCardId?: string;
+}
+
 export interface WorkspaceState {
   nodes: InquiryNode[];
   turnsByCardId: Record<string, Turn[]>;
+  edges: Edge[];
   focusId: string;
   source: WorkspaceSnapshot["source"] | null;
   /** Bound vault path from host bootstrap / open_universe */
@@ -32,6 +48,8 @@ export interface WorkspaceState {
   /** For re-entry banner: previous focus when snapshot loaded */
   resumeHintId: string | null;
   reentryDismissed: boolean;
+  /** Return-to-source highlight target (cleared after flash). */
+  highlightSpan: SourceSpan | null;
 
   loadSnapshot: (snap: WorkspaceSnapshot) => void;
   setVaultPath: (path: string | null) => void;
@@ -44,8 +62,15 @@ export interface WorkspaceState {
   /** Mark all unread in thread (by root) as read */
   markThreadRead: (anyIdInThread: string) => void;
   dismissReentry: () => void;
-  spawnDeepen: (sourceLabel: string) => string;
-  spawnDiverge: (sourceLabel: string) => string;
+  /** Unified spawn — user and agent share this entry. */
+  spawnInquiry: (input: SpawnInquiryInput) => Promise<string>;
+  /** @deprecated thin wrapper → spawnInquiry */
+  spawnDeepen: (sourceLabel: string) => Promise<string>;
+  /** @deprecated thin wrapper → spawnInquiry */
+  spawnDiverge: (sourceLabel: string) => Promise<string>;
+  /** Focus parent and request mark highlight from inbound edge / span. */
+  returnToSource: (span?: SourceSpan | null) => void;
+  clearHighlight: () => void;
   regenerateTurn: (turnId: string) => void;
   deleteTurn: (turnId: string) => void;
   toggleTurnCollapsed: (turnId: string) => void;
@@ -77,51 +102,11 @@ function nextId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${idSeq}`;
 }
 
-function spawnChild(
-  get: () => WorkspaceState,
-  set: (
-    partial:
-      | Partial<WorkspaceState>
-      | ((s: WorkspaceState) => Partial<WorkspaceState>),
-  ) => void,
-  kind: Exclude<NodeKind, "root">,
-  sourceLabel: string,
-): string {
-  const parentId = get().focusId;
-  const id = nextId(kind === "deepen" ? "d" : "v");
-  const title =
-    (kind === "deepen" ? "深挖 · " : "发散 · ") + sourceLabel.slice(0, 12);
-  const node: InquiryNode = {
-    id,
-    title,
-    parentId: parentId || null,
-    kind,
-    unread: true,
-  };
-  const turn: Turn = {
-    id: nextId("t"),
-    title: kind === "deepen" ? "深挖开场" : "发散开场",
-    collapsed: false,
-    user:
-      kind === "deepen"
-        ? `从「${sourceLabel}」往下：它具体指什么？`
-        : `另开一条：和「${sourceLabel}」平行的问题。`,
-    think:
-      kind === "deepen"
-        ? "深挖：父状态 + 源跨度；不整段灌父 transcript。"
-        : "发散：空白对话 + 回边；父卡继续活。",
-    thinkOpen: false,
-    aiHtml:
-      kind === "deepen"
-        ? `这是对「${sourceLabel}」的深挖卡。（demo 占位）`
-        : `这是平行发散，回边指向「${sourceLabel}」。（demo 占位）`,
-  };
-  set((s) => ({
-    nodes: [...s.nodes, node],
-    turnsByCardId: { ...s.turnsByCardId, [id]: [turn] },
-    focusId: id,
+function cloneEdges(edges: Edge[] | undefined): Edge[] {
+  return (edges ?? []).map((e) => ({
+    ...e,
+    source: { ...e.source },
   }));
-  return id;
 }
 
 function afterFocus(
@@ -151,9 +136,142 @@ function afterFocus(
   };
 }
 
+function applySpawnSuccess(
+  get: () => WorkspaceState,
+  set: (
+    partial:
+      | Partial<WorkspaceState>
+      | ((s: WorkspaceState) => Partial<WorkspaceState>),
+  ) => void,
+  id: string,
+  prevFocus: string,
+) {
+  const s = get();
+  const root = rootOf(s.nodes, id);
+  const { liveIds } = pinLiveId(s.liveIds, root?.id ?? id, LIVE_MAX);
+  set({
+    workspaceMode: "focus",
+    recentIds: pushRecent(s.recentIds, id, prevFocus),
+    sessionTouchIds: touchSession(s.sessionTouchIds, id),
+    liveIds,
+    highlightSpan: null,
+  });
+}
+
+function memorySpawnInquiry(
+  get: () => WorkspaceState,
+  set: (
+    partial:
+      | Partial<WorkspaceState>
+      | ((s: WorkspaceState) => Partial<WorkspaceState>),
+  ) => void,
+  input: SpawnInquiryInput,
+): string {
+  const s0 = get();
+  const fromCardId = input.fromCardId ?? s0.focusId;
+  if (!fromCardId || !s0.nodes.some((n) => n.id === fromCardId)) {
+    return "";
+  }
+
+  const label = (input.source.text || "概念").slice(0, 48);
+  const id = nextId(input.kind === "deepen" ? "d" : "v");
+  const edgeId = nextId("e");
+  const title =
+    (input.kind === "deepen" ? "深挖 · " : "发散 · ") + label.slice(0, 12);
+
+  const node: InquiryNode = {
+    id,
+    title,
+    parentId: fromCardId,
+    kind: input.kind,
+    unread: true,
+    status: "active",
+  };
+
+  const edge: Edge = {
+    id: edgeId,
+    kind: input.kind,
+    fromCardId,
+    toCardId: id,
+    source: { ...input.source },
+    why: input.why,
+    actor: input.actor ?? "user",
+  };
+
+  // deepen: optional seed turn referencing span; diverge: empty turns
+  let turns: Turn[] = [];
+  if (input.kind === "deepen") {
+    turns = [
+      {
+        id: nextId("t"),
+        title: "深挖开场",
+        collapsed: false,
+        user: `从「${label}」往下：它具体指什么？`,
+        think: "深挖：父状态 + 源跨度；不整段灌父 transcript。",
+        thinkOpen: false,
+        aiHtml: `这是对「${label}」的深挖卡。（demo 占位）`,
+      },
+    ];
+  }
+
+  const prevFocus = s0.focusId;
+  set((s) => ({
+    nodes: [...s.nodes, node],
+    turnsByCardId: { ...s.turnsByCardId, [id]: turns },
+    edges: [...s.edges, edge],
+    focusId: id,
+  }));
+  applySpawnSuccess(get, set, id, prevFocus);
+  return id;
+}
+
+function mergeHostSnapshot(
+  get: () => WorkspaceState,
+  set: (
+    partial:
+      | Partial<WorkspaceState>
+      | ((s: WorkspaceState) => Partial<WorkspaceState>),
+  ) => void,
+  snap: WorkspaceSnapshot,
+  preferredFocus: string,
+) {
+  const prev = get();
+  const focusId = preferredFocus || snap.focusId;
+  const focusNode = snap.nodes.find((n) => n.id === focusId);
+  let rootId = focusId;
+  if (focusNode?.parentId) {
+    let cur: typeof focusNode | undefined = focusNode;
+    const guard = new Set<string>();
+    while (cur?.parentId && !guard.has(cur.id)) {
+      guard.add(cur.id);
+      cur = snap.nodes.find((n) => n.id === cur!.parentId);
+    }
+    if (cur) rootId = cur.id;
+  }
+  const { liveIds } = pinLiveId(prev.liveIds, rootId || focusId, LIVE_MAX);
+  set({
+    nodes: snap.nodes.map((n) => ({ ...n })),
+    turnsByCardId: Object.fromEntries(
+      Object.entries(snap.turnsByCardId).map(([k, turns]) => [
+        k,
+        turns.map((t) => ({ ...t })),
+      ]),
+    ),
+    edges: cloneEdges(snap.edges),
+    focusId,
+    source: snap.source,
+    workspaceMode: "focus",
+    recentIds: pushRecent(prev.recentIds, focusId, prev.focusId),
+    sessionTouchIds: touchSession(prev.sessionTouchIds, focusId),
+    liveIds,
+    highlightSpan: null,
+  });
+}
+
 export const useWorkspace = create<WorkspaceState>((set, get) => ({
   nodes: [],
   turnsByCardId: {},
+  edges: [],
   focusId: "",
   source: null,
   vaultPath: null,
@@ -164,6 +282,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   sessionTouchIds: [],
   resumeHintId: null,
   reentryDismissed: true,
+  highlightSpan: null,
 
   setVaultPath: (path) => set({ vaultPath: path }),
 
@@ -173,7 +292,6 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     const prevFocus = prev.focusId;
     const keepMap = prev.workspaceMode === "map" && snap.source === "demo";
     const focusNode = snap.nodes.find((n) => n.id === snap.focusId);
-    // Prefer tree root of focus for live set
     let rootId = snap.focusId;
     if (focusNode?.parentId) {
       let cur: typeof focusNode | undefined = focusNode;
@@ -192,9 +310,9 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
           turns.map((t) => ({ ...t })),
         ]),
       ),
+      edges: cloneEdges(snap.edges),
       focusId: snap.focusId,
       source: snap.source,
-      // Keep map open when reloading stress seeds from MapStage
       workspaceMode: keepMap ? "map" : "focus",
       mapScopeMode: keepMap ? prev.mapScopeMode : "working",
       recentIds: snap.focusId ? [snap.focusId] : [],
@@ -202,8 +320,8 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       sessionTouchIds: snap.focusId ? [snap.focusId] : [],
       resumeHintId:
         prevFocus && prevFocus !== snap.focusId ? prevFocus : snap.focusId,
-      // Don't flash re-entry banner on DEV stress reloads while already in map
       reentryDismissed: keepMap ? true : false,
+      highlightSpan: null,
     });
   },
 
@@ -248,35 +366,83 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
 
   dismissReentry: () => set({ reentryDismissed: true }),
 
+  spawnInquiry: async (input) => {
+    const s0 = get();
+    const fromCardId = input.fromCardId ?? s0.focusId;
+    if (!fromCardId) return "";
+
+    // Universe path: Host is source of truth for ids + edges
+    if (s0.source === "universe" && s0.vaultPath) {
+      try {
+        const { spawnInquiry: hostSpawn } = await import("../lib/host");
+        const prevIds = new Set(s0.nodes.map((n) => n.id));
+        const snap = await hostSpawn({
+          kind: input.kind,
+          fromCardId,
+          source: input.source,
+          why: input.why,
+          actor: input.actor ?? "user",
+        });
+        const created =
+          snap.nodes.find((n) => !prevIds.has(n.id))?.id ?? snap.focusId;
+        mergeHostSnapshot(get, set, snap, created);
+        return created;
+      } catch {
+        // fall through to in-memory spawn
+      }
+    }
+
+    return memorySpawnInquiry(get, set, input);
+  },
+
   spawnDeepen: (sourceLabel) => {
-    const prev = get().focusId;
-    const id = spawnChild(get, set, "deepen", sourceLabel);
     const s = get();
-    const root = rootOf(s.nodes, id);
-    const { liveIds } = pinLiveId(s.liveIds, root?.id ?? id, LIVE_MAX);
-    set({
-      workspaceMode: "focus",
-      recentIds: pushRecent(s.recentIds, id, prev),
-      sessionTouchIds: touchSession(s.sessionTouchIds, id),
-      liveIds,
+    const turns = s.turnsByCardId[s.focusId] ?? [];
+    const last = turns[turns.length - 1];
+    return get().spawnInquiry({
+      kind: "deepen",
+      source: {
+        turnId: last?.id ?? "",
+        text: sourceLabel.slice(0, 48),
+      },
+      actor: "user",
     });
-    return id;
   },
 
   spawnDiverge: (sourceLabel) => {
-    const prev = get().focusId;
-    const id = spawnChild(get, set, "diverge", sourceLabel);
     const s = get();
-    const root = rootOf(s.nodes, id);
-    const { liveIds } = pinLiveId(s.liveIds, root?.id ?? id, LIVE_MAX);
-    set({
-      workspaceMode: "focus",
-      recentIds: pushRecent(s.recentIds, id, prev),
-      sessionTouchIds: touchSession(s.sessionTouchIds, id),
-      liveIds,
+    const turns = s.turnsByCardId[s.focusId] ?? [];
+    const last = turns[turns.length - 1];
+    return get().spawnInquiry({
+      kind: "diverge",
+      source: {
+        turnId: last?.id ?? "",
+        text: sourceLabel.slice(0, 48),
+      },
+      actor: "user",
     });
-    return id;
   },
+
+  returnToSource: (span) => {
+    const s = get();
+    const focus = s.nodes.find((n) => n.id === s.focusId);
+    const parentId = focus?.parentId;
+    if (!parentId) return;
+
+    let target = span ?? null;
+    if (!target) {
+      const edge = s.edges.find((e) => e.toCardId === s.focusId);
+      if (edge) target = { ...edge.source };
+    }
+    const focused = afterFocus(s, parentId);
+    set({
+      ...focused,
+      highlightSpan: target,
+      workspaceMode: "focus",
+    });
+  },
+
+  clearHighlight: () => set({ highlightSpan: null }),
 
   regenerateTurn: (turnId) => {
     set((s) => {
@@ -326,7 +492,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       think: "demo 回复",
       thinkOpen: false,
       aiHtml:
-        '已记在本卡对话路径里。点下划线的<span class="mark" data-term="函子">函子</span>可继续分叉。',
+        '已记在本卡对话路径里。点下划线的<span class="mark" data-term="函子" data-mark-id="函子">函子</span>可继续分叉。',
     };
     set((s) => ({
       turnsByCardId: {

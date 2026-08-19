@@ -3,7 +3,9 @@ mod universe;
 use serde::Serialize;
 use std::sync::Mutex;
 use tauri::State;
-use universe::{OpenUniverseResult, Universe, WorkspaceSnapshotDto};
+use universe::{
+  OpenUniverseResult, SpawnInquiryArgs, SourceSpanDto, Universe, WorkspaceSnapshotDto,
+};
 
 struct AppState {
   /// Open universe (vault + db). None = unbound.
@@ -49,6 +51,7 @@ fn demo_shaped_empty_snapshot() -> WorkspaceSnapshotDto {
     nodes: vec![],
     turns_by_card_id: std::collections::BTreeMap::new(),
     focus_id: String::new(),
+    edges: vec![],
   }
 }
 
@@ -155,6 +158,32 @@ fn create_root_inquiry(
   u.create_root_inquiry(&title, question.as_deref())
 }
 
+/// Wave B — spawn deepen/diverge with SourceSpan edge (universe must be open).
+#[tauri::command]
+fn spawn_inquiry(
+  kind: String,
+  from_card_id: String,
+  source: SourceSpanDto,
+  why: Option<String>,
+  actor: Option<String>,
+  state: State<'_, AppState>,
+) -> Result<WorkspaceSnapshotDto, String> {
+  let mut g = state
+    .universe
+    .lock()
+    .map_err(|_| "universe lock poisoned".to_string())?;
+  let u = g
+    .as_mut()
+    .ok_or_else(|| "no universe open — bind a vault first".to_string())?;
+  u.spawn_inquiry(&SpawnInquiryArgs {
+    kind,
+    from_card_id,
+    source,
+    why,
+    actor,
+  })
+}
+
 #[tauri::command]
 fn ping() -> &'static str {
   "pong"
@@ -171,6 +200,7 @@ pub fn run() {
       close_universe,
       select_vault,
       create_root_inquiry,
+      spawn_inquiry,
       ping
     ])
     .setup(|app| {

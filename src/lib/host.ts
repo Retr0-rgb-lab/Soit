@@ -2,6 +2,7 @@ import type {
   BootstrapState,
   OpenUniverseResult,
   SelectVaultResult,
+  SpawnInquiryHostArgs,
   WorkspaceSnapshot,
 } from "../types";
 
@@ -69,5 +70,22 @@ export async function createRootInquiry(
   return invoke<WorkspaceSnapshot>("create_root_inquiry", {
     title,
     question: question ?? null,
+  });
+}
+
+/** Wave B — spawn deepen/diverge with SourceSpan edge (universe open). */
+export async function spawnInquiry(
+  args: SpawnInquiryHostArgs,
+): Promise<WorkspaceSnapshot> {
+  if (!hasTauri()) {
+    throw new Error("spawn_inquiry requires tauri");
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<WorkspaceSnapshot>("spawn_inquiry", {
+    kind: args.kind,
+    fromCardId: args.fromCardId,
+    source: args.source,
+    why: args.why ?? null,
+    actor: args.actor ?? null,
   });
 }

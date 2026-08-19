@@ -99,11 +99,11 @@ Commit: `feat(edges): (plan-b) SourceSpan, spawnInquiry, return-to-source`
 
 ## 4. Acceptance
 
-- [ ] Demo deepen/diverge create Edge with SourceSpan
-- [ ] Diverge card has zero turns
-- [ ] buildDeepenScope unit tests pass
-- [ ] Return-to-source highlights mark (manual or DOM test if feasible)
-- [ ] cargo test + npm test + build green
+- [x] Demo deepen/diverge create Edge with SourceSpan
+- [x] Diverge card has zero turns
+- [x] buildDeepenScope unit tests pass
+- [x] Return-to-source highlights mark (manual or DOM test if feasible)
+- [x] cargo test + npm test + build green
 
 ## 5. Diff Report (mandatory end)
 

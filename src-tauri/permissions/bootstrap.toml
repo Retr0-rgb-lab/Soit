@@ -29,6 +29,11 @@ description = "Allow create_root_inquiry command"
 commands.allow = ["create_root_inquiry"]
 
 [[permission]]
+identifier = "allow-spawn-inquiry"
+description = "Allow spawn_inquiry command"
+commands.allow = ["spawn_inquiry"]
+
+[[permission]]
 identifier = "allow-ping"
 description = "Allow ping command"
 commands.allow = ["ping"]

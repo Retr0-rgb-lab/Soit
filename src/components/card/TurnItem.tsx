@@ -12,12 +12,19 @@ import {
 interface Props {
   turn: Turn;
   onToggleCollapsed: () => void;
-  onDeepen: (label: string) => void;
-  onDiverge: (label: string) => void;
+  onDeepen: (label: string, turnId: string) => void;
+  onDiverge: (label: string, turnId: string) => void;
   onRegenerate: () => void;
   onDelete: () => void;
-  onMarkClick: (term: string, x: number, y: number) => void;
-  onAiMouseUp: (e: React.MouseEvent) => void;
+  onMarkClick: (
+    term: string,
+    x: number,
+    y: number,
+    meta: { turnId: string; markId?: string },
+  ) => void;
+  onAiMouseUp: (e: React.MouseEvent, turnId: string) => void;
+  /** When true, force-expand so highlight target is visible. */
+  forceExpand?: boolean;
 }
 
 export default function TurnItem({
@@ -29,10 +36,11 @@ export default function TurnItem({
   onDelete,
   onMarkClick,
   onAiMouseUp,
+  forceExpand,
 }: Props) {
   const [bookOn, setBookOn] = useState(false);
   const [thinkOpen, setThinkOpen] = useState(turn.thinkOpen);
-  const collapsed = turn.collapsed;
+  const collapsed = forceExpand ? false : turn.collapsed;
 
   const onCollapsedClick = () => {
     if (collapsed) onToggleCollapsed();
@@ -47,7 +55,11 @@ export default function TurnItem({
     e.stopPropagation();
     const term = (mark.getAttribute("data-term") || mark.textContent || "").trim();
     if (!term) return;
-    onMarkClick(term, e.clientX, e.clientY);
+    const markId =
+      mark.getAttribute("data-mark-id") ||
+      mark.getAttribute("data-term") ||
+      undefined;
+    onMarkClick(term, e.clientX, e.clientY, { turnId: turn.id, markId });
   };
 
   return (
@@ -83,7 +95,7 @@ export default function TurnItem({
             className="ic-round"
             data-tip="从此轮深挖"
             aria-label="从此轮深挖"
-            onClick={() => onDeepen(turn.title)}
+            onClick={() => onDeepen(turn.title, turn.id)}
           >
             <IconDeepen />
           </button>
@@ -92,7 +104,7 @@ export default function TurnItem({
             className="ic-round"
             data-tip="从此轮发散"
             aria-label="从此轮发散"
-            onClick={() => onDiverge(turn.title)}
+            onClick={() => onDiverge(turn.title, turn.id)}
           >
             <IconDiverge />
           </button>
@@ -152,9 +164,10 @@ export default function TurnItem({
           <div className="ic-msg ai" data-ai-turn={turn.id}>
             <div
               className="ai-html"
+              data-turn-id={turn.id}
               dangerouslySetInnerHTML={{ __html: turn.aiHtml }}
               onClick={onMarkPointer}
-              onMouseUp={onAiMouseUp}
+              onMouseUp={(e) => onAiMouseUp(e, turn.id)}
             />
           </div>
         </div>

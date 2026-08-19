@@ -11,6 +11,7 @@
     "allow-open-universe",
     "allow-close-universe",
     "allow-create-root-inquiry",
+    "allow-spawn-inquiry",
     "allow-ping"
   ]
 }

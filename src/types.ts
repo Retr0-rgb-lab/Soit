@@ -26,11 +26,33 @@ export interface Turn {
   thinkOpen: boolean;
 }
 
+/** Source span on a parent turn — used for edges and return-to-source. */
+export interface SourceSpan {
+  turnId: string;
+  text: string;
+  markId?: string;
+  start?: number;
+  end?: number;
+}
+
+/** First-class edge between inquiry cards (deepen | diverge). */
+export interface Edge {
+  id: string;
+  kind: "deepen" | "diverge";
+  fromCardId: string;
+  toCardId: string;
+  source: SourceSpan;
+  why?: string;
+  actor?: "user" | "agent";
+}
+
 export interface WorkspaceSnapshot {
   source: SnapshotSource;
   nodes: InquiryNode[];
   turnsByCardId: Record<string, Turn[]>;
   focusId: string;
+  /** Wave B — optional for older/stress snapshots */
+  edges?: Edge[];
 }
 
 export interface BootstrapState {
@@ -50,4 +72,13 @@ export interface OpenUniverseResult {
   path: string;
   error?: string;
   snapshot?: WorkspaceSnapshot;
+}
+
+/** Args for Host `spawn_inquiry` (universe path). */
+export interface SpawnInquiryHostArgs {
+  kind: "deepen" | "diverge";
+  fromCardId: string;
+  source: SourceSpan;
+  why?: string;
+  actor?: "user" | "agent";
 }
