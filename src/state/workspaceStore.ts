@@ -20,6 +20,8 @@ export interface WorkspaceState {
   turnsByCardId: Record<string, Turn[]>;
   focusId: string;
   source: WorkspaceSnapshot["source"] | null;
+  /** Bound vault path from host bootstrap / open_universe */
+  vaultPath: string | null;
   workspaceMode: WorkspaceMode;
   mapScopeMode: MapScopeMode;
   recentIds: string[];
@@ -32,6 +34,7 @@ export interface WorkspaceState {
   reentryDismissed: boolean;
 
   loadSnapshot: (snap: WorkspaceSnapshot) => void;
+  setVaultPath: (path: string | null) => void;
   focusNode: (id: string) => void;
   setWorkspaceMode: (mode: WorkspaceMode) => void;
   setMapScopeMode: (mode: MapScopeMode) => void;
@@ -153,6 +156,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   turnsByCardId: {},
   focusId: "",
   source: null,
+  vaultPath: null,
   workspaceMode: "focus",
   mapScopeMode: "working",
   recentIds: [],
@@ -161,11 +165,13 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   resumeHintId: null,
   reentryDismissed: true,
 
+  setVaultPath: (path) => set({ vaultPath: path }),
+
   loadSnapshot: (snap) => {
     idSeq = 0;
     const prev = get();
     const prevFocus = prev.focusId;
-    const keepMap = prev.workspaceMode === "map";
+    const keepMap = prev.workspaceMode === "map" && snap.source === "demo";
     const focusNode = snap.nodes.find((n) => n.id === snap.focusId);
     // Prefer tree root of focus for live set
     let rootId = snap.focusId;

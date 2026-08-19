@@ -14,6 +14,21 @@ description = "Allow select_vault command"
 commands.allow = ["select_vault"]
 
 [[permission]]
+identifier = "allow-open-universe"
+description = "Allow open_universe command"
+commands.allow = ["open_universe"]
+
+[[permission]]
+identifier = "allow-close-universe"
+description = "Allow close_universe command"
+commands.allow = ["close_universe"]
+
+[[permission]]
+identifier = "allow-create-root-inquiry"
+description = "Allow create_root_inquiry command"
+commands.allow = ["create_root_inquiry"]
+
+[[permission]]
 identifier = "allow-ping"
 description = "Allow ping command"
 commands.allow = ["ping"]

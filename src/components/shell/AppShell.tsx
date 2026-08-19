@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import InquiryCard from "../card/InquiryCard";
 import CommandPalette from "./CommandPalette";
+import EmptyWorkspace from "./EmptyWorkspace";
 import LeftRail from "./LeftRail";
 import LocusPeek from "./LocusPeek";
 import MapStage from "./MapStage";
@@ -24,7 +25,13 @@ export default function AppShell() {
   const toggleMap = useWorkspace((s) => s.toggleMapMode);
   const focusId = useWorkspace((s) => s.focusId);
   const nodes = useWorkspace((s) => s.nodes);
+  const source = useWorkspace((s) => s.source);
   const focusNode = useWorkspace((s) => s.focusNode);
+
+  const showEmpty =
+    source === "empty" ||
+    (source === "universe" && nodes.length === 0) ||
+    (source !== "demo" && source !== null && !focusId);
 
   const closePalette = useCallback(() => setPaletteOpen(false), []);
 
@@ -139,6 +146,10 @@ export default function AppShell() {
       <div className="workspace-main">
         {workspaceMode === "map" ? (
           <MapStage onClose={() => setMode("focus")} />
+        ) : showEmpty ? (
+          <main className="center-stage" aria-label="empty workspace">
+            <EmptyWorkspace />
+          </main>
         ) : (
           <>
             <main className="center-stage" aria-label="inquiry card">

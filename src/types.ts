@@ -1,11 +1,19 @@
 export type NodeKind = "root" | "deepen" | "diverge";
 
+/** Snapshot provenance — Wave A load matrix (Spec v1.1). */
+export type SnapshotSource = "demo" | "empty" | "universe";
+
+export type InquiryStatus = "active" | "paused" | "done" | "stuck";
+
 export interface InquiryNode {
   id: string;
   title: string;
   parentId: string | null;
   kind: NodeKind;
   unread: boolean;
+  /** Host/DB field; optional on demo seeds */
+  status?: InquiryStatus | string;
+  question?: string | null;
 }
 
 export interface Turn {
@@ -19,7 +27,7 @@ export interface Turn {
 }
 
 export interface WorkspaceSnapshot {
-  source: "demo" | "empty";
+  source: SnapshotSource;
   nodes: InquiryNode[];
   turnsByCardId: Record<string, Turn[]>;
   focusId: string;
@@ -35,4 +43,11 @@ export interface SelectVaultResult {
   ok: boolean;
   path: string;
   error?: string;
+}
+
+export interface OpenUniverseResult {
+  ok: boolean;
+  path: string;
+  error?: string;
+  snapshot?: WorkspaceSnapshot;
 }

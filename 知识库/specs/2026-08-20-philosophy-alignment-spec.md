@@ -1,10 +1,11 @@
-# 知识库理念对齐 — Spec v1.0
+# 知识库理念对齐 — Spec v1.1
 
 > 日期: 2026-08-20  
 > 依据: `知识库/docs/共识.md`、`对象模型.md`、`非目标.md`；四路实现审计（两层记忆 / 主循环 / Host·Skills·轻快 / 非目标漂移）  
 > 基线分支: `feature/tauri-workspace-scaffold`  
 > 前置: Tauri 壳 + 内存 demo 工作区 UI 已落地；本 Spec **纠偏主线**，停止「只抛光壳、不接核」  
-> 状态: **v1.0 待 Oracle**（用户确认后开 v1.1 + plans）
+> 状态: **v1.1 已合入 Oracle**（用户确认 → Wave A 执行）  
+> Oracle: **APPROVE-WITH-MINOR**
 
 ---
 
@@ -139,16 +140,41 @@
 
 **问题：** 卡片无持久化；选 vault 名存实亡。
 
-**做：**
+#### A.0 Oracle 冻结（v1.1，不可在实现中再议）
 
-1. Rust：打开 vault → 确保 `vault/.soit/` → 打开/迁移 `universe.db`（懒开，不在 bootstrap）。  
-2. Schema 最小：cards、edges、messages（或 turns）、meta(schema_version)。  
-3. Cards 字段对齐：`status, question, stuck, next, timestamps` + 现有 title/kind 派生。  
-4. Commands：`open_universe`、`get_workspace_snapshot`（读 DB）、基础 mutate。  
-5. 前端：`select_vault` UI；有 vault 时 **禁止** 静默 `demoSnapshot()`；无 vault 才允许 demo 且标记 `source:"demo"` 不写盘。  
-6. 换 vault：清空 store、关旧 DB、开新宇宙。
+**加载矩阵 `WorkspaceSnapshot.source`：**
 
-**不做：** 全库 md 索引、PKM 搜索。
+| 条件 | `source` | nodes | UI |
+|------|----------|-------|-----|
+| 未绑定 vault（含纯浏览器 mock） | `demo` | 允许前端 `demoSnapshot()` | 脚注 `Local · demo`；**不写盘** |
+| 已绑定 vault 且 0 张卡 | `empty` | `[]` | **禁止**灌 demo；空态 CTA「新建根探究」 |
+| 已绑定 vault 且有卡 | `universe` | 自 DB | 真工作区；重启仍在 |
+
+**A 命令面（Host）：**
+
+| Command | 契约 |
+|---------|------|
+| `get_bootstrap_state` | 仍瞬时；**永不** open DB |
+| `open_universe(path)` | 校验路径 → 确保 `vault/.soit/` → 打开/迁移 `universe.db` → 返回 snapshot（`empty`\|`universe`） |
+| `close_universe` | 关 DB、清 vault 绑定 |
+| `get_workspace_snapshot` | 有开库 → 读 DB；无开库 → `source:"demo"` 且 nodes 可 `[]`（由前端决定是否灌 demo） |
+| `create_root_inquiry({ title, question? })` | 仅当宇宙已开；Host 生成 id；插入 root card（+ 可选首 turn）；返回新 snapshot |
+| `select_vault` | **薄封装** → 等价 `open_universe`（兼容旧前端调用） |
+
+**Turn-first：** A 波持久化与前端一致的 **Turn** 形状（`user` / `aiHtml` / `think`…），**不**上 Message 角色模型（留给 C）。  
+**parentId vs edges：** A 波 cards 保留 `parent_id` 供树导航；建 `edges` 空表占位，**不**写边业务（B）。  
+**Host IDs：** 凡经 Host 写入的 card/turn id 由 Rust 生成（`c_` / `t_` + 时间戳/随机），前端 demo 路径可继续本地 id。  
+**空库 UX：** 绑定后 `source==="empty"` 时主区显示空态 + 新建根探究，不得 fallback demo。
+
+#### A.1 做
+
+1. Rust：`rusqlite`；`open_universe` 懒开；schema_version 在 `meta`。  
+2. Schema 最小：`meta`、`cards`（含 status/question/stuck/next/timestamps/unread/kind/parent_id/title）、`turns`（Turn-first）、`edges`（空表占位）。  
+3. 路径：`{vault}/.soit/universe.db`。  
+4. 前端：`App.tsx` 按 source 分支；LeftRail 绑定/解绑 vault + 显示路径；空态创建根探究。  
+5. 换 vault：`close_universe` 再 `open_universe`；store `loadSnapshot` 全量替换。
+
+**不做：** 全库 md 索引、PKM 搜索、spawn 写库（仍内存；B/C 接边与对话后双写或迁 Host）。
 
 ### Wave B — 边、跨度、主循环数据（P0）
 
@@ -359,6 +385,7 @@ Wave F  naming fence + polish freeze               (全程)
 | 版本 | 说明 |
 |------|------|
 | v1.0 | 四路审计合并；理念对齐主线 Spec；待 Oracle / 用户确认后拆 plans |
+| v1.1 | Oracle APPROVE-WITH-MINOR：冻结加载矩阵 `demo\|empty\|universe`、A 命令面、Turn-first、parentId/edges 分工、Host ID、空库 UX；用户确认后拆 Wave A plan 并执行 |
 
 ---
 

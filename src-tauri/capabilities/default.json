@@ -1,13 +1,16 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Minimal permissions for Wave 1 shell + bootstrap",
+  "description": "Minimal permissions for shell + universe (Wave A)",
   "windows": ["main"],
   "permissions": [
     "core:default",
     "allow-get-bootstrap-state",
     "allow-get-workspace-snapshot",
     "allow-select-vault",
+    "allow-open-universe",
+    "allow-close-universe",
+    "allow-create-root-inquiry",
     "allow-ping"
   ]
 }

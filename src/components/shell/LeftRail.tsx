@@ -1,5 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { LIVE_MAX } from "../../lib/liveSet";
+import {
+  closeUniverse,
+  openUniverse,
+} from "../../lib/host";
+import { demoSnapshot } from "../../lib/demoSeed";
 import { kindGlyph } from "../../lib/treeNav";
 import { groupUnreadByThread, isInLiveThread } from "../../lib/threadDebt";
 import { UNREAD_RAIL_CAP, useWorkspace } from "../../state/workspaceStore";
@@ -8,6 +13,12 @@ type Props = {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
 };
+
+function vaultDisplayName(path: string | null): string {
+  if (!path) return "未绑定";
+  const parts = path.replace(/\\/g, "/").split("/").filter(Boolean);
+  return parts[parts.length - 1] ?? path;
+}
 
 export default function LeftRail({ collapsed = false, onToggleCollapse }: Props) {
   const nodes = useWorkspace((s) => s.nodes);
@@ -21,6 +32,11 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
   const workspaceMode = useWorkspace((s) => s.workspaceMode);
   const setMode = useWorkspace((s) => s.setWorkspaceMode);
   const source = useWorkspace((s) => s.source);
+  const vaultPath = useWorkspace((s) => s.vaultPath);
+  const loadSnapshot = useWorkspace((s) => s.loadSnapshot);
+  const setVaultPath = useWorkspace((s) => s.setVaultPath);
+  const [vaultBusy, setVaultBusy] = useState(false);
+  const [vaultError, setVaultError] = useState<string | null>(null);
 
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
 
@@ -67,6 +83,46 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
     setMode("focus");
   };
 
+  const bindVault = async () => {
+    const suggested = vaultPath ?? "";
+    const path = window.prompt(
+      "绑定 Obsidian vault 目录（绝对路径）",
+      suggested,
+    );
+    if (path == null) return;
+    const trimmed = path.trim();
+    if (!trimmed) return;
+    setVaultBusy(true);
+    setVaultError(null);
+    try {
+      const res = await openUniverse(trimmed);
+      if (!res.ok || !res.snapshot) {
+        setVaultError(res.error ?? "打开宇宙失败");
+        return;
+      }
+      setVaultPath(res.path);
+      loadSnapshot(res.snapshot);
+    } catch (e) {
+      setVaultError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setVaultBusy(false);
+    }
+  };
+
+  const unbindVault = async () => {
+    setVaultBusy(true);
+    setVaultError(null);
+    try {
+      await closeUniverse();
+      setVaultPath(null);
+      loadSnapshot(demoSnapshot());
+    } catch (e) {
+      setVaultError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setVaultBusy(false);
+    }
+  };
+
   return (
     <aside
       className={`left-rail${collapsed ? " collapsed" : ""}`}
@@ -74,8 +130,20 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
     >
       <div className="rail-head">
         <div className="rail-brand">
-          <p className="shell-label">Soit</p>
-          {!collapsed && <h2 className="shell-title">探究</h2>}
+          <img
+            className="rail-logo"
+            src="/soit-mark.svg"
+            width={28}
+            height={28}
+            alt=""
+            draggable={false}
+          />
+          {!collapsed && (
+            <div className="rail-brand-text">
+              <p className="shell-label">Soit</p>
+              <h2 className="shell-title">探究</h2>
+            </div>
+          )}
         </div>
         <button
           type="button"
@@ -116,20 +184,37 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
         </div>
       ) : (
         <>
-          <nav className="rail-nav" aria-label="nav placeholders">
-            <button type="button" className="rail-nav-item" disabled>
-              宇宙
-            </button>
-            <button type="button" className="rail-nav-item" disabled>
-              vault
-            </button>
-            <button type="button" className="rail-nav-item" disabled>
-              记忆
-            </button>
-            <button type="button" className="rail-nav-item" disabled>
-              技能
-            </button>
-          </nav>
+          <div className="rail-vault" aria-label="vault bind">
+            <p className="rail-section-label">本库</p>
+            <p className="rail-vault-name" title={vaultPath ?? undefined}>
+              {vaultDisplayName(vaultPath)}
+            </p>
+            <div className="rail-vault-actions">
+              <button
+                type="button"
+                className="rail-action"
+                onClick={() => void bindVault()}
+                disabled={vaultBusy}
+              >
+                {vaultPath ? "换库" : "绑定库"}
+              </button>
+              {vaultPath && (
+                <button
+                  type="button"
+                  className="rail-action ghost"
+                  onClick={() => void unbindVault()}
+                  disabled={vaultBusy}
+                >
+                  解绑
+                </button>
+              )}
+            </div>
+            {vaultError && (
+              <p className="rail-vault-error" role="alert">
+                {vaultError}
+              </p>
+            )}
+          </div>
 
           <div className="rail-actions">
             <button
@@ -271,7 +356,13 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
           </div>
 
           <p className="rail-foot-meta">
-            {source === "demo" ? "Local · demo" : source ?? "—"}
+            {source === "demo"
+              ? "Local · demo"
+              : source === "empty"
+                ? "本库 · 空"
+                : source === "universe"
+                  ? "本库 · 宇宙"
+                  : (source ?? "—")}
             {" · "}
             {nodes.length} 卡
           </p>
