@@ -1,4 +1,5 @@
 mod obsidian;
+mod skills;
 mod universe;
 
 use serde::Serialize;
@@ -60,6 +61,10 @@ fn open_universe_impl(path: String, state: &AppState) -> OpenUniverseResult {
   let p = std::path::Path::new(&path);
   match Universe::open(p) {
     Ok(u) => {
+      // Wave E — seed/index skills + plugins placeholder (non-fatal if fails).
+      if let Err(e) = skills::ensure_on_open(&u.vault_path) {
+        log::warn!("skills ensure_on_open: {e}");
+      }
       let snap = match u.snapshot() {
         Ok(s) => s,
         Err(e) => {
@@ -88,6 +93,42 @@ fn open_universe_impl(path: String, state: &AppState) -> OpenUniverseResult {
       snapshot: None,
     },
   }
+}
+
+fn with_vault_path<T>(
+  state: &AppState,
+  f: impl FnOnce(&std::path::Path) -> Result<T, String>,
+) -> Result<T, String> {
+  let g = state
+    .universe
+    .lock()
+    .map_err(|_| "universe lock poisoned".to_string())?;
+  let u = g
+    .as_ref()
+    .ok_or_else(|| "no universe open — bind a vault first".to_string())?;
+  f(&u.vault_path)
+}
+
+/// List SKILL.md skills with enabled flags (Wave E).
+#[tauri::command]
+fn list_skills(state: State<'_, AppState>) -> Result<Vec<skills::SkillDto>, String> {
+  with_vault_path(&state, skills::list_skills)
+}
+
+/// Persist skill enable/disable in vault/.soit/skills_state.json (Wave E).
+#[tauri::command]
+fn set_skill_enabled(
+  id: String,
+  enabled: bool,
+  state: State<'_, AppState>,
+) -> Result<Vec<skills::SkillDto>, String> {
+  with_vault_path(&state, |vault| skills::set_skill_enabled(vault, &id, enabled))
+}
+
+/// Concat enabled skill bodies for chat inject (Wave C may call later).
+#[tauri::command]
+fn get_enabled_skills_text(state: State<'_, AppState>) -> Result<String, String> {
+  with_vault_path(&state, skills::get_enabled_skills_text)
 }
 
 /// Instant UI-ready bootstrap — no vault walk, no DB, no network.
@@ -246,6 +287,9 @@ pub fn run() {
       spawn_inquiry,
       precipitate_concept,
       append_residue,
+      list_skills,
+      set_skill_enabled,
+      get_enabled_skills_text,
       ping
     ])
     .setup(|app| {
@@ -316,5 +360,27 @@ mod tests {
     let snap = demo_shaped_empty_snapshot();
     assert_eq!(snap.source, "demo");
     assert!(snap.nodes.is_empty());
+  }
+
+  #[test]
+  fn open_universe_seeds_skills() {
+    let state = AppState::default();
+    let dir = std::env::temp_dir().join(format!(
+      "soit_skills_open_{}",
+      std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0)
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.to_string_lossy().to_string();
+    let ok = open_universe_impl(path, &state);
+    assert!(ok.ok, "{:?}", ok.error);
+    assert!(dir.join(".soit/skills/organize-cards/SKILL.md").is_file());
+    assert!(dir.join(".soit/skills/organize-obsidian/SKILL.md").is_file());
+    assert!(dir.join(".soit/plugins/README.md").is_file());
+    let list = with_vault_path(&state, skills::list_skills).unwrap();
+    assert_eq!(list.len(), 2);
+    let _ = std::fs::remove_dir_all(&dir);
   }
 }

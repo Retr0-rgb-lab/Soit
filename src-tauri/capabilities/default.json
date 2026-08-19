@@ -14,6 +14,9 @@
     "allow-spawn-inquiry",
     "allow-precipitate-concept",
     "allow-append-residue",
+    "allow-list-skills",
+    "allow-set-skill-enabled",
+    "allow-get-enabled-skills-text",
     "allow-ping"
   ]
 }

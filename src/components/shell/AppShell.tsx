@@ -6,6 +6,7 @@ import LeftRail from "./LeftRail";
 import LocusPeek from "./LocusPeek";
 import MapStage from "./MapStage";
 import ReentryBanner from "./ReentryBanner";
+import SkillsPanel from "./SkillsPanel";
 import { useWorkspace } from "../../state/workspaceStore";
 
 function isTypingTarget(t: EventTarget | null): boolean {
@@ -19,6 +20,7 @@ function isTypingTarget(t: EventTarget | null): boolean {
 export default function AppShell() {
   const [railCollapsed, setRailCollapsed] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [skillsOpen, setSkillsOpen] = useState(false);
 
   const workspaceMode = useWorkspace((s) => s.workspaceMode);
   const setMode = useWorkspace((s) => s.setWorkspaceMode);
@@ -34,6 +36,7 @@ export default function AppShell() {
     (source !== "demo" && source !== null && !focusId);
 
   const closePalette = useCallback(() => setPaletteOpen(false), []);
+  const closeSkills = useCallback(() => setSkillsOpen(false), []);
 
   useEffect(() => {
     const onOpen = () => setPaletteOpen(true);
@@ -42,11 +45,21 @@ export default function AppShell() {
   }, []);
 
   useEffect(() => {
+    const onOpen = () => {
+      setPaletteOpen(false);
+      setSkillsOpen(true);
+    };
+    window.addEventListener("soit:open-skills", onOpen);
+    return () => window.removeEventListener("soit:open-skills", onOpen);
+  }, []);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
       // Ctrl/Cmd+K — jump to card
       if (mod && (e.key === "k" || e.key === "K")) {
         e.preventDefault();
+        setSkillsOpen(false);
         setPaletteOpen((v) => !v);
         return;
       }
@@ -54,10 +67,16 @@ export default function AppShell() {
       if (mod && (e.key === "\\" || e.code === "Backslash")) {
         e.preventDefault();
         setPaletteOpen(false);
+        setSkillsOpen(false);
         toggleMap();
         return;
       }
       if (e.key === "Escape") {
+        if (skillsOpen) {
+          e.preventDefault();
+          setSkillsOpen(false);
+          return;
+        }
         if (paletteOpen) {
           e.preventDefault();
           setPaletteOpen(false);
@@ -75,7 +94,8 @@ export default function AppShell() {
         !e.altKey &&
         (e.key === "m" || e.key === "M") &&
         !isTypingTarget(e.target) &&
-        !paletteOpen
+        !paletteOpen &&
+        !skillsOpen
       ) {
         e.preventDefault();
         toggleMap();
@@ -88,6 +108,7 @@ export default function AppShell() {
         !mod &&
         workspaceMode === "focus" &&
         !paletteOpen &&
+        !skillsOpen &&
         !isTypingTarget(e.target)
       ) {
         const byId = new Map(nodes.map((n) => [n.id, n]));
@@ -127,6 +148,7 @@ export default function AppShell() {
     return () => window.removeEventListener("keydown", onKey);
   }, [
     paletteOpen,
+    skillsOpen,
     workspaceMode,
     setMode,
     toggleMap,
@@ -161,6 +183,7 @@ export default function AppShell() {
         )}
       </div>
       <CommandPalette open={paletteOpen} onClose={closePalette} />
+      <SkillsPanel open={skillsOpen} onClose={closeSkills} />
     </div>
   );
 }

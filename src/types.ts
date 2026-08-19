@@ -99,3 +99,11 @@ export interface AppendResidueResult {
   path?: string;
   error?: string;
 }
+
+/** Wave E — SKILL.md index entry */
+export interface SkillInfo {
+  id: string;
+  name: string;
+  description?: string;
+  enabled: boolean;
+}

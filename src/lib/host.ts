@@ -4,6 +4,7 @@ import type {
   OpenUniverseResult,
   PrecipitateConceptResult,
   SelectVaultResult,
+  SkillInfo,
   SpawnInquiryHostArgs,
   WorkspaceSnapshot,
 } from "../types";
@@ -130,4 +131,34 @@ export async function appendResidue(
   }
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<AppendResidueResult>("append_residue", { cardId, text });
+}
+
+/** Wave E — list SKILL.md skills (requires open universe). */
+export async function listSkills(): Promise<SkillInfo[]> {
+  if (!hasTauri()) {
+    return [];
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<SkillInfo[]>("list_skills");
+}
+
+/** Wave E — toggle skill; returns refreshed list. */
+export async function setSkillEnabled(
+  id: string,
+  enabled: boolean,
+): Promise<SkillInfo[]> {
+  if (!hasTauri()) {
+    throw new Error("set_skill_enabled requires tauri + bound vault");
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<SkillInfo[]>("set_skill_enabled", { id, enabled });
+}
+
+/** Wave E — concat enabled skill bodies for chat inject. */
+export async function getEnabledSkillsText(): Promise<string> {
+  if (!hasTauri()) {
+    return "";
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<string>("get_enabled_skills_text");
 }

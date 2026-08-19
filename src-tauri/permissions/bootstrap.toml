@@ -47,3 +47,18 @@ commands.allow = ["precipitate_concept"]
 identifier = "allow-append-residue"
 description = "Allow append_residue command"
 commands.allow = ["append_residue"]
+
+[[permission]]
+identifier = "allow-list-skills"
+description = "Allow list_skills command"
+commands.allow = ["list_skills"]
+
+[[permission]]
+identifier = "allow-set-skill-enabled"
+description = "Allow set_skill_enabled command"
+commands.allow = ["set_skill_enabled"]
+
+[[permission]]
+identifier = "allow-get-enabled-skills-text"
+description = "Allow get_enabled_skills_text command"
+commands.allow = ["get_enabled_skills_text"]

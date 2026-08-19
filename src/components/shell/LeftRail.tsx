@@ -236,6 +236,17 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
             >
               跳转
             </button>
+            <button
+              type="button"
+              className="rail-action ghost"
+              onClick={() =>
+                window.dispatchEvent(new CustomEvent("soit:open-skills"))
+              }
+              title="设置 · 技能"
+              disabled={!vaultPath}
+            >
+              技能
+            </button>
           </div>
 
           <div className="rail-scroll">
