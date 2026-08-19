@@ -1,3 +1,4 @@
+mod chat_config;
 mod obsidian;
 mod skills;
 mod universe;
@@ -290,6 +291,8 @@ pub fn run() {
       list_skills,
       set_skill_enabled,
       get_enabled_skills_text,
+      chat_config::get_chat_config,
+      chat_config::set_chat_config,
       ping
     ])
     .setup(|app| {

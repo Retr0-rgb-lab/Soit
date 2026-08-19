@@ -17,6 +17,8 @@
     "allow-list-skills",
     "allow-set-skill-enabled",
     "allow-get-enabled-skills-text",
+    "allow-get-chat-config",
+    "allow-set-chat-config",
     "allow-ping"
   ]
 }

@@ -16,10 +16,12 @@ Parent: `src/AGENTS.md`.
 | `treeNav.ts` / `threadDebt.ts` | Tree ancestry / root / subtree helpers |
 | `paletteRank.ts` | Command-palette ranking |
 | `marks.ts` | Mark / term helpers for assistant HTML |
+| `chat/` | ChatPort + MockChat + OpenAI-compat BYOK + config |
 
 ## Rules
 
-- `host.ts` commands: `get_bootstrap_state`, `get_workspace_snapshot`, `open_universe`, `close_universe`, `create_root_inquiry`, `select_vault` (compat). Match Rust names and TS types in `types.ts`.
+- `host.ts` commands: `get_bootstrap_state`, `get_workspace_snapshot`, `open_universe`, `close_universe`, `create_root_inquiry`, `select_vault` (compat), `get_chat_config` / `set_chat_config` (BYOK). Match Rust names and TS types in `types.ts`.
+- Chat secrets: app config / localStorage only — never `universe.db`.
 - **Load matrix** (`App.tsx`): only inject `demoSnapshot()` when `source === "demo"`. Never when `empty` or `universe`.
 - Browser path (no Tauri): mock bootstrap + demo snapshot.
 - Prefer pure input→output helpers; side effects only in `host.ts` (dynamic `import("@tauri-apps/api/core")`).
