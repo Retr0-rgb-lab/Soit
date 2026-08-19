@@ -51,3 +51,20 @@ export interface OpenUniverseResult {
   error?: string;
   snapshot?: WorkspaceSnapshot;
 }
+
+/** Wave D — precipitate_concept result */
+export interface PrecipitateConceptResult {
+  ok: boolean;
+  path?: string;
+  bodyWritten: boolean;
+  bodySkipped: boolean;
+  error?: string;
+  cardIds: string[];
+}
+
+/** Wave D — append_residue result */
+export interface AppendResidueResult {
+  ok: boolean;
+  path?: string;
+  error?: string;
+}

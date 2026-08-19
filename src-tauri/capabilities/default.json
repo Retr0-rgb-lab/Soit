@@ -11,6 +11,8 @@
     "allow-open-universe",
     "allow-close-universe",
     "allow-create-root-inquiry",
+    "allow-precipitate-concept",
+    "allow-append-residue",
     "allow-ping"
   ]
 }

@@ -1,3 +1,4 @@
+mod obsidian;
 mod universe;
 
 use serde::Serialize;
@@ -160,6 +161,48 @@ fn ping() -> &'static str {
   "pong"
 }
 
+/// Precipitate a concept page under vault/concepts/{slug}.md (Wave D).
+#[tauri::command]
+fn precipitate_concept(
+  card_id: String,
+  title: String,
+  question: Option<String>,
+  body_hint: Option<String>,
+  state: State<'_, AppState>,
+) -> Result<obsidian::PrecipitateConceptResult, String> {
+  let g = state
+    .universe
+    .lock()
+    .map_err(|_| "universe lock poisoned".to_string())?;
+  let u = g
+    .as_ref()
+    .ok_or_else(|| "no universe open — bind a vault first".to_string())?;
+  Ok(obsidian::write_concept(
+    &u.vault_path,
+    &card_id,
+    &title,
+    question.as_deref(),
+    body_hint.as_deref(),
+  ))
+}
+
+/// Append a short residue note under vault/inquiry/ (Wave D).
+#[tauri::command]
+fn append_residue(
+  card_id: String,
+  text: String,
+  state: State<'_, AppState>,
+) -> Result<obsidian::AppendResidueResult, String> {
+  let g = state
+    .universe
+    .lock()
+    .map_err(|_| "universe lock poisoned".to_string())?;
+  let u = g
+    .as_ref()
+    .ok_or_else(|| "no universe open — bind a vault first".to_string())?;
+  Ok(obsidian::write_residue(&u.vault_path, &card_id, &text))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -171,6 +214,8 @@ pub fn run() {
       close_universe,
       select_vault,
       create_root_inquiry,
+      precipitate_concept,
+      append_residue,
       ping
     ])
     .setup(|app| {
