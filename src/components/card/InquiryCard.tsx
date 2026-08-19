@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { termExplanation } from "../../lib/marks";
 import { ancestorChain } from "../../lib/treeNav";
 import { useWorkspace } from "../../state/workspaceStore";
@@ -52,6 +52,10 @@ export default function InquiryCard() {
   const [draft, setDraft] = useState("");
   const [quote, setQuote] = useState("");
   const [enterOn, setEnterOn] = useState(false);
+  const [settleOn, setSettleOn] = useState(false);
+  const [navKind, setNavKind] = useState<"jump" | "deepen" | "diverge" | "back">(
+    "jump",
+  );
   const [float, setFloat] = useState<TermFloatState | null>(null);
   const [selBar, setSelBar] = useState<SelectionBarState | null>(null);
   const [chooser, setChooser] = useState<{
@@ -59,6 +63,7 @@ export default function InquiryCard() {
     y: number;
     label: string;
   } | null>(null);
+  const prevFocusRef = useRef(focusId);
 
   // Clear ephemeral UI + one-shot enter motion when focus card changes
   useEffect(() => {
@@ -67,13 +72,35 @@ export default function InquiryCard() {
     setFloat(null);
     setSelBar(null);
     setChooser(null);
-    if (focusId) setEnterOn(true);
+    if (!focusId) return;
+
+    // Infer back vs jump when not from deepen/diverge
+    const prev = prevFocusRef.current;
+    if (prev && prev !== focusId && navKind === "jump") {
+      const prevNode = nodes.find((n) => n.id === prev);
+      if (prevNode?.parentId === focusId) {
+        setNavKind("back");
+      }
+    }
+    prevFocusRef.current = focusId;
+    setEnterOn(true);
+    setSettleOn(true);
+    const t = window.setTimeout(() => setSettleOn(false), 420);
+    return () => window.clearTimeout(t);
+    // navKind intentionally read once per focus change; set via handlers before spawn
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusId]);
+
+  useEffect(() => {
+    document.body.classList.toggle("has-selbar", Boolean(selBar));
+    return () => document.body.classList.remove("has-selbar");
+  }, [selBar]);
 
   const sourceLabel = focus?.title || "概念";
 
   const onDeepen = useCallback(
     (label?: string) => {
+      setNavKind("deepen");
       spawnDeepen((label || sourceLabel).slice(0, 48));
       setFloat(null);
       setSelBar(null);
@@ -84,6 +111,7 @@ export default function InquiryCard() {
 
   const onDiverge = useCallback(
     (label?: string) => {
+      setNavKind("diverge");
       spawnDiverge((label || sourceLabel).slice(0, 48));
       setFloat(null);
       setSelBar(null);
@@ -177,16 +205,21 @@ export default function InquiryCard() {
   return (
     <div className="inquiry-root">
       <div className="inquiry-stage">
-        <div className="inquiry-stack">
+        <div
+          className={`inquiry-stack${settleOn ? " settle" : ""}${enterOn ? " switching" : ""}`}
+        >
           <div className="inquiry-sheet s2" />
           <div className="inquiry-sheet s1" />
           <div className="inquiry-card-wrap">
             <article
-              className={`inquiry-card${enterOn ? " enter" : ""}`}
+              className={`inquiry-card${enterOn ? ` enter enter-${navKind}` : ""}`}
               aria-label="inquiry card body"
               onAnimationEnd={(e) => {
                 if (e.target !== e.currentTarget) return;
-                if (e.animationName === "card-enter") setEnterOn(false);
+                if (e.animationName.startsWith("card-enter")) {
+                  setEnterOn(false);
+                  setNavKind("jump");
+                }
               }}
             >
               <CardHeader
@@ -195,6 +228,7 @@ export default function InquiryCard() {
                 parent={parent}
                 onDeepen={() => onDeepen(focus.title)}
                 onCrumb={(id) => {
+                  setNavKind("back");
                   focusNode(id);
                   setMode("focus");
                 }}

@@ -18,12 +18,37 @@
   --radius: 10px;
   --font: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei",
     sans-serif;
-  --shadow-soft: 0 1px 2px rgb(42 36 28 / 6%), 0 8px 24px rgb(42 36 28 / 6%);
+
+  /* Warm paper elevation — one hero shadow per frame */
+  --e0: none;
+  --e1:
+    0 1px 2px rgb(40 30 18 / 5%), 0 2px 6px rgb(40 30 18 / 4%);
+  --e2:
+    0 1px 2px rgb(40 30 18 / 5%), 0 6px 16px rgb(40 30 18 / 7%);
+  --e3:
+    0 1px 0 rgb(255 253 248 / 75%) inset, 0 2px 4px rgb(40 30 18 / 5%),
+    0 12px 28px rgb(40 30 18 / 8%), 0 28px 48px rgb(40 30 18 / 6%);
+  --e-float:
+    0 8px 24px rgb(40 30 18 / 14%), 0 20px 40px rgb(40 30 18 / 10%);
+  --shadow-soft: var(--e2);
+
+  /* Staggered paper stack (under-sheets) */
+  --sheet-1-x: 10px;
+  --sheet-1-y: 8px;
+  --sheet-1-r: 0.7deg;
+  --sheet-1-s: 0.985;
+  --sheet-2-x: 18px;
+  --sheet-2-y: 15px;
+  --sheet-2-r: -1.1deg;
+  --sheet-2-s: 0.97;
+
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-soft: cubic-bezier(0.32, 0.72, 0, 1);
-  --motion-card: 0.42s;
+  --motion-card: 0.28s;
+  --motion-exit: 0.16s;
   --motion-pop: 0.28s;
   --motion-fade: 0.16s;
+  --motion-sheet: 0.36s;
 }
 
 @media (prefers-reduced-motion: reduce) {

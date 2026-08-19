@@ -262,21 +262,32 @@ export default function GraphCanvas({
 }
 
 function radiusFor(role: NodeRole, on: boolean): number {
-  if (on || role === "focus") return 12;
-  if (role === "path") return 10;
-  if (role === "aggregate") return 11;
-  if (role === "field") return 5.5;
-  return 8;
+  // Minimal spine: smaller rings so locus chip stays calm
+  if (on || role === "focus") return 8;
+  if (role === "path") return 6;
+  if (role === "aggregate") return 5.5;
+  if (role === "field") return 2.75;
+  return 4.25;
 }
 
-function ringPaint(role: NodeRole, on: boolean): { fill: string; stroke: string } {
+function ringPaint(
+  role: NodeRole,
+  on: boolean,
+): { fill: string; stroke: string; strokeWidth: number } {
   if (on || role === "focus") {
-    return { fill: "#2c2822", stroke: "#2c2822" };
+    return { fill: "#2a241c", stroke: "#2a241c", strokeWidth: 1.1 };
+  }
+  if (role === "path") {
+    return { fill: "#5c5348", stroke: "none", strokeWidth: 0 };
   }
   if (role === "aggregate") {
-    return { fill: "#efe6d8", stroke: "#8b5e34" };
+    return { fill: "transparent", stroke: "#8b5e34", strokeWidth: 1.1 };
   }
-  return { fill: "#f4eee4", stroke: "#9a9082" };
+  if (role === "field") {
+    return { fill: "#d9cfc0", stroke: "none", strokeWidth: 0 };
+  }
+  // context — sand fill, no hard ring
+  return { fill: "#c4b7a4", stroke: "none", strokeWidth: 0 };
 }
 
 function GraphNode({
@@ -325,16 +336,16 @@ function GraphNode({
         cy={n.y}
         r={r}
         fill={paint.fill}
-        stroke={paint.stroke}
-        strokeWidth={1.5}
-        strokeDasharray={role === "aggregate" && !on ? "3 2" : undefined}
+        stroke={paint.stroke === "none" ? "transparent" : paint.stroke}
+        strokeWidth={paint.strokeWidth}
+        strokeDasharray={role === "aggregate" && !on ? "2 2" : undefined}
       />
       <circle
         className="dot"
         cx={n.x + r - 1}
         cy={n.y - r + 1}
-        r={3.2}
-        fill="#c45c26"
+        r={2}
+        fill="#b8956c"
         opacity={on ? 0 : n.unread ? 1 : 0}
       />
       {showLabel && (

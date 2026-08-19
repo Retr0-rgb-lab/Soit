@@ -24,8 +24,8 @@ export default function LocusPeek({ onExpandMap }: Props) {
   const locus = useMemo(() => {
     const raw = mapConeNodes(nodes, focusId, {
       ...DEFAULT_MAP_CAPS,
-      siblingCap: 8,
-      childCap: 8,
+      siblingCap: 5,
+      childCap: 5,
     });
     // Re-stamp roles from live focusId so highlight never lags the card
     return raw.map((n) => {

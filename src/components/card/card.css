@@ -34,22 +34,39 @@
 .inquiry-sheet {
   position: absolute;
   inset: 0;
-  border-radius: 18px;
-  background: #ebe4d7;
-  border: 1px solid #8a7f70;
+  border-radius: 17px;
+  background: color-mix(in srgb, var(--bg-muted) 72%, var(--bg-card));
+  border: 1px solid rgb(42 36 28 / 10%);
   pointer-events: none;
+  transform-origin: 50% 40%;
+  transition:
+    transform var(--motion-sheet) var(--ease-out),
+    opacity var(--motion-sheet) var(--ease-out);
+}
+
+/* Staggered paper stack — slight scatter, not parallel chrome */
+.inquiry-sheet.s1 {
+  transform: translate(var(--sheet-1-x), var(--sheet-1-y))
+    rotate(var(--sheet-1-r)) scale(var(--sheet-1-s));
+  box-shadow: var(--e1);
+  opacity: 0.88;
+  z-index: 0;
 }
 
 .inquiry-sheet.s2 {
-  transform: translate(14px, 14px);
-  box-shadow: 0 22px 44px rgb(40 30 18 / 10%);
-  opacity: 0.92;
+  transform: translate(var(--sheet-2-x), var(--sheet-2-y))
+    rotate(var(--sheet-2-r)) scale(var(--sheet-2-s));
+  box-shadow: 0 1px 2px rgb(42 36 28 / 3%), 0 14px 28px rgb(42 36 28 / 5%);
+  opacity: 0.72;
+  z-index: 0;
 }
 
-.inquiry-sheet.s1 {
-  transform: translate(7px, 7px);
-  box-shadow: 0 16px 32px rgb(40 30 18 / 11%);
-  opacity: 0.96;
+.inquiry-stack.settle .inquiry-sheet.s1 {
+  transition-delay: 0.05s;
+}
+
+.inquiry-stack.settle .inquiry-sheet.s2 {
+  transition-delay: 0.08s;
 }
 
 .inquiry-card-wrap {
@@ -65,32 +82,129 @@
   flex: 1;
   min-height: 0;
   background: var(--bg-card);
-  border: 1px solid var(--line-strong);
+  border: 1px solid color-mix(in srgb, var(--line-strong) 88%, var(--accent) 12%);
   border-radius: 18px;
-  box-shadow:
-    0 2px 4px rgb(40 30 18 / 6%),
-    0 16px 32px rgb(40 30 18 / 12%),
-    0 40px 72px rgb(40 30 18 / 14%);
+  box-shadow: var(--e3);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   transform-origin: 50% 40%;
 }
 
-/* Card switch enter (focus change) */
+/* Card switch — short, directional */
 .inquiry-card.enter {
-  animation: card-enter var(--motion-card) var(--ease-out) both;
+  animation: card-enter-jump var(--motion-card) var(--ease-out) both;
 }
 
-@keyframes card-enter {
+.inquiry-card.enter-deepen {
+  animation-name: card-enter-deepen;
+}
+
+.inquiry-card.enter-diverge {
+  animation-name: card-enter-diverge;
+}
+
+.inquiry-card.enter-back {
+  animation-name: card-enter-back;
+}
+
+.inquiry-card.exit {
+  animation: card-exit-jump var(--motion-exit) var(--ease-soft) both;
+  pointer-events: none;
+}
+
+.inquiry-card.exit-deepen {
+  animation-name: card-exit-deepen;
+}
+
+.inquiry-card.exit-diverge {
+  animation-name: card-exit-diverge;
+}
+
+.inquiry-card.exit-back {
+  animation-name: card-exit-back;
+}
+
+@keyframes card-enter-jump {
   from {
     opacity: 0;
-    transform: translateY(14px) scale(0.985);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
     transform: none;
   }
+}
+
+@keyframes card-enter-deepen {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes card-enter-diverge {
+  from {
+    opacity: 0;
+    transform: translateX(12px) rotate(0.35deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes card-enter-back {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes card-exit-jump {
+  to {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@keyframes card-exit-deepen {
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.985);
+  }
+}
+
+@keyframes card-exit-diverge {
+  to {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+}
+
+@keyframes card-exit-back {
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.inquiry-stack.switching .ic-edge,
+.inquiry-stack.switching .ic-dock {
+  opacity: 0.4;
+}
+
+.inquiry-root .ic-edge,
+.inquiry-root .ic-dock {
+  transition: opacity var(--motion-fade) var(--ease-soft);
 }
 
 .inquiry-empty {
@@ -223,7 +337,7 @@
   flex: 0 0 auto;
 }
 
-/* Round buttons */
+/* Round buttons — rest flat; hover lifts one step only */
 .ic-round {
   width: 36px;
   height: 36px;
@@ -233,19 +347,26 @@
   color: var(--ink);
   display: grid;
   place-items: center;
-  box-shadow: 0 1px 1px rgb(40 30 18 / 6%), 0 8px 16px rgb(40 30 18 / 10%);
-  transition: background 0.15s, transform 0.12s cubic-bezier(0.32, 0.72, 0, 1),
-    box-shadow 0.15s;
+  box-shadow: var(--e0);
+  transition:
+    background 0.14s var(--ease-soft),
+    transform 0.1s var(--ease-soft),
+    box-shadow 0.14s var(--ease-soft);
   padding: 0;
 }
 
 .ic-round:hover {
   background: #e7dccb;
-  transform: translateY(-1px);
+  box-shadow: var(--e1);
 }
 
 .ic-round:active {
-  transform: translateY(0) scale(0.96);
+  transform: scale(0.97);
+}
+
+.ic-round:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--focus) 55%, transparent);
+  outline-offset: 3px;
 }
 
 .ic-round.danger {
@@ -322,7 +443,7 @@
   opacity: 0.65;
 }
 
-/* Hover bar: opacity transition, not display:none hard cut */
+/* Hover bar: opacity only — no scale bounce */
 .ic-turn-bar {
   display: flex;
   align-items: center;
@@ -331,23 +452,26 @@
   border-radius: 999px;
   background: #f3ece2;
   border: 1px solid rgb(90 80 65 / 16%);
-  box-shadow: 0 10px 22px rgb(40 30 18 / 12%);
+  box-shadow: var(--e2);
   opacity: 0;
   pointer-events: none;
-  transform: translateY(4px) scale(0.98);
-  transition: opacity var(--motion-fade) var(--ease-soft),
-    transform 0.18s var(--ease-out);
+  transition: opacity 0.14s var(--ease-soft);
 }
 
-.ic-turn:hover .ic-turn-bar {
+.ic-turn:hover .ic-turn-bar,
+.ic-turn:focus-within .ic-turn-bar {
   opacity: 1;
   pointer-events: auto;
-  transform: none;
 }
 
 .ic-turn.collapsed .ic-turn-bar {
   opacity: 0;
   pointer-events: none;
+}
+
+body.has-selbar .ic-turn-bar {
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .ic-turn-bar .ic-round {
@@ -400,7 +524,7 @@
   border-radius: 16px 16px 6px 16px;
   padding: 10px 14px;
   width: fit-content;
-  box-shadow: 0 4px 12px rgb(40 30 18 / 6%);
+  box-shadow: var(--e0);
   white-space: pre-wrap;
 }
 
@@ -459,27 +583,39 @@
   padding: 8px 10px;
 }
 
-/* Marks inside trusted demo HTML */
+/* Marks inside trusted demo HTML — no glow ring */
 .ai-html .mark {
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, currentColor 55%, transparent);
   cursor: pointer;
-  border-radius: 3px;
-  transition: background 0.15s, text-decoration-color 0.15s, box-shadow 0.15s;
+  border-radius: 2px;
+  padding: 0 1px;
+  transition:
+    background 0.14s var(--ease-soft),
+    text-decoration-color 0.14s var(--ease-soft),
+    box-shadow 0.14s var(--ease-soft);
 }
 
 .ai-html .mark:hover {
-  background: color-mix(in srgb, currentColor 12%, transparent);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
   text-decoration-color: transparent;
-  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.ai-html .mark:focus-visible,
+.ai-html .mark.open {
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+  box-shadow: inset 0 -1.5px 0 var(--accent);
+  text-decoration: none;
+  outline: none;
 }
 
 .ai-html {
   line-height: 1.65;
 }
 
-/* Edge actions */
+/* Edge actions — lighter than card */
 .ic-edge {
   width: min(820px, 100%);
   margin: 0 auto;
@@ -494,10 +630,18 @@
   width: 40px;
   height: 40px;
   background: var(--bg-card);
-  border: 1px solid rgb(111 103 92 / 35%);
+  border: 1px solid rgb(42 36 28 / 12%);
+  box-shadow: var(--e0);
 }
 
-/* Composer dock */
+.ic-edge .ic-round:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+  background: var(--bg-muted);
+  box-shadow: var(--e1);
+  transform: none;
+}
+
+/* Composer dock — e2, not competing with card e3 */
 .ic-dock {
   width: min(820px, 100%);
   margin: 0 auto;
@@ -508,8 +652,13 @@
   display: flex;
   align-items: flex-end;
   gap: 10px;
-  box-shadow: 0 2px 4px rgb(40 30 18 / 6%), 0 18px 36px rgb(40 30 18 / 14%);
+  box-shadow: var(--e2);
   z-index: 8;
+}
+
+.ic-dock:focus-within {
+  border-color: color-mix(in srgb, var(--line-strong) 70%, var(--focus) 30%);
+  box-shadow: var(--e2), 0 0 0 3px color-mix(in srgb, var(--accent-soft) 45%, transparent);
 }
 
 .ic-dock .model {
@@ -520,7 +669,7 @@
   padding: 8px 12px;
   font-size: 12px;
   color: #3d3830;
-  box-shadow: 0 4px 10px rgb(40 30 18 / 8%);
+  box-shadow: var(--e0);
 }
 
 .ic-dock .fields {
