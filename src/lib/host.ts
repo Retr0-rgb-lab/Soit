@@ -1,12 +1,18 @@
 import type {
   AppendResidueResult,
   BootstrapState,
+  ChatConfig,
   OpenUniverseResult,
   PrecipitateConceptResult,
   SelectVaultResult,
   SpawnInquiryHostArgs,
   WorkspaceSnapshot,
 } from "../types";
+import {
+  normalizeChatConfig,
+  readChatConfigFromLocalStorage,
+  writeChatConfigToLocalStorage,
+} from "./chat/config";
 
 function hasTauri(): boolean {
   if (typeof window === "undefined") return false;
@@ -130,4 +136,34 @@ export async function appendResidue(
   }
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<AppendResidueResult>("append_residue", { cardId, text });
+}
+
+/**
+ * BYOK chat config — never universe.db.
+ * Tauri: `{app_config_dir}/soit-chat.json`. Browser: localStorage only.
+ */
+export async function getChatConfig(): Promise<ChatConfig> {
+  if (!hasTauri()) {
+    return readChatConfigFromLocalStorage();
+  }
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const raw = await invoke<Partial<ChatConfig>>("get_chat_config");
+    return normalizeChatConfig(raw);
+  } catch {
+    return readChatConfigFromLocalStorage();
+  }
+}
+
+export async function setChatConfig(config: ChatConfig): Promise<void> {
+  const cfg = normalizeChatConfig(config);
+  // Always mirror to localStorage so browser/dev and resolvePort stay in sync.
+  writeChatConfigToLocalStorage(cfg);
+  if (!hasTauri()) return;
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("set_chat_config", { config: cfg });
+  } catch {
+    // localStorage already written
+  }
 }

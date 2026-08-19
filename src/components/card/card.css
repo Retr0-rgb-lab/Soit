@@ -198,12 +198,14 @@
 }
 
 .inquiry-stack.switching .ic-edge,
-.inquiry-stack.switching .ic-dock {
+.inquiry-stack.switching .ic-dock,
+.inquiry-stack.switching .ic-dock-wrap {
   opacity: 0.4;
 }
 
 .inquiry-root .ic-edge,
-.inquiry-root .ic-dock {
+.inquiry-root .ic-dock,
+.inquiry-root .ic-dock-wrap {
   transition: opacity var(--motion-fade) var(--ease-soft);
 }
 
@@ -723,9 +725,88 @@ body.has-selbar .ic-turn-bar {
 }
 
 /* Composer dock — e2, not competing with card e3 */
-.ic-dock {
+.ic-dock-wrap {
   width: min(820px, 100%);
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 8;
+}
+
+.ic-chat-settings {
+  background: var(--bg-card);
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  padding: 12px 14px;
+  box-shadow: var(--e2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.ic-chat-settings-title {
+  font-weight: 600;
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ic-chat-settings-note {
+  font-weight: 400;
+  font-size: 10px;
+  color: var(--ink-faint);
+}
+
+.ic-chat-settings label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #3d3830;
+}
+
+.ic-chat-settings input {
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 7px 10px;
+  font: inherit;
+  background: var(--bg-muted);
+  color: inherit;
+}
+
+.ic-chat-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.ic-chat-settings-actions button {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 12px;
+  background: var(--ink);
+  color: #f4efe6;
+  cursor: pointer;
+}
+
+.ic-chat-settings-actions button.ghost {
+  background: var(--bg-muted);
+  color: #3d3830;
+  box-shadow: var(--e0);
+}
+
+.ic-chat-settings-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ic-dock {
+  width: 100%;
   background: var(--bg-card);
   border: 1px solid var(--line-strong);
   border-radius: 20px;
@@ -734,7 +815,6 @@ body.has-selbar .ic-turn-bar {
   align-items: flex-end;
   gap: 10px;
   box-shadow: var(--e2);
-  z-index: 8;
 }
 
 .ic-dock:focus-within {
@@ -751,6 +831,19 @@ body.has-selbar .ic-turn-bar {
   font-size: 12px;
   color: #3d3830;
   box-shadow: var(--e0);
+  cursor: pointer;
+  max-width: 9.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ic-dock .model.is-mock {
+  color: #6b6358;
+}
+
+.ic-dock .model.is-byok {
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--bg-muted));
 }
 
 .ic-dock .fields {

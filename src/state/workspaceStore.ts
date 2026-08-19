@@ -1,5 +1,12 @@
 import { create } from "zustand";
 import {
+  completeResultToHtml,
+  resolvePort,
+  stripHtml,
+  type ChatMessage,
+} from "../lib/chat";
+import { buildDeepenScope, inboundEdge } from "../lib/deepenScope";
+import {
   LIVE_MAX,
   pinLiveId,
   touchSession,
@@ -71,10 +78,11 @@ export interface WorkspaceState {
   /** Focus parent and request mark highlight from inbound edge / span. */
   returnToSource: (span?: SourceSpan | null) => void;
   clearHighlight: () => void;
-  regenerateTurn: (turnId: string) => void;
+  regenerateTurn: (turnId: string) => Promise<void>;
   deleteTurn: (turnId: string) => void;
   toggleTurnCollapsed: (turnId: string) => void;
-  appendUserMessage: (text: string, quote?: string) => void;
+  /** Fire-and-forget OK; returns when assistant turn is filled via ChatPort. */
+  appendUserMessage: (text: string, quote?: string) => Promise<void>;
 }
 
 function pushRecent(recentIds: string[], id: string, prevFocus: string): string[] {
@@ -107,6 +115,65 @@ function cloneEdges(edges: Edge[] | undefined): Edge[] {
     ...e,
     source: { ...e.source },
   }));
+}
+
+/** Build chat messages from turns up to `untilIndex` (exclusive of assistant at until). */
+function messagesFromTurns(
+  turns: Turn[],
+  opts?: { untilIndex?: number; includeAssistantAtUntil?: boolean },
+): ChatMessage[] {
+  const end = opts?.untilIndex ?? turns.length;
+  const msgs: ChatMessage[] = [];
+  for (let i = 0; i < end; i++) {
+    const t = turns[i]!;
+    if (t.user?.trim()) {
+      msgs.push({ role: "user", content: t.user });
+    }
+    const includeAi =
+      i < end - 1 || opts?.includeAssistantAtUntil === true;
+    if (includeAi && t.aiHtml?.trim()) {
+      const plain = stripHtml(t.aiHtml);
+      if (plain) msgs.push({ role: "assistant", content: plain });
+    }
+  }
+  return msgs;
+}
+
+function scopeForCard(
+  s: Pick<WorkspaceState, "nodes" | "turnsByCardId" | "edges">,
+  cardId: string,
+): unknown {
+  const edge = inboundEdge(cardId, s.edges);
+  if (!edge || edge.kind !== "deepen") return undefined;
+  return buildDeepenScope(cardId, edge.id, {
+    nodes: s.nodes,
+    turnsByCardId: s.turnsByCardId,
+    edges: s.edges,
+  });
+}
+
+function patchTurnAi(
+  set: (
+    partial:
+      | Partial<WorkspaceState>
+      | ((s: WorkspaceState) => Partial<WorkspaceState>),
+  ) => void,
+  cardId: string,
+  turnId: string,
+  patch: Partial<Pick<Turn, "aiHtml" | "think" | "thinkOpen">>,
+) {
+  set((s) => {
+    const turns = s.turnsByCardId[cardId];
+    if (!turns) return {};
+    return {
+      turnsByCardId: {
+        ...s.turnsByCardId,
+        [cardId]: turns.map((t) =>
+          t.id === turnId ? { ...t, ...patch } : t,
+        ),
+      },
+    };
+  });
 }
 
 function afterFocus(
@@ -444,18 +511,56 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
 
   clearHighlight: () => set({ highlightSpan: null }),
 
-  regenerateTurn: (turnId) => {
-    set((s) => {
-      const next: Record<string, Turn[]> = {};
-      for (const [cardId, turns] of Object.entries(s.turnsByCardId)) {
-        next[cardId] = turns.map((t) =>
-          t.id === turnId
-            ? { ...t, aiHtml: `${t.aiHtml}<p><em>（已重生 · demo）</em></p>` }
-            : t,
-        );
+  regenerateTurn: async (turnId) => {
+    const s0 = get();
+    let cardId = "";
+    let turnIndex = -1;
+    for (const [cid, turns] of Object.entries(s0.turnsByCardId)) {
+      const idx = turns.findIndex((t) => t.id === turnId);
+      if (idx >= 0) {
+        cardId = cid;
+        turnIndex = idx;
+        break;
       }
-      return { turnsByCardId: next };
+    }
+    if (!cardId || turnIndex < 0) return;
+
+    const turns = s0.turnsByCardId[cardId] ?? [];
+    const target = turns[turnIndex]!;
+    const messages = messagesFromTurns(turns, {
+      untilIndex: turnIndex + 1,
+      includeAssistantAtUntil: false,
     });
+    // Ensure the regenerated turn's user message is present.
+    if (!messages.some((m) => m.role === "user" && m.content === target.user)) {
+      if (target.user?.trim()) {
+        messages.push({ role: "user", content: target.user });
+      }
+    }
+
+    patchTurnAi(set, cardId, turnId, {
+      think: "重生中…",
+      thinkOpen: false,
+    });
+
+    try {
+      const port = await resolvePort();
+      const scope = scopeForCard(get(), cardId);
+      const result = await port.complete({ cardId, messages, scope });
+      // Mutate turn only — never spawn nodes on regenerate.
+      patchTurnAi(set, cardId, turnId, {
+        aiHtml: completeResultToHtml(result),
+        think: result.marks?.length
+          ? `marks: ${result.marks.map((m) => m.term).join(", ")}`
+          : "",
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      patchTurnAi(set, cardId, turnId, {
+        aiHtml: `<p><em>重生失败：${msg.replace(/</g, "&lt;")}</em></p>`,
+        think: "",
+      });
+    }
   },
 
   deleteTurn: (turnId) => {
@@ -480,19 +585,19 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     });
   },
 
-  appendUserMessage: (text, quote) => {
+  appendUserMessage: async (text, quote) => {
     const focusId = get().focusId;
     if (!focusId || !text.trim()) return;
     const body = quote ? `> ${quote}\n\n${text}` : text;
+    const turnId = nextId("t");
     const turn: Turn = {
-      id: nextId("t"),
+      id: turnId,
       title: text.slice(0, 16) || "新消息",
       collapsed: false,
       user: body,
-      think: "demo 回复",
+      think: "生成中…",
       thinkOpen: false,
-      aiHtml:
-        '已记在本卡对话路径里。点下划线的<span class="mark" data-term="函子" data-mark-id="函子">函子</span>可继续分叉。',
+      aiHtml: "",
     };
     set((s) => ({
       turnsByCardId: {
@@ -501,6 +606,36 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       },
       sessionTouchIds: touchSession(s.sessionTouchIds, focusId),
     }));
+
+    const s1 = get();
+    const turns = s1.turnsByCardId[focusId] ?? [];
+    const messages = messagesFromTurns(turns, {
+      untilIndex: turns.length,
+      includeAssistantAtUntil: false,
+    });
+    const scope = scopeForCard(s1, focusId);
+
+    try {
+      const port = await resolvePort();
+      const result = await port.complete({
+        cardId: focusId,
+        messages,
+        scope,
+      });
+      const aiHtml = completeResultToHtml(result);
+      patchTurnAi(set, focusId, turnId, {
+        aiHtml,
+        think: result.marks?.length
+          ? `marks: ${result.marks.map((m) => m.term).join(", ")}`
+          : "",
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      patchTurnAi(set, focusId, turnId, {
+        aiHtml: `<p><em>回复失败：${msg.replace(/</g, "&lt;")}</em></p>`,
+        think: "",
+      });
+    }
   },
 }));
 

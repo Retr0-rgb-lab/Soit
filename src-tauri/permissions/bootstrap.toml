@@ -47,3 +47,13 @@ commands.allow = ["precipitate_concept"]
 identifier = "allow-append-residue"
 description = "Allow append_residue command"
 commands.allow = ["append_residue"]
+
+[[permission]]
+identifier = "allow-get-chat-config"
+description = "Allow get_chat_config command (BYOK; not universe.db)"
+commands.allow = ["get_chat_config"]
+
+[[permission]]
+identifier = "allow-set-chat-config"
+description = "Allow set_chat_config command (BYOK; not universe.db)"
+commands.allow = ["set_chat_config"]

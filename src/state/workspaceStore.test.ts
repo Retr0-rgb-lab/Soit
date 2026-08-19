@@ -69,13 +69,33 @@ describe("workspaceStore", () => {
     expect(s.highlightSpan?.turnId).toBe("t0");
   });
 
-  it("regenerateTurn does not add nodes", () => {
+  it("regenerateTurn does not add nodes", async () => {
     const s0 = useWorkspaceStore.getState();
     const card = s0.focusId;
     const turnId = s0.turnsByCardId[card][0].id;
     const n0 = s0.nodes.length;
-    s0.regenerateTurn(turnId);
-    expect(useWorkspaceStore.getState().nodes.length).toBe(n0);
+    const turns0 = s0.turnsByCardId[card].length;
+    await s0.regenerateTurn(turnId);
+    const s1 = useWorkspaceStore.getState();
+    expect(s1.nodes.length).toBe(n0);
+    expect(s1.turnsByCardId[card].length).toBe(turns0);
+    expect(s1.turnsByCardId[card].find((t) => t.id === turnId)?.aiHtml).toBeTruthy();
+  });
+
+  it("appendUserMessage completes via ChatPort with mark HTML", async () => {
+    const card = useWorkspaceStore.getState().focusId;
+    const before = useWorkspaceStore.getState().turnsByCardId[card].length;
+    await useWorkspaceStore.getState().appendUserMessage("函子是什么？");
+    const turns = useWorkspaceStore.getState().turnsByCardId[card];
+    expect(turns.length).toBe(before + 1);
+    const last = turns[turns.length - 1]!;
+    expect(last.user).toContain("函子");
+    expect(last.aiHtml).toContain('class="mark"');
+    expect(last.aiHtml).toContain('data-term="函子"');
+    // no new nodes from send
+    expect(useWorkspaceStore.getState().nodes.length).toBe(
+      demoSnapshot().nodes.length,
+    );
   });
 
   it("focusNode clears unread on target", () => {

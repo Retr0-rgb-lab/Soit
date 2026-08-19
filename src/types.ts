@@ -99,3 +99,13 @@ export interface AppendResidueResult {
   path?: string;
   error?: string;
 }
+
+/**
+ * Wave C — BYOK chat provider config.
+ * Stored in app config dir / localStorage — never universe.db.
+ */
+export interface ChatConfig {
+  baseUrl: string;
+  model: string;
+  apiKey: string;
+}

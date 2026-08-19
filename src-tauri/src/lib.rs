@@ -1,3 +1,4 @@
+mod chat_config;
 mod obsidian;
 mod universe;
 
@@ -246,6 +247,8 @@ pub fn run() {
       spawn_inquiry,
       precipitate_concept,
       append_residue,
+      chat_config::get_chat_config,
+      chat_config::set_chat_config,
       ping
     ])
     .setup(|app| {
