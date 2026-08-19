@@ -22,3 +22,17 @@
 | 05 | 动效 CSS、`App.tsx` 微调、README 启动实测、端到端核对 |
 
 **禁止：** Plan 03/04 互相修改对方目录；Plan 03/04 不得改 store 公共方法签名（只实现/消费）。
+
+---
+
+## Map scale LOD（第二批）
+
+> **Spec:** `知识库/specs/2026-08-19-map-scale-lod-spec.md` v1.1  
+
+| Wave | Plans |
+|------|-------|
+| 1 | [map-01-lib](./2026-08-19-map-01-lib-scope.md) → [map-02](./2026-08-19-map-02-palette-unread.md) \|\| [map-03](./2026-08-19-map-03-crumbs.md) |
+| 2 | [map-04-lod](./2026-08-19-map-04-graph-lod.md) → [map-05-ui](./2026-08-19-map-05-mapstage-locus.md) |
+| 3 | [map-06-polish](./2026-08-19-map-06-polish.md) |
+
+已合入分支 `feature/tauri-workspace-scaffold` @ map-scale commit。
