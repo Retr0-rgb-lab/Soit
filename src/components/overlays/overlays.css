@@ -1,0 +1,116 @@
+/* Overlays: tip / term float / selection bar */
+
+.ic-tip {
+  position: fixed;
+  z-index: 130;
+  max-width: 240px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #1b1916;
+  color: #f4efe6;
+  border: 1px solid rgb(255 255 255 / 8%);
+  font-size: 11px;
+  line-height: 1.35;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 28%);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.12s, transform 0.12s;
+}
+
+.ic-tip.on {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ic-float {
+  position: fixed;
+  z-index: 50;
+  width: min(420px, calc(100vw - 32px));
+  max-height: min(360px, 50vh);
+  background: var(--bg-card);
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  box-shadow: 0 18px 40px rgb(40 30 18 / 22%);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: ic-pop-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: top left;
+}
+
+.ic-float-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgb(90 80 65 / 12%);
+}
+
+.ic-float-head strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ic-float-tools {
+  display: flex;
+  gap: 6px;
+}
+
+.ic-float-body {
+  padding: 14px 16px;
+  overflow: auto;
+  line-height: 1.55;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.ic-float-body p {
+  margin: 0 0 0.75em;
+}
+
+.ic-float-body p:last-child {
+  margin-bottom: 0;
+}
+
+.ic-muted {
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.ic-selbar {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: #f3ece2;
+  border: 1px solid rgb(90 80 65 / 18%);
+  box-shadow: 0 12px 28px rgb(40 30 18 / 18%);
+  animation: ic-pop-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.ic-selbar .ic-round {
+  width: 32px;
+  height: 32px;
+  box-shadow: none;
+  background: transparent;
+}
+
+.ic-selbar .ic-round:hover {
+  background: #e7dccb;
+}
+
+@keyframes ic-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
