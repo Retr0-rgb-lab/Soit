@@ -166,23 +166,28 @@ button:focus-visible,
   min-height: 0;
 }
 
-/* Locus peek — bottom-right sentinel object */
+/* Locus peek — right gutter sentinel (not clipped by viewport / dock) */
 .locus-peek {
   position: absolute;
   right: 16px;
-  bottom: 20px;
-  z-index: 3;
-  width: var(--locus-w, 148px);
+  /* Sit above composer band so the chip is never half-hidden */
+  bottom: max(24px, 12%);
+  top: auto;
+  z-index: 6;
+  width: var(--locus-w, 168px);
+  max-height: min(280px, calc(100% - 48px));
   border-radius: 18px;
-  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
   box-shadow: var(--shadow-soft);
   border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
-  padding: 8px 8px 6px;
+  padding: 10px 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   pointer-events: auto;
   backdrop-filter: blur(8px);
+  overflow: hidden; /* round corners without cutting nodes: graph has its own inset */
+  box-sizing: border-box;
 }
 
 .locus-peek-head {
@@ -227,7 +232,15 @@ button:focus-visible,
 }
 
 .locus-graph {
-  height: 168px;
+  flex: 1 1 auto;
+  height: 180px;
+  min-height: 140px;
+  max-height: 200px;
+  /* Inset so node rings / unread dots stay inside rounded chip */
+  padding: 4px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 12px;
 }
 
 .graph-canvas {
@@ -235,13 +248,14 @@ button:focus-visible,
   height: 100%;
   min-height: 0;
   background: transparent;
+  overflow: hidden;
 }
 
 .graph-canvas svg {
   width: 100%;
   height: 100%;
   display: block;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .graph-canvas.empty {

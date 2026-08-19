@@ -122,10 +122,15 @@ export function layoutBounds(
     maxX = Math.max(maxX, n.x);
     maxY = Math.max(maxY, n.y);
   }
-  minX -= pad;
-  minY -= pad;
-  maxX += pad;
-  maxY += pad;
+  // Keep square-ish padding so small locus chips don't crush leaf nodes
+  const spanX = Math.max(1, maxX - minX);
+  const spanY = Math.max(1, maxY - minY);
+  const padX = Math.max(pad, spanX * 0.12);
+  const padY = Math.max(pad, spanY * 0.12);
+  minX -= padX;
+  minY -= padY;
+  maxX += padX;
+  maxY += padY;
   return {
     minX,
     minY,

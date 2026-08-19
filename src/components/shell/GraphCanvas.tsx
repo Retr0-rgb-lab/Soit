@@ -73,7 +73,8 @@ function fitBounds(
       return layoutBounds(near.length ? near : laid, 56);
     }
   }
-  return layoutBounds(laid, 56);
+  // Extra pad so rings + unread dots never sit on the viewBox edge
+  return layoutBounds(laid, 72);
 }
 
 export default function GraphCanvas({

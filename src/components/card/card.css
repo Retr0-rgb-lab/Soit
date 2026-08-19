@@ -18,6 +18,9 @@
   display: flex;
   align-items: stretch;
   justify-content: center;
+  /* Room for stacked under-sheets so they are not clipped / "hidden" */
+  padding: 0 18px 18px 0;
+  overflow: visible;
 }
 
 .inquiry-stack {
@@ -25,6 +28,7 @@
   width: min(820px, 100%);
   height: 100%;
   min-height: 0;
+  overflow: visible;
 }
 
 .inquiry-sheet {
@@ -37,15 +41,15 @@
 }
 
 .inquiry-sheet.s2 {
-  transform: translate(12px, 12px);
+  transform: translate(14px, 14px);
   box-shadow: 0 22px 44px rgb(40 30 18 / 10%);
-  opacity: 0.9;
+  opacity: 0.92;
 }
 
 .inquiry-sheet.s1 {
-  transform: translate(6px, 6px);
+  transform: translate(7px, 7px);
   box-shadow: 0 16px 32px rgb(40 30 18 / 11%);
-  opacity: 0.95;
+  opacity: 0.96;
 }
 
 .inquiry-card-wrap {
