@@ -16,6 +16,8 @@ interface Props {
   title: string;
   onDeepen: () => void;
   onCrumb: (id: string) => void;
+  /** Source chip: return to parent and highlight source span. */
+  onReturnToSource?: () => void;
   onOpenMap?: () => void;
   onOpenPalette?: () => void;
   parent?: InquiryNode | null;
@@ -30,6 +32,7 @@ export default function CardHeader({
   title,
   onDeepen,
   onCrumb,
+  onReturnToSource,
   onOpenMap,
   onOpenPalette,
   parent,
@@ -127,7 +130,9 @@ export default function CardHeader({
             <button
               type="button"
               className="ic-source-link"
-              onClick={() => onCrumb(parent.id)}
+              onClick={() =>
+                onReturnToSource ? onReturnToSource() : onCrumb(parent.id)
+              }
             >
               {parent.title}
             </button>

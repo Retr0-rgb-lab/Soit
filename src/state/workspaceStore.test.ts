@@ -8,24 +8,65 @@ describe("workspaceStore", () => {
     useWorkspaceStore.getState().loadSnapshot(demoSnapshot());
   });
 
-  it("spawnDeepen adds child and focuses it", () => {
+  it("spawnDeepen adds child, edge with SourceSpan, and focuses it", async () => {
     const before = useWorkspaceStore.getState().nodes.length;
-    const id = useWorkspaceStore.getState().spawnDeepen("测试");
+    const parent = useWorkspaceStore.getState().focusId;
+    const edgeCount = useWorkspaceStore.getState().edges.length;
+    const id = await useWorkspaceStore.getState().spawnDeepen("测试");
     const s = useWorkspaceStore.getState();
     expect(s.nodes.length).toBe(before + 1);
     expect(s.focusId).toBe(id);
     const n = s.nodes.find((x) => x.id === id)!;
     expect(n.kind).toBe("deepen");
-    expect(n.parentId).toBeTruthy();
+    expect(n.parentId).toBe(parent);
+    expect(s.edges.length).toBe(edgeCount + 1);
+    const edge = s.edges.find((e) => e.toCardId === id)!;
+    expect(edge.kind).toBe("deepen");
+    expect(edge.fromCardId).toBe(parent);
+    expect(edge.source.text).toBe("测试");
+    expect(edge.actor).toBe("user");
+    // deepen seeds a turn
+    expect((s.turnsByCardId[id] ?? []).length).toBeGreaterThan(0);
   });
 
-  it("spawnDiverge adds diverge child under focus", () => {
+  it("spawnDiverge creates empty turns and edge", async () => {
     const parent = useWorkspace.getState().focusId;
-    const id = useWorkspace.getState().spawnDiverge("平行");
-    const n = useWorkspace.getState().nodes.find((x) => x.id === id)!;
+    const id = await useWorkspace.getState().spawnDiverge("平行");
+    const s = useWorkspace.getState();
+    const n = s.nodes.find((x) => x.id === id)!;
     expect(n.kind).toBe("diverge");
     expect(n.parentId).toBe(parent);
-    expect(useWorkspace.getState().focusId).toBe(id);
+    expect(s.focusId).toBe(id);
+    expect(s.turnsByCardId[id] ?? []).toEqual([]);
+    const edge = s.edges.find((e) => e.toCardId === id)!;
+    expect(edge.kind).toBe("diverge");
+    expect(edge.source.text).toBe("平行");
+  });
+
+  it("spawnInquiry is the unified API for deepen/diverge", async () => {
+    const parent = useWorkspaceStore.getState().focusId;
+    const id = await useWorkspaceStore.getState().spawnInquiry({
+      kind: "deepen",
+      source: { turnId: "t1", text: "范畴", markId: "范畴" },
+      why: "because",
+      actor: "agent",
+    });
+    const edge = useWorkspaceStore.getState().edges.find((e) => e.toCardId === id)!;
+    expect(edge.fromCardId).toBe(parent);
+    expect(edge.source.turnId).toBe("t1");
+    expect(edge.source.markId).toBe("范畴");
+    expect(edge.why).toBe("because");
+    expect(edge.actor).toBe("agent");
+  });
+
+  it("returnToSource focuses parent and sets highlightSpan", () => {
+    // c3 → parent c2 with edge source 函子
+    useWorkspace.getState().focusNode("c3");
+    useWorkspace.getState().returnToSource();
+    const s = useWorkspace.getState();
+    expect(s.focusId).toBe("c2");
+    expect(s.highlightSpan?.text).toBe("函子");
+    expect(s.highlightSpan?.turnId).toBe("t0");
   });
 
   it("regenerateTurn does not add nodes", () => {
@@ -52,9 +93,9 @@ describe("workspaceStore", () => {
     expect(useWorkspace.getState().workspaceMode).toBe("focus");
   });
 
-  it("spawn returns to focus mode from map", () => {
+  it("spawn returns to focus mode from map", async () => {
     useWorkspace.getState().setWorkspaceMode("map");
-    useWorkspace.getState().spawnDeepen("x");
+    await useWorkspace.getState().spawnDeepen("x");
     expect(useWorkspace.getState().workspaceMode).toBe("focus");
   });
 
@@ -66,7 +107,6 @@ describe("workspaceStore", () => {
 
   it("markThreadRead clears unread in subtree", () => {
     useWorkspace.getState().focusNode("c1");
-    // re-mark c4 unread via load
     const snap = demoSnapshot();
     useWorkspace.getState().loadSnapshot(snap);
     expect(useWorkspace.getState().nodes.find((n) => n.id === "c4")!.unread).toBe(
@@ -84,6 +124,12 @@ describe("workspaceStore", () => {
       s.pinLive(s.nodes[i % s.nodes.length]!.id);
     }
     expect(useWorkspace.getState().liveIds.length).toBeLessThanOrEqual(5);
+  });
+
+  it("loadSnapshot loads demo edges", () => {
+    const edges = useWorkspaceStore.getState().edges;
+    expect(edges.length).toBeGreaterThanOrEqual(4);
+    expect(edges.every((e) => e.source.turnId && e.source.text)).toBe(true);
   });
 });
 

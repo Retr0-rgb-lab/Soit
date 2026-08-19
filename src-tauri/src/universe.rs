@@ -1,4 +1,4 @@
-//! Vault-bound universe.db — Wave A (Turn-first, parent_id tree).
+//! Vault-bound universe.db — Wave A/B (Turn-first, parent_id tree, edges).
 
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -35,11 +35,50 @@ pub struct TurnDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SourceSpanDto {
+  pub turn_id: String,
+  pub text: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub mark_id: Option<String>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub start: Option<i64>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub end: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EdgeDto {
+  pub id: String,
+  pub kind: String,
+  pub from_card_id: String,
+  pub to_card_id: String,
+  pub source: SourceSpanDto,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub why: Option<String>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub actor: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WorkspaceSnapshotDto {
   pub source: String,
   pub nodes: Vec<InquiryNodeDto>,
   pub turns_by_card_id: std::collections::BTreeMap<String, Vec<TurnDto>>,
   pub focus_id: String,
+  #[serde(default, skip_serializing_if = "Vec::is_empty")]
+  pub edges: Vec<EdgeDto>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpawnInquiryArgs {
+  pub kind: String,
+  pub from_card_id: String,
+  pub source: SourceSpanDto,
+  pub why: Option<String>,
+  pub actor: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -145,13 +184,25 @@ impl Universe {
           to_card_id TEXT NOT NULL,
           source_json TEXT,
           why TEXT,
+          actor TEXT,
           created_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_turns_card ON turns(card_id, sort_order);
         CREATE INDEX IF NOT EXISTS idx_cards_parent ON cards(parent_id);
+        CREATE INDEX IF NOT EXISTS idx_edges_from ON edges(from_card_id);
+        CREATE INDEX IF NOT EXISTS idx_edges_to ON edges(to_card_id);
         "#,
       )
       .map_err(|e| format!("migrate: {e}"))?;
+
+    // Pre-B DBs may lack actor column on edges
+    let has_actor = self.edge_has_column("actor")?;
+    if !has_actor {
+      self
+        .conn
+        .execute("ALTER TABLE edges ADD COLUMN actor TEXT", [])
+        .map_err(|e| format!("alter edges.actor: {e}"))?;
+    }
 
     let ver: Option<String> = self
       .conn
@@ -173,6 +224,48 @@ impl Universe {
         .map_err(|e| format!("insert schema_version: {e}"))?;
     }
     Ok(())
+  }
+
+  fn edge_has_column(&self, name: &str) -> Result<bool, String> {
+    let mut stmt = self
+      .conn
+      .prepare("PRAGMA table_info(edges)")
+      .map_err(|e| format!("pragma table_info: {e}"))?;
+    let cols = stmt
+      .query_map([], |row| row.get::<_, String>(1))
+      .map_err(|e| format!("table_info rows: {e}"))?
+      .collect::<Result<Vec<_>, _>>()
+      .map_err(|e| format!("table_info: {e}"))?;
+    Ok(cols.iter().any(|c| c == name))
+  }
+
+  fn list_edges(&self) -> Result<Vec<EdgeDto>, String> {
+    let mut stmt = self
+      .conn
+      .prepare(
+        "SELECT id, kind, from_card_id, to_card_id, source_json, why, actor
+         FROM edges ORDER BY created_at ASC, id ASC",
+      )
+      .map_err(|e| format!("prepare edges: {e}"))?;
+
+    let rows = stmt
+      .query_map([], |row| {
+        let source_json: Option<String> = row.get(4)?;
+        let source = parse_source_span(source_json.as_deref());
+        Ok(EdgeDto {
+          id: row.get(0)?,
+          kind: row.get(1)?,
+          from_card_id: row.get(2)?,
+          to_card_id: row.get(3)?,
+          source,
+          why: row.get(5)?,
+          actor: row.get(6)?,
+        })
+      })
+      .map_err(|e| format!("query edges: {e}"))?
+      .collect::<Result<Vec<_>, _>>()
+      .map_err(|e| format!("edges row: {e}"))?;
+    Ok(rows)
   }
 
   pub fn snapshot(&self) -> Result<WorkspaceSnapshotDto, String> {
@@ -238,6 +331,8 @@ impl Universe {
         .push(turn);
     }
 
+    let edges = self.list_edges()?;
+
     let focus_id = nodes
       .iter()
       .find(|n| n.parent_id.is_none())
@@ -256,6 +351,7 @@ impl Universe {
       nodes,
       turns_by_card_id,
       focus_id,
+      edges,
     })
   }
 
@@ -301,6 +397,119 @@ impl Universe {
 
     self.snapshot()
   }
+
+  /// Spawn deepen/diverge child + edge (+ optional deepen seed turn). Host ids.
+  pub fn spawn_inquiry(&mut self, args: &SpawnInquiryArgs) -> Result<WorkspaceSnapshotDto, String> {
+    let kind = args.kind.trim();
+    if kind != "deepen" && kind != "diverge" {
+      return Err(format!("invalid kind: {kind}"));
+    }
+    let from = args.from_card_id.trim();
+    if from.is_empty() {
+      return Err("fromCardId is required".into());
+    }
+
+    let parent_exists: bool = self
+      .conn
+      .query_row(
+        "SELECT 1 FROM cards WHERE id = ?1",
+        params![from],
+        |_| Ok(true),
+      )
+      .optional()
+      .map_err(|e| format!("lookup parent: {e}"))?
+      .unwrap_or(false);
+    if !parent_exists {
+      return Err(format!("parent card not found: {from}"));
+    }
+
+    let label = {
+      let t = args.source.text.trim();
+      if t.is_empty() {
+        "概念"
+      } else {
+        t
+      }
+    };
+    let title_prefix = if kind == "deepen" { "深挖 · " } else { "发散 · " };
+    let short: String = label.chars().take(12).collect();
+    let title = format!("{title_prefix}{short}");
+
+    let card_id = new_id(if kind == "deepen" { "d" } else { "v" });
+    let edge_id = new_id("e");
+    let ts = now_ms().to_string();
+
+    self
+      .conn
+      .execute(
+        "INSERT INTO cards (id, title, parent_id, kind, status, question, stuck, next_step, unread, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, 'active', NULL, NULL, NULL, 1, ?5, ?5)",
+        params![card_id, title, from, kind, ts],
+      )
+      .map_err(|e| format!("insert child card: {e}"))?;
+
+    let source_json =
+      serde_json::to_string(&args.source).map_err(|e| format!("serialize source: {e}"))?;
+
+    self
+      .conn
+      .execute(
+        "INSERT INTO edges (id, kind, from_card_id, to_card_id, source_json, why, actor, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![
+          edge_id,
+          kind,
+          from,
+          card_id,
+          source_json,
+          args.why.as_deref(),
+          args.actor.as_deref(),
+          ts
+        ],
+      )
+      .map_err(|e| format!("insert edge: {e}"))?;
+
+    if kind == "deepen" {
+      let turn_id = new_id("t");
+      let user_text = format!("从「{label}」往下：它具体指什么？");
+      let ai_html = format!("这是对「{label}」的深挖卡。（host）");
+      self
+        .conn
+        .execute(
+          "INSERT INTO turns (id, card_id, title, collapsed, user_text, ai_html, think, think_open, sort_order, created_at)
+           VALUES (?1, ?2, ?3, 0, ?4, ?5, ?6, 0, 0, ?7)",
+          params![
+            turn_id,
+            card_id,
+            "深挖开场",
+            user_text,
+            ai_html,
+            "深挖：父状态 + 源跨度；不整段灌父 transcript。",
+            ts
+          ],
+        )
+        .map_err(|e| format!("insert deepen seed turn: {e}"))?;
+    }
+
+    let mut snap = self.snapshot()?;
+    snap.focus_id = card_id;
+    Ok(snap)
+  }
+}
+
+fn parse_source_span(raw: Option<&str>) -> SourceSpanDto {
+  if let Some(s) = raw {
+    if let Ok(span) = serde_json::from_str::<SourceSpanDto>(s) {
+      return span;
+    }
+  }
+  SourceSpanDto {
+    turn_id: String::new(),
+    text: String::new(),
+    mark_id: None,
+    start: None,
+    end: None,
+  }
 }
 
 #[cfg(test)]
@@ -340,6 +549,75 @@ mod tests {
         Some("什么是函子？")
       );
     }
+
+    let _ = fs::remove_dir_all(&dir);
+  }
+
+  #[test]
+  fn spawn_inquiry_deepen_and_diverge() {
+    let dir = std::env::temp_dir().join(format!("soit_spawn_test_{}", now_ms()));
+    fs::create_dir_all(&dir).unwrap();
+
+    let mut u = Universe::open(&dir).unwrap();
+    let root = u.create_root_inquiry("根", None).unwrap();
+    let root_id = root.nodes[0].id.clone();
+
+    let deep = u
+      .spawn_inquiry(&SpawnInquiryArgs {
+        kind: "deepen".into(),
+        from_card_id: root_id.clone(),
+        source: SourceSpanDto {
+          turn_id: "t_src".into(),
+          text: "函子".into(),
+          mark_id: Some("函子".into()),
+          start: None,
+          end: None,
+        },
+        why: Some("why".into()),
+        actor: Some("user".into()),
+      })
+      .unwrap();
+
+    assert_eq!(deep.nodes.len(), 2);
+    let child = deep.nodes.iter().find(|n| n.id == deep.focus_id).unwrap();
+    assert_eq!(child.kind, "deepen");
+    assert_eq!(child.parent_id.as_deref(), Some(root_id.as_str()));
+    assert_eq!(deep.edges.len(), 1);
+    assert_eq!(deep.edges[0].kind, "deepen");
+    assert_eq!(deep.edges[0].source.text, "函子");
+    assert_eq!(deep.edges[0].source.mark_id.as_deref(), Some("函子"));
+    assert!(deep.turns_by_card_id.get(&child.id).map(|t| !t.is_empty()).unwrap_or(false));
+
+    let div = u
+      .spawn_inquiry(&SpawnInquiryArgs {
+        kind: "diverge".into(),
+        from_card_id: root_id.clone(),
+        source: SourceSpanDto {
+          turn_id: "t_src".into(),
+          text: "平行".into(),
+          mark_id: None,
+          start: None,
+          end: None,
+        },
+        why: None,
+        actor: Some("agent".into()),
+      })
+      .unwrap();
+
+    let dchild = div.nodes.iter().find(|n| n.id == div.focus_id).unwrap();
+    assert_eq!(dchild.kind, "diverge");
+    let dturns = div.turns_by_card_id.get(&dchild.id);
+    assert!(dturns.map(|t| t.is_empty()).unwrap_or(true));
+    assert_eq!(div.edges.len(), 2);
+    let de = div.edges.iter().find(|e| e.to_card_id == dchild.id).unwrap();
+    assert_eq!(de.actor.as_deref(), Some("agent"));
+
+    // reopen persists edges
+    drop(u);
+    let u2 = Universe::open(&dir).unwrap();
+    let snap = u2.snapshot().unwrap();
+    assert_eq!(snap.edges.len(), 2);
+    assert_eq!(snap.nodes.len(), 3);
 
     let _ = fs::remove_dir_all(&dir);
   }

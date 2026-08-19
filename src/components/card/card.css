@@ -662,8 +662,38 @@ body.has-selbar .ic-turn-bar {
   outline: none;
 }
 
+/* Return-to-source flash (~1.2s) */
+.ai-html .mark.mark-highlight,
+.mark-highlight {
+  animation: mark-flash 1.2s var(--ease-soft) both;
+  border-radius: 3px;
+}
+
+@keyframes mark-flash {
+  0% {
+    background: color-mix(in srgb, var(--accent) 42%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
+  }
+  55% {
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent);
+  }
+  100% {
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
 .ai-html {
   line-height: 1.65;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-html .mark.mark-highlight,
+  .mark-highlight {
+    animation: none;
+    background: color-mix(in srgb, var(--accent) 28%, transparent);
+  }
 }
 
 /* Edge actions — lighter than card */

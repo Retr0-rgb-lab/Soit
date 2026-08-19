@@ -1,4 +1,40 @@
-import type { WorkspaceSnapshot } from "../types";
+import type { Edge, WorkspaceSnapshot } from "../types";
+
+/** Demo edges matching the seeded tree (parentId denormalized). */
+const demoEdges: Edge[] = [
+  {
+    id: "e_c1_c2",
+    kind: "deepen",
+    fromCardId: "c1",
+    toCardId: "c2",
+    source: { turnId: "t0", text: "范畴论", markId: undefined },
+    actor: "user",
+  },
+  {
+    id: "e_c2_c3",
+    kind: "deepen",
+    fromCardId: "c2",
+    toCardId: "c3",
+    source: { turnId: "t0", text: "函子", markId: "函子" },
+    actor: "user",
+  },
+  {
+    id: "e_c2_c4",
+    kind: "diverge",
+    fromCardId: "c2",
+    toCardId: "c4",
+    source: { turnId: "t0", text: "自然变换", markId: "自然变换" },
+    actor: "user",
+  },
+  {
+    id: "e_c2_c5",
+    kind: "diverge",
+    fromCardId: "c2",
+    toCardId: "c5",
+    source: { turnId: "t0", text: "伴随" },
+    actor: "user",
+  },
+];
 
 /** In-memory demo universe (mirrors prototype B seed). */
 export function demoSnapshot(): WorkspaceSnapshot {
@@ -6,12 +42,13 @@ export function demoSnapshot(): WorkspaceSnapshot {
     source: "demo",
     focusId: "c3",
     nodes: [
-      { id: "c1", title: "线性代数基础", parentId: null, kind: "root", unread: false },
-      { id: "c2", title: "范畴论入门", parentId: "c1", kind: "deepen", unread: false },
-      { id: "c3", title: "函子", parentId: "c2", kind: "deepen", unread: false },
-      { id: "c4", title: "自然变换", parentId: "c2", kind: "diverge", unread: true },
-      { id: "c5", title: "伴随", parentId: "c2", kind: "diverge", unread: false },
+      { id: "c1", title: "线性代数基础", parentId: null, kind: "root", unread: false, status: "active" },
+      { id: "c2", title: "范畴论入门", parentId: "c1", kind: "deepen", unread: false, status: "active" },
+      { id: "c3", title: "函子", parentId: "c2", kind: "deepen", unread: false, status: "active" },
+      { id: "c4", title: "自然变换", parentId: "c2", kind: "diverge", unread: true, status: "active" },
+      { id: "c5", title: "伴随", parentId: "c2", kind: "diverge", unread: false, status: "active" },
     ],
+    edges: demoEdges.map((e) => ({ ...e, source: { ...e.source } })),
     turnsByCardId: {
       c1: [
         {
@@ -33,7 +70,7 @@ export function demoSnapshot(): WorkspaceSnapshot {
           think: "",
           thinkOpen: false,
           aiHtml:
-            '对象 ≈ 结构，态射 ≈ 保结构映射。下一步是<span class="mark" data-term="函子">函子</span>。',
+            '对象 ≈ 结构，态射 ≈ 保结构映射。下一步是<span class="mark" data-term="函子" data-mark-id="函子">函子</span>。也可看<span class="mark" data-term="自然变换" data-mark-id="自然变换">自然变换</span>。',
         },
       ],
       c3: [
@@ -54,31 +91,12 @@ export function demoSnapshot(): WorkspaceSnapshot {
           think: "回答要可分叉：函子 / 范畴 / 自然变换 分开。",
           thinkOpen: false,
           aiHtml:
-            '一个<span class="mark" data-term="函子">函子</span>把一个<span class="mark" data-term="范畴">范畴</span>里的对象和态射送到另一个范畴，并保住复合与单位。点下划线先选<strong>深挖</strong>或<strong>发散</strong>；不要和<span class="mark" data-term="自然变换">自然变换</span>搅在一起。重生只在本轮，不长新卡。',
+            '一个<span class="mark" data-term="函子" data-mark-id="函子">函子</span>把一个<span class="mark" data-term="范畴" data-mark-id="范畴">范畴</span>里的对象和态射送到另一个范畴，并保住复合与单位。点下划线先选<strong>深挖</strong>或<strong>发散</strong>；不要和<span class="mark" data-term="自然变换" data-mark-id="自然变换">自然变换</span>搅在一起。重生只在本轮，不长新卡。',
         },
       ],
-      c4: [
-        {
-          id: "t0",
-          title: "平行线",
-          collapsed: false,
-          user: "自然变换是另一条线。",
-          think: "",
-          thinkOpen: false,
-          aiHtml: "发散卡：空白对话 + 回边。父卡「范畴论入门」仍活着。",
-        },
-      ],
-      c5: [
-        {
-          id: "t0",
-          title: "平行线",
-          collapsed: false,
-          user: "伴随呢？",
-          think: "",
-          thinkOpen: false,
-          aiHtml: "又一条发散。树是关系，不是强制暂停父卡。",
-        },
-      ],
+      // Diverge cards start empty (L4); demo edges still back-link to source.
+      c4: [],
+      c5: [],
     },
   };
 }
