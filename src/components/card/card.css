@@ -18,8 +18,8 @@
   display: flex;
   align-items: stretch;
   justify-content: center;
-  /* Room for stacked under-sheets so they are not clipped / "hidden" */
-  padding: 0 18px 18px 0;
+  /* Room for staggered under-sheets (larger offset) */
+  padding: 0 36px 32px 0;
   overflow: visible;
 }
 

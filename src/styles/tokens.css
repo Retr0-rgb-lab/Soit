@@ -32,15 +32,15 @@
     0 8px 24px rgb(40 30 18 / 14%), 0 20px 40px rgb(40 30 18 / 10%);
   --shadow-soft: var(--e2);
 
-  /* Staggered paper stack (under-sheets) */
-  --sheet-1-x: 10px;
-  --sheet-1-y: 8px;
-  --sheet-1-r: 0.7deg;
-  --sheet-1-s: 0.985;
-  --sheet-2-x: 18px;
-  --sheet-2-y: 15px;
-  --sheet-2-r: -1.1deg;
-  --sheet-2-s: 0.97;
+  /* Staggered paper stack (under-sheets) — more offset than a parallel double */
+  --sheet-1-x: 16px;
+  --sheet-1-y: 11px;
+  --sheet-1-r: 1.6deg;
+  --sheet-1-s: 0.978;
+  --sheet-2-x: 30px;
+  --sheet-2-y: 22px;
+  --sheet-2-r: -2.2deg;
+  --sheet-2-s: 0.955;
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-soft: cubic-bezier(0.32, 0.72, 0, 1);
