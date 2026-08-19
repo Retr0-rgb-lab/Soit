@@ -104,6 +104,33 @@
   background: #e7dccb;
 }
 
+.ic-chooser {
+  position: fixed;
+  z-index: 70;
+  background: #1b1916;
+  color: #f6f1e8;
+  border-radius: 12px;
+  padding: 5px;
+  box-shadow: 0 16px 32px rgb(20 14 8 / 35%);
+  display: flex;
+  gap: 4px;
+  animation: ic-pop-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.ic-chooser button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  border-radius: 9px;
+  padding: 8px 12px;
+  font-size: 12px;
+  transition: background 0.12s;
+}
+
+.ic-chooser button:hover {
+  background: #2d2924;
+}
+
 @keyframes ic-pop-in {
   from {
     opacity: 0;

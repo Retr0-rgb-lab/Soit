@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { termExplanation } from "../../lib/marks";
 import { useWorkspace } from "../../state/workspaceStore";
 import type { InquiryNode } from "../../types";
+import DirectionChooser from "../overlays/DirectionChooser";
 import SelectionBar, {
   type SelectionBarState,
 } from "../overlays/SelectionBar";
@@ -55,6 +56,11 @@ export default function InquiryCard() {
   const [quote, setQuote] = useState("");
   const [float, setFloat] = useState<TermFloatState | null>(null);
   const [selBar, setSelBar] = useState<SelectionBarState | null>(null);
+  const [chooser, setChooser] = useState<{
+    x: number;
+    y: number;
+    label: string;
+  } | null>(null);
 
   // Clear ephemeral UI when focus card changes
   useEffect(() => {
@@ -62,6 +68,7 @@ export default function InquiryCard() {
     setQuote("");
     setFloat(null);
     setSelBar(null);
+    setChooser(null);
   }, [focusId]);
 
   const sourceLabel = focus?.title || "概念";
@@ -71,6 +78,7 @@ export default function InquiryCard() {
       spawnDeepen((label || sourceLabel).slice(0, 48));
       setFloat(null);
       setSelBar(null);
+      setChooser(null);
     },
     [spawnDeepen, sourceLabel],
   );
@@ -80,6 +88,7 @@ export default function InquiryCard() {
       spawnDiverge((label || sourceLabel).slice(0, 48));
       setFloat(null);
       setSelBar(null);
+      setChooser(null);
     },
     [spawnDiverge, sourceLabel],
   );
@@ -94,6 +103,7 @@ export default function InquiryCard() {
 
   const onMarkClick = useCallback((term: string, x: number, y: number) => {
     setSelBar(null);
+    setChooser(null);
     setFloat({
       term,
       body: termExplanation(term),
@@ -128,6 +138,7 @@ export default function InquiryCard() {
     const x = rect ? rect.left + rect.width / 2 : e.clientX;
     const y = rect ? rect.top - 8 : e.clientY;
     setFloat(null);
+    setChooser(null);
     setSelBar({ text, x, y: Math.max(8, y - 40) });
   }, []);
 
@@ -136,12 +147,18 @@ export default function InquiryCard() {
     const onDown = (e: MouseEvent) => {
       const t = e.target;
       if (!(t instanceof Element)) return;
-      if (t.closest(".ic-float") || t.closest(".ic-selbar") || t.closest(".mark")) {
+      if (
+        t.closest(".ic-float") ||
+        t.closest(".ic-selbar") ||
+        t.closest(".ic-chooser") ||
+        t.closest(".mark")
+      ) {
         return;
       }
       if (t.closest(".ai-html")) return;
       setFloat(null);
       setSelBar(null);
+      setChooser(null);
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
@@ -219,11 +236,10 @@ export default function InquiryCard() {
         <SelectionBar
           bar={selBar}
           onPreview={() => {
-            setFloat({
-              term: selBar.text.slice(0, 24),
-              body: termExplanation(selBar.text.slice(0, 24)),
+            setChooser({
               x: selBar.x,
               y: selBar.y,
+              label: selBar.text.slice(0, 48),
             });
             setSelBar(null);
           }}
@@ -235,6 +251,16 @@ export default function InquiryCard() {
             copyText(selBar.text);
             setSelBar(null);
           }}
+        />
+      ) : null}
+
+      {chooser ? (
+        <DirectionChooser
+          x={chooser.x}
+          y={chooser.y}
+          sourceLabel={chooser.label}
+          onDeepen={(label) => onDeepen(label)}
+          onDiverge={(label) => onDiverge(label)}
         />
       ) : null}
 
