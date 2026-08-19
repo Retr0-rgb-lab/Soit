@@ -1,20 +1,55 @@
 import { create } from "zustand";
+import type { MapScopeMode } from "../lib/mapScope";
 import type { InquiryNode, NodeKind, Turn, WorkspaceSnapshot } from "../types";
+
+export type WorkspaceMode = "focus" | "map";
+
+const RECENT_MAX = 8;
+export const UNREAD_RAIL_CAP = 12;
 
 export interface WorkspaceState {
   nodes: InquiryNode[];
   turnsByCardId: Record<string, Turn[]>;
   focusId: string;
   source: WorkspaceSnapshot["source"] | null;
+  /** focus = read card; map = full structure stage */
+  workspaceMode: WorkspaceMode;
+  /** Map structure slice mode */
+  mapScopeMode: MapScopeMode;
+  /** Most-recently focused card ids (newest first), excl. current optional */
+  recentIds: string[];
 
   loadSnapshot: (snap: WorkspaceSnapshot) => void;
   focusNode: (id: string) => void;
+  setWorkspaceMode: (mode: WorkspaceMode) => void;
+  setMapScopeMode: (mode: MapScopeMode) => void;
+  toggleMapMode: () => void;
   spawnDeepen: (sourceLabel: string) => string;
   spawnDiverge: (sourceLabel: string) => string;
   regenerateTurn: (turnId: string) => void;
   deleteTurn: (turnId: string) => void;
   toggleTurnCollapsed: (turnId: string) => void;
   appendUserMessage: (text: string, quote?: string) => void;
+}
+
+function pushRecent(recentIds: string[], id: string, prevFocus: string): string[] {
+  const next = [
+    id,
+    ...recentIds.filter((x) => x !== id && x !== prevFocus),
+  ];
+  if (prevFocus && prevFocus !== id) {
+    next.splice(1, 0, prevFocus);
+  }
+  // dedupe while preserving order
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const x of next) {
+    if (seen.has(x)) continue;
+    seen.add(x);
+    out.push(x);
+    if (out.length >= RECENT_MAX) break;
+  }
+  return out;
 }
 
 let idSeq = 0;
@@ -71,6 +106,9 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   turnsByCardId: {},
   focusId: "",
   source: null,
+  workspaceMode: "focus",
+  mapScopeMode: "working",
+  recentIds: [],
 
   loadSnapshot: (snap) => {
     idSeq = 0;
@@ -84,23 +122,58 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       ),
       focusId: snap.focusId,
       source: snap.source,
+      workspaceMode: "focus",
+      mapScopeMode: "working",
+      recentIds: snap.focusId ? [snap.focusId] : [],
     });
   },
 
   focusNode: (id) => {
-    const exists = get().nodes.some((n) => n.id === id);
-    if (!exists) return;
-    set((s) => ({
+    const s0 = get();
+    const idx = s0.nodes.findIndex((n) => n.id === id);
+    if (idx < 0) return;
+    const target = s0.nodes[idx]!;
+    const nodes =
+      target.unread === false
+        ? s0.nodes
+        : s0.nodes.map((n, i) =>
+            i === idx ? { ...n, unread: false } : n,
+          );
+    set({
       focusId: id,
-      nodes: s.nodes.map((n) =>
-        n.id === id ? { ...n, unread: false } : n,
-      ),
-    }));
+      recentIds: pushRecent(s0.recentIds, id, s0.focusId),
+      nodes,
+    });
   },
 
-  spawnDeepen: (sourceLabel) => spawnChild(get, set, "deepen", sourceLabel),
+  setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
 
-  spawnDiverge: (sourceLabel) => spawnChild(get, set, "diverge", sourceLabel),
+  setMapScopeMode: (mode) => set({ mapScopeMode: mode }),
+
+  toggleMapMode: () =>
+    set((s) => ({
+      workspaceMode: s.workspaceMode === "map" ? "focus" : "map",
+    })),
+
+  spawnDeepen: (sourceLabel) => {
+    const prev = get().focusId;
+    const id = spawnChild(get, set, "deepen", sourceLabel);
+    set((s) => ({
+      workspaceMode: "focus",
+      recentIds: pushRecent(s.recentIds, id, prev),
+    }));
+    return id;
+  },
+
+  spawnDiverge: (sourceLabel) => {
+    const prev = get().focusId;
+    const id = spawnChild(get, set, "diverge", sourceLabel);
+    set((s) => ({
+      workspaceMode: "focus",
+      recentIds: pushRecent(s.recentIds, id, prev),
+    }));
+    return id;
+  },
 
   regenerateTurn: (turnId) => {
     set((s) => {

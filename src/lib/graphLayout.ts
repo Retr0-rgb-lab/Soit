@@ -1,17 +1,23 @@
 import type { InquiryNode } from "../types";
 
-/** Node with SVG coordinates in viewBox 0..200 × 0..300. */
-export type LaidOutNode = InquiryNode & { x: number; y: number };
+export const LAYOUT_DEPTH_MAX = 256;
+
+/** Node with SVG coordinates in viewBox 0..200 × 0..300. Extra fields preserved. */
+export type LaidOutNode<T extends InquiryNode = InquiryNode> = T & {
+  x: number;
+  y: number;
+};
 
 /**
  * Stable tree layout (prototype-compatible): leaves spaced on x,
  * parents centered over children; y by depth from roots.
+ * Accepts subsets / forests; preserves unknown fields (e.g. role).
  */
-export function layoutGraph(nodes: InquiryNode[]): LaidOutNode[] {
+export function layoutGraph<T extends InquiryNode>(nodes: T[]): LaidOutNode<T>[] {
   if (nodes.length === 0) return [];
 
   const byId = new Map(nodes.map((n) => [n.id, n]));
-  const byParent = new Map<string, InquiryNode[]>();
+  const byParent = new Map<string, T[]>();
   for (const n of nodes) {
     const k = n.parentId ?? "__root__";
     const list = byParent.get(k);
@@ -21,15 +27,26 @@ export function layoutGraph(nodes: InquiryNode[]): LaidOutNode[] {
 
   const roots = nodes.filter((n) => !n.parentId || !byId.has(n.parentId));
 
-  const depthOf = (n: InquiryNode, guard = 0): number => {
-    if (!n.parentId || !byId.has(n.parentId) || guard > 20) return 0;
-    const p = byId.get(n.parentId)!;
-    return 1 + depthOf(p, guard + 1);
+  const depthOf = (n: InquiryNode): number => {
+    let d = 0;
+    let cur: InquiryNode | undefined = n;
+    const guard = new Set<string>();
+    while (
+      cur?.parentId &&
+      byId.has(cur.parentId) &&
+      !guard.has(cur.id) &&
+      d < LAYOUT_DEPTH_MAX
+    ) {
+      guard.add(cur.id);
+      cur = byId.get(cur.parentId);
+      d += 1;
+    }
+    return d;
   };
 
   const leafIndex = new Map<string, number>();
-  const leaves: InquiryNode[] = [];
-  const walk = (n: InquiryNode) => {
+  const leaves: T[] = [];
+  const walk = (n: T) => {
     const kids = byParent.get(n.id) ?? [];
     if (!kids.length) leaves.push(n);
     else kids.forEach(walk);
@@ -38,7 +55,7 @@ export function layoutGraph(nodes: InquiryNode[]): LaidOutNode[] {
   leaves.forEach((n, i) => leafIndex.set(n.id, i));
 
   const lx = new Map<string, number>();
-  const assign = (n: InquiryNode): number => {
+  const assign = (n: T): number => {
     const kids = byParent.get(n.id) ?? [];
     if (!kids.length) {
       const v = leafIndex.get(n.id) ?? 0;

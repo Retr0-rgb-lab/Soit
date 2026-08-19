@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { termExplanation } from "../../lib/marks";
+import { ancestorChain } from "../../lib/treeNav";
 import { useWorkspace } from "../../state/workspaceStore";
-import type { InquiryNode } from "../../types";
 import DirectionChooser from "../overlays/DirectionChooser";
 import SelectionBar, {
   type SelectionBarState,
@@ -15,19 +15,6 @@ import EdgeActions from "./EdgeActions";
 import TurnItem from "./TurnItem";
 import "./card.css";
 
-function pathFor(nodes: InquiryNode[], focusId: string): string {
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  const parts: string[] = [];
-  let cur = byId.get(focusId);
-  const guard = new Set<string>();
-  while (cur && !guard.has(cur.id)) {
-    guard.add(cur.id);
-    parts.unshift(cur.title);
-    cur = cur.parentId ? byId.get(cur.parentId) : undefined;
-  }
-  return parts.join(" / ") || "Soit";
-}
-
 function copyText(text: string) {
   if (navigator.clipboard?.writeText) {
     void navigator.clipboard.writeText(text);
@@ -38,6 +25,8 @@ export default function InquiryCard() {
   const nodes = useWorkspace((s) => s.nodes);
   const focusId = useWorkspace((s) => s.focusId);
   const turnsByCardId = useWorkspace((s) => s.turnsByCardId);
+  const focusNode = useWorkspace((s) => s.focusNode);
+  const setMode = useWorkspace((s) => s.setWorkspaceMode);
   const spawnDeepen = useWorkspace((s) => s.spawnDeepen);
   const spawnDiverge = useWorkspace((s) => s.spawnDiverge);
   const regenerateTurn = useWorkspace((s) => s.regenerateTurn);
@@ -50,7 +39,15 @@ export default function InquiryCard() {
     [nodes, focusId],
   );
   const turns = focusId ? (turnsByCardId[focusId] ?? []) : [];
-  const path = useMemo(() => pathFor(nodes, focusId), [nodes, focusId]);
+  const crumbs = useMemo(
+    () =>
+      ancestorChain(nodes, focusId).map((n) => ({ id: n.id, title: n.title })),
+    [nodes, focusId],
+  );
+  const parent = useMemo(() => {
+    if (!focus?.parentId) return null;
+    return nodes.find((n) => n.id === focus.parentId) ?? null;
+  }, [focus, nodes]);
 
   const [draft, setDraft] = useState("");
   const [quote, setQuote] = useState("");
@@ -193,9 +190,18 @@ export default function InquiryCard() {
               }}
             >
               <CardHeader
-                path={path}
+                crumbs={crumbs}
                 title={focus.title}
+                parent={parent}
                 onDeepen={() => onDeepen(focus.title)}
+                onCrumb={(id) => {
+                  focusNode(id);
+                  setMode("focus");
+                }}
+                onOpenMap={() => setMode("map")}
+                onOpenPalette={() =>
+                  window.dispatchEvent(new CustomEvent("soit:open-palette"))
+                }
               />
               <div className="ic-body">
                 <div className="ic-msgs">

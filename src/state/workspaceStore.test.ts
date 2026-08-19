@@ -43,6 +43,26 @@ describe("workspaceStore", () => {
     expect(n.unread).toBe(false);
     expect(useWorkspace.getState().focusId).toBe("c4");
   });
+
+  it("toggleMapMode switches focus and map", () => {
+    expect(useWorkspace.getState().workspaceMode).toBe("focus");
+    useWorkspace.getState().toggleMapMode();
+    expect(useWorkspace.getState().workspaceMode).toBe("map");
+    useWorkspace.getState().setWorkspaceMode("focus");
+    expect(useWorkspace.getState().workspaceMode).toBe("focus");
+  });
+
+  it("spawn returns to focus mode from map", () => {
+    useWorkspace.getState().setWorkspaceMode("map");
+    useWorkspace.getState().spawnDeepen("x");
+    expect(useWorkspace.getState().workspaceMode).toBe("focus");
+  });
+
+  it("mapScopeMode defaults to working and is settable", () => {
+    expect(useWorkspace.getState().mapScopeMode).toBe("working");
+    useWorkspace.getState().setMapScopeMode("atlas");
+    expect(useWorkspace.getState().mapScopeMode).toBe("atlas");
+  });
 });
 
 describe("layoutGraph", () => {
