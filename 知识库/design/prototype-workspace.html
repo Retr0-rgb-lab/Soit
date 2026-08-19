@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Soit prototype — workspace chrome v2</title>
+<!--
+  PROTOTYPE (throwaway) v2
+  Question: What should Soit's main workspace chrome feel like?
+  Constraint from review: components have physical depth; cards float with air, never flush to the frame.
+  A Workbench — 3-col object tray
+  B Stack     — inquiry cards in a well
+  C Paper     — bound sheet on a desk
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Sora:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: #1a1916; }
+  #app { height: 100%; }
+  button, textarea { font: inherit; }
+  button { cursor: pointer; }
+  .mark {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    border-radius: 3px;
+  }
+  .mark:hover { background: color-mix(in srgb, currentColor 9%, transparent); }
+
+  .switcher {
+    position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+    z-index: 80; display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px 8px 8px; border-radius: 999px;
+    background: #111; color: #f4f4f1;
+    font: 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    box-shadow: 0 12px 32px rgba(0,0,0,.4);
+  }
+  .switcher .sub { opacity: .55; }
+  .switcher button {
+    width: 28px; height: 28px; border: 0; border-radius: 999px;
+    background: #2a2a28; color: #fff;
+  }
+  .statebar {
+    position: fixed; left: 14px; bottom: 16px; z-index: 80;
+    max-width: 260px; padding: 8px 10px; border-radius: 8px;
+    background: #111; color: #cfcfc8;
+    font: 11px/1.45 ui-monospace, Menlo, monospace;
+    white-space: pre-wrap;
+  }
+
+  /* shared physical controls */
+  .press {
+    position: relative;
+    border: 1px solid rgba(27,25,22,.28);
+    box-shadow:
+      0 1px 1px rgba(20,16,12,.06),
+      0 6px 14px rgba(20,16,12,.12);
+    transform: translateY(0);
+    transition: transform .12s cubic-bezier(.32,.72,0,1), box-shadow .12s;
+  }
+  .press:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(20,16,12,.12);
+  }
+  .press.ink {
+    background: #1b1916;
+    color: #f4efe6;
+    border-color: #1b1916;
+    box-shadow:
+      0 1px 1px rgba(20,16,12,.2),
+      0 10px 22px rgba(20,16,12,.22);
+  }
+  .press.ink:active {
+    box-shadow: 0 1px 2px rgba(20,16,12,.28);
+  }
+
+  /* ════════ A ════════ */
+  .A {
+    height: 100%;
+    display: grid;
+    grid-template-columns: 220px minmax(0,1fr) 250px;
+    gap: 20px;
+    padding: 20px 20px 76px;
+    background: #e4e8ee;
+    font-family: "IBM Plex Sans", ui-sans-serif, sans-serif;
+    font-size: 14px;
+    color: #12171c;
+  }
+  .A .tray { height: 100%; }
+  .A .panel {
+    height: 100%;
+    background: #f6f8fb;
+    border: 1px solid #9aa6b4;
+    border-radius: 18px;
+    box-shadow:
+      0 1px 2px rgba(40,50,62,.06),
+      0 14px 32px rgba(40,50,62,.12);
+    padding: 16px 14px;
+    overflow: auto;
+  }
+  .A .brand { font-size: 12px; letter-spacing: .16em; font-weight: 600; margin: 4px 6px 16px; }
+  .A .ws {
+    display: flex; align-items: center;
+    margin: 0 0 8px; padding: 9px 12px; border-radius: 12px;
+    background: #e7edf3; color: #4a5966;
+  }
+  .A .ws.on {
+    background: linear-gradient(180deg, #fff, #eef3f7);
+    color: #12171c;
+    box-shadow:
+      inset 0 1px 0 #fff,
+      0 6px 14px rgba(40,50,62,.1);
+  }
+  .A .stage {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; min-width: 0;
+  }
+  .A .object {
+    width: min(780px, 94%);
+    height: min(82vh, 860px);
+    display: flex; flex-direction: column;
+    background: #fbf8f3;
+    border: 1px solid #8f8578;
+    border-radius: 18px;
+    box-shadow:
+      0 2px 4px rgba(40,50,62,.06),
+      0 18px 40px rgba(40,50,62,.14),
+      0 40px 80px rgba(40,50,62,.10);
+    padding: 22px 24px 16px;
+  }
+  .A .object h1 { font-size: 16px; margin: 0 0 14px; }
+  .A .stream { flex: 1; overflow: auto; }
+  .A .bubble {
+    background: #fff;
+    border: 1px solid #b7aea2;
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin: 0 0 12px;
+    line-height: 1.55;
+    box-shadow:
+      0 1px 2px rgba(40,30,20,.05),
+      0 8px 18px rgba(40,30,20,.08);
+  }
+  .A .who { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #7b8792; margin: 0 0 10px; }
+  .A .composer {
+    margin-top: 10px;
+    background: #fff;
+    border: 1px solid #8f8578;
+    border-radius: 14px;
+    padding: 8px;
+    box-shadow:
+      0 1px 2px rgba(40,30,20,.06),
+      0 10px 24px rgba(40,30,20,.10);
+  }
+  .A textarea {
+    width: 100%; border: 0; resize: none; outline: none;
+    background: transparent; min-height: 38px; color: inherit;
+  }
+  .A .row { display: flex; justify-content: flex-end; gap: 8px; }
+  .A .pill { border-radius: 999px; padding: 7px 13px; font-size: 12px; }
+  .A .file {
+    background: #fff;
+    border: 1px solid #8a95a3;
+    border-radius: 12px; padding: 10px 12px; margin: 0 0 8px;
+    box-shadow: inset 0 1px 0 #fff, 0 6px 12px rgba(40,50,62,.08);
+    font-size: 12px;
+  }
+
+  /* ════════ B ════════ */
+  .B {
+    height: 100%;
+    display: grid;
+    grid-template-columns: 176px minmax(0,1fr) 188px;
+    background: #ddd6ca;
+    font-family: Sora, ui-sans-serif, sans-serif;
+    font-size: 14px;
+    color: #1b1916;
+  }
+  .B .left, .B .right { padding: 28px 18px 80px; }
+  .B .logo { font-family: Fraunces, serif; font-size: 26px; margin: 8px 0 28px; }
+  .B .nav {
+    padding: 8px 10px; margin-bottom: 6px; border-radius: 10px; color: #6d665c;
+  }
+  .B .nav.on {
+    background: linear-gradient(180deg, #f4eee4, #e6ddd0);
+    color: #1b1916;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 8px 16px rgba(60,45,25,.08);
+  }
+  .B .well {
+    margin: 20px 12px 80px;
+    display: flex; align-items: center; justify-content: center;
+    min-width: 0;
+  }
+  .B .stack {
+    position: relative;
+    width: min(820px, 94%);
+    height: min(80vh, 820px);
+  }
+  .B .sheet {
+    position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+    border-radius: 18px;
+    background: #efe8dc;
+    border: 1px solid #8a7f70;
+  }
+  .B .sheet.s2 {
+    transform: translate(18px, 18px);
+    box-shadow: 0 24px 48px rgba(40,30,18,.10);
+  }
+  .B .sheet.s1 {
+    transform: translate(9px, 9px);
+    box-shadow: 0 18px 36px rgba(40,30,18,.12);
+  }
+  .B .card {
+    position: absolute; inset: 0;
+    background: #f7f2ea;
+    border: 1px solid #6f675c;
+    border-radius: 18px;
+    box-shadow:
+      0 2px 4px rgba(40,30,18,.06),
+      0 16px 32px rgba(40,30,18,.12),
+      0 40px 72px rgba(40,30,18,.14);
+    padding: 28px 28px 18px;
+    display: flex; flex-direction: column;
+  }
+  .B .kicker {
+    font-size: 10px; letter-spacing: .16em; text-transform: uppercase;
+    color: #8a8278; margin: 0 0 8px;
+  }
+  .B h1 { font-family: Fraunces, serif; font-weight: 500; font-size: 26px; margin: 0 0 14px; }
+  .B .msgs { flex: 1; overflow: auto; }
+  .B .msg { margin: 0 0 14px; line-height: 1.65; }
+  .B .msg.you { color: #6b645c; }
+  .B .actions { display: flex; gap: 8px; margin-top: 8px; }
+  .B .btn { border-radius: 11px; padding: 8px 12px; background: #efe7da; }
+  .B .dock {
+    position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%);
+    width: min(640px, 72%);
+    background: #f7f2ea;
+    border: 1px solid #6f675c;
+    border-radius: 16px;
+    padding: 12px 14px;
+    box-shadow:
+      0 2px 4px rgba(40,30,18,.06),
+      0 18px 36px rgba(40,30,18,.16);
+  }
+  .B textarea {
+    width: 100%; border: 0; resize: none; outline: none;
+    background: transparent; min-height: 36px;
+  }
+  .B .t { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #7a7266; }
+  .B .node { padding: 7px 0; color: #6d665c; font-size: 13px; }
+  .B .node.d1 { padding-left: 12px; }
+  .B .node.d2 { padding-left: 22px; }
+  .B .node.on { color: #1b1916; }
+  .B .chooser {
+    position: absolute; z-index: 6;
+    background: #1b1916; color: #f6f1e8;
+    border-radius: 12px; padding: 5px;
+    box-shadow: 0 16px 32px rgba(20,14,8,.35);
+    display: flex; gap: 4px;
+  }
+  .B .chooser button {
+    border: 0; background: transparent; color: inherit;
+    border-radius: 9px; padding: 8px 10px; font-size: 12px;
+  }
+  .B .chooser button:hover { background: #2d2924; }
+
+  /* ════════ C ════════ */
+  .C {
+    height: 100%;
+    background: #cfc7bb;
+    font-family: Newsreader, Georgia, serif;
+    color: #221e18;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 28px 0 90px;
+  }
+  .C .desk {
+    width: min(860px, calc(100% - 56px));
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center;
+    gap: 16px;
+  }
+  .C .meta {
+    width: 100%;
+    display: flex; justify-content: space-between;
+    font-family: Sora, sans-serif; font-size: 11px; letter-spacing: .08em;
+    color: #5c564c; text-transform: uppercase;
+  }
+  .C .folio {
+    width: min(760px, 100%);
+    height: min(78vh, 820px);
+    background: #fffaf1;
+    border: 1px solid #6a6156;
+    border-radius: 12px;
+    box-shadow:
+      0 2px 4px rgba(40,30,18,.06),
+      0 20px 40px rgba(40,30,18,.12),
+      0 48px 80px rgba(40,30,18,.12);
+    padding: 36px 40px 28px;
+    overflow: auto;
+  }
+  .C h1 { font-size: 36px; font-weight: 600; margin: 0 0 8px; }
+  .C .lede { color: #6b645c; margin: 0 0 22px; font-size: 17px; }
+  .C p { line-height: 1.7; margin: 0 0 1em; font-size: 17px; }
+  .C .you { font-style: italic; color: #5c564c; }
+  .C .composer {
+    width: min(760px, 100%);
+    background: #fffaf1;
+    border: 1px solid #6a6156;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-family: Sora, sans-serif; font-size: 13px;
+    box-shadow:
+      0 2px 4px rgba(40,30,18,.06),
+      0 16px 32px rgba(40,30,18,.14);
+  }
+  .C textarea {
+    width: 100%; border: 0; resize: none; outline: none;
+    background: transparent; min-height: 40px;
+    font-family: Newsreader, serif; font-size: 16px;
+  }
+  .C .btns { display: flex; justify-content: flex-end; gap: 8px; }
+  .C .btn { border-radius: 8px; padding: 7px 11px; background: #e7dccb; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<pre class="statebar" id="state"></pre>
+<div class="switcher" id="switcher">
+  <button type="button" data-dir="-1" aria-label="prev">←</button>
+  <div><b id="sw-key">A</b> <span class="sub" id="sw-name">Workbench</span></div>
+  <button type="button" data-dir="1" aria-label="next">→</button>
+</div>
+<script>
+const VARIANTS = [
+  { key: "A", name: "Workbench" },
+  { key: "B", name: "Stack" },
+  { key: "C", name: "Paper" },
+];
+const TREE = [
+  { id: "c1", title: "线性代数基础", depth: 0 },
+  { id: "c2", title: "范畴论入门", depth: 1 },
+  { id: "c3", title: "函子", depth: 2 },
+  { id: "c4", title: "自然变换", depth: 2 },
+];
+const state = { variant: "A", focusId: "c3", chooser: null, lastAction: "open", draft: "" };
+
+function focusTitle() { return TREE.find((c) => c.id === state.focusId)?.title || ""; }
+function pathText() {
+  const i = TREE.findIndex((c) => c.id === state.focusId);
+  return TREE.slice(0, i + 1).map((c) => c.title).join(" → ");
+}
+function setVariant(key) {
+  state.variant = key; state.chooser = null;
+  const url = new URL(location.href);
+  url.searchParams.set("variant", key);
+  history.replaceState(null, "", url);
+  render();
+}
+function cycle(dir) {
+  const idx = VARIANTS.findIndex((v) => v.key === state.variant);
+  setVariant(VARIANTS[(idx + dir + VARIANTS.length) % VARIANTS.length].key);
+}
+function paintState() {
+  document.getElementById("state").textContent =
+    `variant  ${state.variant}\nfocus    ${focusTitle()}\npath     ${pathText()}\naction   ${state.lastAction}\nchooser  ${state.chooser ? state.chooser.term : "—"}\ndraft    ${state.draft ? "yes" : "no"}`;
+  const meta = VARIANTS.find((v) => v.key === state.variant);
+  document.getElementById("sw-key").textContent = meta.key;
+  document.getElementById("sw-name").textContent = meta.name;
+}
+function mark(term) { return `<span class="mark" data-term="${term}">${term}</span>`; }
+function openChooser(term, ev) {
+  state.chooser = { term, x: ev.clientX, y: ev.clientY };
+  state.lastAction = "select-span:" + term;
+  render();
+}
+function spawn(kind) {
+  const term = state.chooser?.term || "概念";
+  state.lastAction = kind + " ← " + term;
+  state.chooser = null;
+  if (kind === "deepen") state.focusId = "c3";
+  if (kind === "diverge") state.focusId = "c4";
+  render();
+}
+
+function renderA() {
+  return `
+  <div class="A">
+    <div class="tray"><div class="panel">
+      <div class="brand">SOIT</div>
+      <div class="ws on">学习 · 范畴论</div>
+      <div class="ws">草稿</div>
+      <div class="ws">归档</div>
+    </div></div>
+    <div class="stage">
+      <div class="object">
+        <div class="who">${pathText()}</div>
+        <h1>${focusTitle()}</h1>
+        <div class="stream">
+          <div class="bubble">函子到底在保什么结构？我从线性代数过来的。</div>
+          <div class="bubble">
+            一个${mark("函子")}把一个${mark("范畴")}里的对象和态射送到另一个范畴，并保住复合与单位。
+            再和${mark("自然变换")}分开。
+          </div>
+        </div>
+        <div class="composer">
+          <textarea placeholder="继续这张探究…" oninput="state.draft=this.value; paintState()"></textarea>
+          <div class="row">
+            <button class="press pill" type="button">模型</button>
+            <button class="press ink pill" type="button">发送</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="tray"><div class="panel">
+      <div class="file">concepts/functor.md</div>
+      <div class="file">inquiry/next.md</div>
+      ${TREE.map((c) => `<div class="ws ${c.id===state.focusId?"on":""}" data-id="${c.id}" style="padding-left:${10+c.depth*10}px">${c.title}</div>`).join("")}
+    </div></div>
+  </div>`;
+}
+
+function renderB() {
+  const ch = state.chooser;
+  return `
+  <div class="B">
+    <aside class="left">
+      <p class="logo">Soit</p>
+      <div class="nav on">宇宙</div>
+      <div class="nav">记忆</div>
+      <div class="nav">技能</div>
+    </aside>
+    <div class="well">
+      <div class="stack">
+        <div class="sheet s2"></div>
+        <div class="sheet s1"></div>
+        <div class="card">
+          <p class="kicker">${pathText()}</p>
+          <h1>${focusTitle()}</h1>
+          <div class="msgs">
+            <p class="msg you">函子到底在保什么结构？</p>
+            <p class="msg">
+              一个${mark("函子")}把一个${mark("范畴")}里的对象和态射送到另一个范畴，并保住复合与单位。
+              点词，先选深挖还是发散。不要和${mark("自然变换")}搅在一起。
+            </p>
+          </div>
+          <div class="actions">
+            <button class="press btn" type="button">停住</button>
+            <button class="press btn" type="button">沉淀</button>
+            <span style="flex:1"></span>
+            <button class="press ink btn" type="button">发送</button>
+          </div>
+        </div>
+      </div>
+      ${ch ? `<div class="chooser" style="left:${Math.min(ch.x-30, innerWidth-190)}px;top:${ch.y-58}px">
+        <button type="button" data-kind="deepen">深挖</button>
+        <button type="button" data-kind="diverge">发散</button>
+      </div>` : ""}
+    </div>
+    <aside class="right">
+      <p class="t">树</p>
+      ${TREE.map((c) => `<div class="node d${c.depth} ${c.id===state.focusId?"on":""}" data-id="${c.id}">${c.title}</div>`).join("")}
+    </aside>
+    <div class="dock">
+      <textarea placeholder="写在这张卡上…" oninput="state.draft=this.value; paintState()"></textarea>
+    </div>
+  </div>`;
+}
+
+function renderC() {
+  return `
+  <div class="C">
+    <div class="desk">
+      <div class="meta"><span>vault / math</span><span>${pathText()}</span></div>
+      <div class="folio">
+        <h1>${focusTitle()}</h1>
+        <p class="lede">从线性代数过来。这张卡只问：函子到底在保什么。</p>
+        <p class="you">函子到底在保什么结构？</p>
+        <p>
+          一个${mark("函子")}是范畴之间的映射：对象到对象，态射到态射，并且保住复合与单位。
+          先和${mark("范畴")}分开，再和${mark("自然变换")}分开。
+        </p>
+      </div>
+      <div class="composer">
+        <textarea placeholder="写下一句…" oninput="state.draft=this.value; paintState()"></textarea>
+        <div class="btns">
+          <button class="press btn" type="button" data-kind="deepen">深挖</button>
+          <button class="press btn" type="button" data-kind="diverge">发散</button>
+          <button class="press ink btn" type="button">写下</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function render() {
+  document.getElementById("app").innerHTML =
+    state.variant === "A" ? renderA() : state.variant === "B" ? renderB() : renderC();
+  paintState();
+}
+
+document.getElementById("switcher").addEventListener("click", (e) => {
+  if (e.target.dataset.dir) cycle(Number(e.target.dataset.dir));
+});
+document.addEventListener("click", (e) => {
+  if (e.target.dataset.kind) { spawn(e.target.dataset.kind); return; }
+  if (e.target.dataset.term) { openChooser(e.target.dataset.term, e); return; }
+  if (e.target.dataset.id) { state.focusId = e.target.dataset.id; state.lastAction = "focus " + e.target.dataset.id; render(); }
+});
+document.addEventListener("keydown", (e) => {
+  const tag = (e.target.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "textarea" || e.target.isContentEditable) return;
+  if (e.key === "ArrowLeft") cycle(-1);
+  if (e.key === "ArrowRight") cycle(1);
+});
+
+const start = new URL(location.href).searchParams.get("variant") || "B";
+state.variant = VARIANTS.some((v) => v.key === start) ? start : "B";
+render();
+</script>
+</body>
+</html>
