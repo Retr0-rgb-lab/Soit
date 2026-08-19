@@ -70,6 +70,23 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transform-origin: 50% 40%;
+}
+
+/* Card switch enter (focus change) */
+.inquiry-card.enter {
+  animation: card-enter var(--motion-card) var(--ease-out) both;
+}
+
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .inquiry-empty {
@@ -234,8 +251,8 @@
   opacity: 0;
   pointer-events: none;
   transform: translateY(4px) scale(0.98);
-  transition: opacity 0.16s cubic-bezier(0.32, 0.72, 0, 1),
-    transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity var(--motion-fade) var(--ease-soft),
+    transform 0.18s var(--ease-out);
 }
 
 .ic-turn:hover .ic-turn-bar {
@@ -508,4 +525,27 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inquiry-card.enter {
+    animation: none !important;
+  }
+
+  .ic-turn-bar {
+    transition: none !important;
+    transform: none;
+  }
+
+  .ic-turn:hover .ic-turn-bar {
+    transform: none;
+  }
+
+  .ic-round,
+  .ic-dock .send,
+  .ic-think svg,
+  .ic-turn-body,
+  .ic-think-body {
+    transition: none !important;
+  }
 }

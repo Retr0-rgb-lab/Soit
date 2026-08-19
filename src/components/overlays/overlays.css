@@ -35,7 +35,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: ic-pop-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: ic-pop-in var(--motion-pop) var(--ease-out) both;
   transform-origin: top left;
 }
 
@@ -90,7 +90,7 @@
   background: #f3ece2;
   border: 1px solid rgb(90 80 65 / 18%);
   box-shadow: 0 12px 28px rgb(40 30 18 / 18%);
-  animation: ic-pop-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: ic-pop-in 0.2s var(--ease-out) both;
 }
 
 .ic-selbar .ic-round {
@@ -114,7 +114,7 @@
   box-shadow: 0 16px 32px rgb(20 14 8 / 35%);
   display: flex;
   gap: 4px;
-  animation: ic-pop-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: ic-pop-in 0.18s var(--ease-out) both;
 }
 
 .ic-chooser button {
@@ -139,5 +139,22 @@
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+/* Large motion only when allowed; tokens.css still hard-caps reduce */
+@media (prefers-reduced-motion: reduce) {
+  .ic-float,
+  .ic-selbar,
+  .ic-chooser,
+  .ic-tip {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1;
+    transform: none;
+  }
+
+  .ic-tip:not(.on) {
+    opacity: 0;
   }
 }

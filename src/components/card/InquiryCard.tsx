@@ -54,6 +54,7 @@ export default function InquiryCard() {
 
   const [draft, setDraft] = useState("");
   const [quote, setQuote] = useState("");
+  const [enterOn, setEnterOn] = useState(false);
   const [float, setFloat] = useState<TermFloatState | null>(null);
   const [selBar, setSelBar] = useState<SelectionBarState | null>(null);
   const [chooser, setChooser] = useState<{
@@ -62,13 +63,14 @@ export default function InquiryCard() {
     label: string;
   } | null>(null);
 
-  // Clear ephemeral UI when focus card changes
+  // Clear ephemeral UI + one-shot enter motion when focus card changes
   useEffect(() => {
     setDraft("");
     setQuote("");
     setFloat(null);
     setSelBar(null);
     setChooser(null);
+    if (focusId) setEnterOn(true);
   }, [focusId]);
 
   const sourceLabel = focus?.title || "概念";
@@ -182,7 +184,14 @@ export default function InquiryCard() {
           <div className="inquiry-sheet s2" />
           <div className="inquiry-sheet s1" />
           <div className="inquiry-card-wrap">
-            <article className="inquiry-card" aria-label="inquiry card body">
+            <article
+              className={`inquiry-card${enterOn ? " enter" : ""}`}
+              aria-label="inquiry card body"
+              onAnimationEnd={(e) => {
+                if (e.target !== e.currentTarget) return;
+                if (e.animationName === "card-enter") setEnterOn(false);
+              }}
+            >
               <CardHeader
                 path={path}
                 title={focus.title}

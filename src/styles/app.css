@@ -24,6 +24,20 @@ button {
   cursor: pointer;
 }
 
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+[role="button"]:focus-visible {
+  outline-offset: 3px;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: var(--rail-w) 1fr var(--graph-w);
