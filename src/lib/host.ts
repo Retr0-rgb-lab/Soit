@@ -1,6 +1,8 @@
 import type {
+  AppendResidueResult,
   BootstrapState,
   OpenUniverseResult,
+  PrecipitateConceptResult,
   SelectVaultResult,
   WorkspaceSnapshot,
 } from "../types";
@@ -70,4 +72,44 @@ export async function createRootInquiry(
     title,
     question: question ?? null,
   });
+}
+
+/** Write concepts/{slug}.md — requires open universe. */
+export async function precipitateConcept(args: {
+  cardId: string;
+  title: string;
+  question?: string | null;
+  bodyHint?: string | null;
+}): Promise<PrecipitateConceptResult> {
+  if (!hasTauri()) {
+    return {
+      ok: false,
+      bodyWritten: false,
+      bodySkipped: false,
+      error: "precipitate_concept requires tauri + bound vault",
+      cardIds: [],
+    };
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<PrecipitateConceptResult>("precipitate_concept", {
+    cardId: args.cardId,
+    title: args.title,
+    question: args.question ?? null,
+    bodyHint: args.bodyHint ?? null,
+  });
+}
+
+/** Append residue snippet under inquiry/ — requires open universe. */
+export async function appendResidue(
+  cardId: string,
+  text: string,
+): Promise<AppendResidueResult> {
+  if (!hasTauri()) {
+    return {
+      ok: false,
+      error: "append_residue requires tauri + bound vault",
+    };
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<AppendResidueResult>("append_residue", { cardId, text });
 }

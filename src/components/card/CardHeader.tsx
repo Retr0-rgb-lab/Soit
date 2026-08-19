@@ -4,7 +4,7 @@ import {
   ELLIPSIS_CRUMB_ID,
 } from "../../lib/treeNav";
 import type { InquiryNode } from "../../types";
-import { IconBookmark, IconDeepen, IconTrash } from "./icons";
+import { IconDeepen, IconTrash } from "./icons";
 
 interface Crumb {
   id: string;
@@ -19,6 +19,10 @@ interface Props {
   onOpenMap?: () => void;
   onOpenPalette?: () => void;
   parent?: InquiryNode | null;
+  /** Bound vault path present — enables Obsidian write actions */
+  vaultBound?: boolean;
+  onPrecipitateConcept?: () => void | Promise<void>;
+  onAppendResidue?: () => void | Promise<void>;
 }
 
 export default function CardHeader({
@@ -29,14 +33,39 @@ export default function CardHeader({
   onOpenMap,
   onOpenPalette,
   parent,
+  vaultBound = false,
+  onPrecipitateConcept,
+  onAppendResidue,
 }: Props) {
-  const [bookOn, setBookOn] = useState(false);
   const [crumbsExpanded, setCrumbsExpanded] = useState(false);
+  const [busy, setBusy] = useState<"concept" | "residue" | null>(null);
 
   const visible = useMemo(() => {
     if (crumbsExpanded) return crumbs;
     return collapseCrumbs(crumbs);
   }, [crumbs, crumbsExpanded]);
+
+  const vaultTip = "需要先绑定 Obsidian vault";
+
+  const runConcept = async () => {
+    if (!vaultBound || !onPrecipitateConcept || busy) return;
+    setBusy("concept");
+    try {
+      await onPrecipitateConcept();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const runResidue = async () => {
+    if (!vaultBound || !onAppendResidue || busy) return;
+    setBusy("residue");
+    try {
+      await onAppendResidue();
+    } finally {
+      setBusy(null);
+    }
+  };
 
   return (
     <div className="ic-head">
@@ -143,12 +172,33 @@ export default function CardHeader({
         </button>
         <button
           type="button"
-          className="ic-round"
-          data-tip={bookOn ? "取消沉淀标记" : "沉淀 / 收藏卡片"}
-          aria-label={bookOn ? "取消沉淀标记" : "沉淀 / 收藏卡片"}
-          onClick={() => setBookOn((v) => !v)}
+          className="ic-precip-btn"
+          data-tip={
+            vaultBound
+              ? "写入概念页到 vault/concepts/"
+              : vaultTip
+          }
+          aria-label="写入概念"
+          title={vaultBound ? "写入概念" : vaultTip}
+          disabled={!vaultBound || busy !== null}
+          onClick={() => void runConcept()}
         >
-          <IconBookmark />
+          {busy === "concept" ? "写入中…" : "写入概念"}
+        </button>
+        <button
+          type="button"
+          className="ic-precip-btn"
+          data-tip={
+            vaultBound
+              ? "追加残渣到 vault/inquiry/"
+              : vaultTip
+          }
+          aria-label="记下残渣"
+          title={vaultBound ? "记下残渣" : vaultTip}
+          disabled={!vaultBound || busy !== null}
+          onClick={() => void runResidue()}
+        >
+          {busy === "residue" ? "记录中…" : "记下残渣"}
         </button>
         <button
           type="button"

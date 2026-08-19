@@ -335,6 +335,9 @@
   display: flex;
   gap: 8px;
   flex: 0 0 auto;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 /* Round buttons — rest flat; hover lifts one step only */
@@ -373,9 +376,57 @@
   color: var(--danger);
 }
 
+.ic-round:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.ic-round:disabled:hover {
+  background: var(--bg-muted);
+  box-shadow: none;
+}
+
 .ic-round svg {
   width: 18px;
   height: 18px;
+}
+
+/* Wave D — real precipitate actions (not bookmark toggle) */
+.ic-precip-btn {
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid rgb(42 36 28 / 12%);
+  background: var(--bg-muted);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 0 12px;
+  white-space: nowrap;
+  box-shadow: var(--e0);
+  transition:
+    background 0.14s var(--ease-soft),
+    border-color 0.14s var(--ease-soft),
+    box-shadow 0.14s var(--ease-soft);
+}
+
+.ic-precip-btn:hover:not(:disabled) {
+  background: #e7dccb;
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+  box-shadow: var(--e1);
+}
+
+.ic-precip-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--focus) 55%, transparent);
+  outline-offset: 3px;
+}
+
+.ic-precip-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 /* Body + turns */

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { appendResidue, precipitateConcept } from "../../lib/host";
 import { termExplanation } from "../../lib/marks";
 import { ancestorChain } from "../../lib/treeNav";
 import { useWorkspace } from "../../state/workspaceStore";
@@ -33,6 +34,7 @@ export default function InquiryCard() {
   const deleteTurn = useWorkspace((s) => s.deleteTurn);
   const toggleTurnCollapsed = useWorkspace((s) => s.toggleTurnCollapsed);
   const appendUserMessage = useWorkspace((s) => s.appendUserMessage);
+  const vaultPath = useWorkspace((s) => s.vaultPath);
 
   const focus = useMemo(
     () => nodes.find((n) => n.id === focusId),
@@ -127,6 +129,40 @@ export default function InquiryCard() {
     setDraft("");
     setQuote("");
   }, [appendUserMessage, draft, focusId, quote]);
+
+  const onPrecipitateConcept = useCallback(async () => {
+    if (!focus) return;
+    const r = await precipitateConcept({
+      cardId: focus.id,
+      title: focus.title,
+      question: focus.question ?? null,
+    });
+    if (!r.ok) {
+      window.alert(r.error || "写入概念失败");
+      return;
+    }
+    if (r.bodySkipped) {
+      window.alert(
+        `已合并卡片 id 到概念页（保留你的正文）\n${r.path ?? ""}`,
+      );
+    } else {
+      window.alert(`已写入概念\n${r.path ?? ""}`);
+    }
+  }, [focus]);
+
+  const onAppendResidue = useCallback(async () => {
+    if (!focus) return;
+    const text = window.prompt("记下残渣（短笔记，会追加到 vault/inquiry/）");
+    if (text == null) return;
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const r = await appendResidue(focus.id, trimmed);
+    if (!r.ok) {
+      window.alert(r.error || "记下残渣失败");
+      return;
+    }
+    window.alert(`已记下残渣\n${r.path ?? ""}`);
+  }, [focus]);
 
   const onMarkClick = useCallback((term: string, x: number, y: number) => {
     setSelBar(null);
@@ -226,6 +262,9 @@ export default function InquiryCard() {
                 crumbs={crumbs}
                 title={focus.title}
                 parent={parent}
+                vaultBound={Boolean(vaultPath)}
+                onPrecipitateConcept={onPrecipitateConcept}
+                onAppendResidue={onAppendResidue}
                 onDeepen={() => onDeepen(focus.title)}
                 onCrumb={(id) => {
                   setNavKind("back");

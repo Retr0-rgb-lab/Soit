@@ -32,3 +32,13 @@ commands.allow = ["create_root_inquiry"]
 identifier = "allow-ping"
 description = "Allow ping command"
 commands.allow = ["ping"]
+
+[[permission]]
+identifier = "allow-precipitate-concept"
+description = "Allow precipitate_concept command"
+commands.allow = ["precipitate_concept"]
+
+[[permission]]
+identifier = "allow-append-residue"
+description = "Allow append_residue command"
+commands.allow = ["append_residue"]
