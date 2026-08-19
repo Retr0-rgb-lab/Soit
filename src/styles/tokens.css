@@ -1,0 +1,32 @@
+:root {
+  --bg-app: #f3ebe0;
+  --bg-panel: #faf6ef;
+  --bg-card: #fffdf8;
+  --bg-muted: #efe6d8;
+  --ink: #2a241c;
+  --ink-soft: #5c5348;
+  --ink-faint: #8a8074;
+  --line: #d9cfc0;
+  --line-strong: #c4b7a4;
+  --accent: #8b5e34;
+  --accent-soft: #e8d5bc;
+  --danger: #a33b2b;
+  --focus: #3d6b8c;
+  --rail-w: 196px;
+  --graph-w: 220px;
+  --radius: 10px;
+  --font: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei",
+    sans-serif;
+  --shadow-soft: 0 1px 2px rgb(42 36 28 / 6%), 0 8px 24px rgb(42 36 28 / 6%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
