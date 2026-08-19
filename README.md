@@ -3,7 +3,8 @@
 本地 Agent Host：把会话探索系统化，碎片在软件里，一体探究在 Obsidian 里落成实存档。
 
 知识库见 [`知识库/docs/`](./知识库/docs/)。  
-本阶段规格：[`知识库/specs/2026-08-19-tauri-workspace-scaffold-spec.md`](./知识库/specs/2026-08-19-tauri-workspace-scaffold-spec.md)。
+本阶段规格：[`知识库/specs/2026-08-19-tauri-workspace-scaffold-spec.md`](./知识库/specs/2026-08-19-tauri-workspace-scaffold-spec.md)。  
+理念对齐 Wave A–F：[`知识库/specs/2026-08-20-philosophy-alignment-spec.md`](./知识库/specs/2026-08-20-philosophy-alignment-spec.md)。
 
 ## 技术栈
 

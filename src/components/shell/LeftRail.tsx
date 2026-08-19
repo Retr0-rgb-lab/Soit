@@ -97,7 +97,7 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
     try {
       const res = await openUniverse(trimmed);
       if (!res.ok || !res.snapshot) {
-        setVaultError(res.error ?? "打开宇宙失败");
+        setVaultError(res.error ?? "打开本库失败");
         return;
       }
       setVaultPath(res.path);
@@ -262,8 +262,8 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
                     <button
                       type="button"
                       className="rail-mini"
-                      title="停养"
-                      aria-label={`停养 ${n.title}`}
+                      title="移出活线（注意力，不改探究状态）"
+                      aria-label={`移出活线 ${n.title}`}
                       onClick={() => unpinLive(n.id)}
                     >
                       ×
@@ -298,8 +298,8 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
                       <button
                         type="button"
                         className="rail-mini"
-                        title="钉为活线"
-                        aria-label={`钉活 ${n.title}`}
+                        title="钉入活线（注意力集合）"
+                        aria-label={`钉入活线 ${n.title}`}
                         onClick={() => pinLive(n.id)}
                       >
                         +
@@ -357,11 +357,11 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
 
           <p className="rail-foot-meta">
             {source === "demo"
-              ? "Local · demo"
+              ? "演示数据"
               : source === "empty"
                 ? "本库 · 空"
                 : source === "universe"
-                  ? "本库 · 宇宙"
+                  ? "本库"
                   : (source ?? "—")}
             {" · "}
             {nodes.length} 卡

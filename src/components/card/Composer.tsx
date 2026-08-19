@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { useWorkspace } from "../../state/workspaceStore";
+import type { SnapshotSource } from "../../types";
 import { IconSend } from "./icons";
 
 interface Props {
@@ -10,6 +12,14 @@ interface Props {
   disabled?: boolean;
 }
 
+/** Workspace-source chip only — no ChatPort / model plumbing yet. */
+function sourceChipLabel(source: SnapshotSource | null): string {
+  if (source === "demo") return "演示数据";
+  if (source === "empty") return "本库 · 空";
+  if (source === "universe") return "本库";
+  return "未绑定";
+}
+
 export default function Composer({
   draft,
   quote,
@@ -19,6 +29,7 @@ export default function Composer({
   disabled,
 }: Props) {
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const source = useWorkspace((s) => s.source);
 
   useEffect(() => {
     const el = taRef.current;
@@ -29,8 +40,12 @@ export default function Composer({
 
   return (
     <div className="ic-dock">
-      <button type="button" className="model" data-tip="BYOK / 本地模型">
-        Local · demo
+      <button
+        type="button"
+        className="model"
+        data-tip="工作区来源（模型接入未接 ChatPort）"
+      >
+        {sourceChipLabel(source)}
       </button>
       <div className="fields">
         <div className={`ic-quote-chip${quote ? " on" : ""}`}>

@@ -11,7 +11,7 @@ type Props = {
   onExpandMap: () => void;
 };
 
-/** Local neighborhood sketch — capped cone, not full universe. */
+/** Local neighborhood sketch — capped cone tree projection, not a full-graph editor. */
 export default function LocusPeek({ onExpandMap }: Props) {
   const nodes = useWorkspace((s) => s.nodes);
   const focusId = useWorkspace((s) => s.focusId);

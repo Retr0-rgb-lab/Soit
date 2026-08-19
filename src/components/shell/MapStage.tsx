@@ -28,7 +28,8 @@ const SCOPE_LABEL: Record<MapScopeMode, string> = {
   working: "工作集",
   cone: "焦点锥",
   growth: "本次生长",
-  atlas: "总览",
+  /** Tree projection / structure overview — not an editable “思维宇宙”. */
+  atlas: "结构总览",
 };
 
 const SCOPES: MapScopeMode[] = ["working", "cone", "growth", "atlas"];
@@ -193,6 +194,9 @@ export default function MapStage({ onClose }: Props) {
           </h2>
           <p className="shell-meta">
             {unread > 0 ? `${unread} 未读 · ` : ""}
+            {mapScopeMode === "atlas"
+              ? "探究树投影 · 非可编辑空间 · "
+              : ""}
             拖拽平移 · 滚轮缩放 · F 跟焦 · 0 全览 · ↑↓ 浏览 · Enter 打开
           </p>
           <div className="map-scope-tabs" role="tablist" aria-label="图谱范围">
@@ -253,8 +257,12 @@ export default function MapStage({ onClose }: Props) {
       </header>
 
       {import.meta.env.DEV && (
-        <div className="map-dev-stress" aria-label="压测种子">
-          <span className="shell-label">DEV 压测</span>
+        <div
+          className="map-dev-stress"
+          aria-label="开发压测种子（仅 DEV，会替换当前图）"
+          title="仅开发环境：注入压测树以验证 LOD / 聚合，非产品功能"
+        >
+          <span className="shell-label">DEV 压测 · 替换当前图</span>
           <button type="button" onClick={() => loadSnapshot(stressFan(80))}>
             fan80
           </button>
