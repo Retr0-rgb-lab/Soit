@@ -60,6 +60,10 @@ npm run tauri build
 
 | 日期 | 机器 | 路径 | 结果 |
 |------|------|------|------|
-| 2026-08-19 | Windows + rustc stable + Node LTS | `E:\学习软件\Soit`（含中文） | 见下方实测；若失败改用 ASCII 旁路 |
+| 2026-08-19 | Windows + rustc 1.92 + Node 24 | `E:\学习软件\Soit`（含中文） | `cargo check` / `cargo test` / `tauri build --debug` / `app.exe` 启动均成功，**无需 ASCII 旁路** |
 
-**Release 冷启动实测（P0 ≤2s）：** 待 Wave 3 `tauri build` 后填写。
+**Debug 构建产物路径：** `src-tauri/target/debug/app.exe`（Wave1 已验证可启动窗口）。
+
+**Release 冷启动实测（P0 ≤2s）：** 待 Wave 3 release 产物后填写。
+
+> 注：`identifier` 为 `lab.soit.app`（规格要求）。Tauri 会提示 macOS 上 `.app` 后缀不推荐；Windows 开发不受影响。
