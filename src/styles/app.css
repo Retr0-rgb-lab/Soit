@@ -698,14 +698,19 @@ button:focus-visible,
   stroke-width: 1;
 }
 
-/* LOD roles — opacity dim only; no blur on graph geometry */
-.graph-node.role-focus .ring,
-.graph-node.on .ring {
-  fill: #2c2822;
-  stroke: #2c2822;
-  filter: drop-shadow(0 4px 10px rgb(30 24 16 / 25%));
+/* Base ring first; focus/on overrides must win */
+.graph-node .ring {
+  fill: #f4eee4;
+  stroke: #9a9082;
+  stroke-width: 1.5;
+  transition:
+    fill 0.18s ease,
+    stroke 0.18s ease,
+    opacity 0.18s ease,
+    filter 0.18s ease;
 }
 
+/* LOD roles — opacity dim only; no blur on graph geometry */
 .graph-node.role-path {
   opacity: 1;
 }
@@ -718,9 +723,12 @@ button:focus-visible,
   opacity: 0.28;
 }
 
-/* Unread field nodes stay legible (avoid orphan orange dots) */
 .graph-node.role-field.unread {
   opacity: 0.72;
+}
+
+.graph-node.role-aggregate {
+  opacity: 0.85;
 }
 
 .graph-node.role-aggregate .ring {
@@ -729,25 +737,27 @@ button:focus-visible,
   stroke-dasharray: 3 2;
 }
 
-.graph-node.role-aggregate {
-  opacity: 0.85;
-}
-
-.graph-node .ring {
-  fill: #f4eee4;
-  stroke: #9a9082;
-  stroke-width: 1.5;
-  transition: fill 0.18s ease, stroke 0.18s ease, opacity 0.18s ease;
-}
-
 .graph-node:hover .ring {
   filter: brightness(1.04);
 }
 
+/* Current card — always solid ink (higher specificity + later in file) */
+.graph-node.role-focus,
+.graph-node.on {
+  opacity: 1;
+}
+
+.graph-node.role-focus .ring,
 .graph-node.on .ring {
   fill: #2c2822;
   stroke: #2c2822;
+  stroke-dasharray: none;
   filter: drop-shadow(0 4px 10px rgb(30 24 16 / 25%));
+}
+
+.graph-node.on .dot,
+.graph-node.role-focus .dot {
+  opacity: 0;
 }
 
 .map-scope-tabs {

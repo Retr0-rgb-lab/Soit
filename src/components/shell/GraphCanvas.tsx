@@ -37,9 +37,23 @@ type Props = {
   fitMode?: "all" | "focus";
 };
 
+/**
+ * Display role for LOD styling. Always trust live focusId over any baked
+ * `role` from mapScope — otherwise locus/map stay stuck on the previous focus.
+ */
 function roleOf(n: GraphInput, focusId: string): NodeRole {
-  if ("role" in n && n.role) return n.role;
-  return n.id === focusId ? "focus" : "context";
+  if (n.id === focusId) return "focus";
+  const baked = "role" in n ? n.role : undefined;
+  if (!baked || baked === "focus") {
+    // Stale baked "focus" on a non-focus node → treat as context
+    return "context";
+  }
+  return baked;
+}
+
+/** Solid black ring follows store focus only. */
+function isFocused(n: GraphInput, focusId: string): boolean {
+  return n.id === focusId;
 }
 
 function showLabelFor(role: NodeRole, mode: LabelMode): boolean {
@@ -229,14 +243,15 @@ export default function GraphCanvas({
           })}
         {laid.map((n) => {
           const role = roleOf(n, focusId);
+          const on = isFocused(n, focusId);
           return (
             <GraphNode
               key={n.id}
               n={n}
               role={role}
-              on={n.id === focusId || role === "focus"}
+              on={on}
               showLabel={showLabelFor(role, mode)}
-              pulse={pulseIds.has(n.id)}
+              pulse={pulseIds.has(n.id) && !on}
               onSelect={onSelect}
             />
           );
@@ -252,6 +267,16 @@ function radiusFor(role: NodeRole, on: boolean): number {
   if (role === "aggregate") return 11;
   if (role === "field") return 5.5;
   return 8;
+}
+
+function ringPaint(role: NodeRole, on: boolean): { fill: string; stroke: string } {
+  if (on || role === "focus") {
+    return { fill: "#2c2822", stroke: "#2c2822" };
+  }
+  if (role === "aggregate") {
+    return { fill: "#efe6d8", stroke: "#8b5e34" };
+  }
+  return { fill: "#f4eee4", stroke: "#9a9082" };
 }
 
 function GraphNode({
@@ -271,6 +296,7 @@ function GraphNode({
 }) {
   const r = radiusFor(role, on);
   const hit = Math.max(r, 14); // min hit radius in layout units
+  const paint = ringPaint(role, on);
   const label =
     n.title.length > 10 ? `${n.title.slice(0, 9)}…` : n.title;
   return (
@@ -292,8 +318,25 @@ function GraphNode({
         fill="transparent"
         stroke="none"
       />
-      <circle className="ring" cx={n.x} cy={n.y} r={r} />
-      <circle className="dot" cx={n.x + r - 1} cy={n.y - r + 1} r={3.2} />
+      {/* Explicit fill/stroke so focus never lags CSS cascade on SVG */}
+      <circle
+        className="ring"
+        cx={n.x}
+        cy={n.y}
+        r={r}
+        fill={paint.fill}
+        stroke={paint.stroke}
+        strokeWidth={1.5}
+        strokeDasharray={role === "aggregate" && !on ? "3 2" : undefined}
+      />
+      <circle
+        className="dot"
+        cx={n.x + r - 1}
+        cy={n.y - r + 1}
+        r={3.2}
+        fill="#c45c26"
+        opacity={on ? 0 : n.unread ? 1 : 0}
+      />
       {showLabel && (
         <text
           className="graph-label"

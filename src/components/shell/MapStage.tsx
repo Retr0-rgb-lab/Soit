@@ -49,28 +49,30 @@ export default function MapStage({ onClose }: Props) {
   const [cursor, setCursor] = useState(focusId);
 
   const views = useMemo(() => {
+    let raw;
     if (mapScopeMode === "cone") {
-      return mapConeNodes(nodes, focusId, DEFAULT_MAP_CAPS, expanded);
-    }
-    if (mapScopeMode === "atlas") {
-      return mapAtlasNodes(nodes, focusId, DEFAULT_MAP_CAPS);
-    }
-    if (mapScopeMode === "growth") {
-      return mapGrowthNodes(
+      raw = mapConeNodes(nodes, focusId, DEFAULT_MAP_CAPS, expanded);
+    } else if (mapScopeMode === "atlas") {
+      raw = mapAtlasNodes(nodes, focusId, DEFAULT_MAP_CAPS);
+    } else if (mapScopeMode === "growth") {
+      raw = mapGrowthNodes(
         nodes,
         focusId,
         sessionTouchIds,
         DEFAULT_MAP_CAPS,
         expanded,
       );
+    } else {
+      raw = mapWorkingNodes(
+        nodes,
+        focusId,
+        recentIds,
+        DEFAULT_MAP_CAPS,
+        expanded,
+      );
     }
-    return mapWorkingNodes(
-      nodes,
-      focusId,
-      recentIds,
-      DEFAULT_MAP_CAPS,
-      expanded,
-    );
+    // Stamp roles from the live highlight target (cursor may lead focus on map)
+    return raw;
   }, [
     nodes,
     focusId,
@@ -80,9 +82,19 @@ export default function MapStage({ onClose }: Props) {
     expanded,
   ]);
 
+  /** Roles + black node follow keyboard cursor while browsing map; lock to focusId after open. */
+  const painted = useMemo(() => {
+    const hid = cursor || focusId;
+    return views.map((n) => {
+      if (n.id === hid) return { ...n, role: "focus" as const };
+      if (n.role === "focus") return { ...n, role: "context" as const };
+      return n;
+    });
+  }, [views, cursor, focusId]);
+
   const realViews = useMemo(
-    () => views.filter((v) => !isAggregateId(v.id)),
-    [views],
+    () => painted.filter((v) => !isAggregateId(v.id)),
+    [painted],
   );
 
   useEffect(() => {
@@ -161,6 +173,8 @@ export default function MapStage({ onClose }: Props) {
       setFitToken((n) => n + 1);
       return;
     }
+    // Keep graph highlight and store focus in lockstep
+    setCursor(id);
     focusNode(id);
     onClose();
   };
@@ -258,7 +272,7 @@ export default function MapStage({ onClose }: Props) {
 
       <div className="map-stage-canvas">
         <GraphCanvas
-          nodes={views}
+          nodes={painted}
           focusId={highlightId}
           labelMode="lod"
           panZoom
