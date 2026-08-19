@@ -71,11 +71,12 @@ button:focus-visible,
   /* Soft chrome — no hard divider; continuous paper field to the right */
   border-right: none;
   background: color-mix(in srgb, var(--bg-panel) 72%, var(--bg-app));
-  padding: 14px 14px 14px 12px;
+  padding: 14px 12px 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   overflow: hidden;
+  min-width: 0;
 }
 
 .left-rail.collapsed {
@@ -152,16 +153,17 @@ button:focus-visible,
   font-size: 11px;
 }
 
-/* Focus: card optically centered; locus is a designed chip, not a column. */
+/* Focus: card centered; leave room for locus chip on the right. */
 .center-stage {
   position: relative;
   z-index: 1;
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 20px 24px 16px;
-  gap: 12px;
+  padding: 16px calc(var(--locus-w, 148px) + 28px) 16px 20px;
+  gap: 10px;
   background: transparent;
+  min-height: 0;
 }
 
 /* Locus peek — bottom-right sentinel object */
@@ -276,6 +278,12 @@ button:focus-visible,
   justify-content: space-between;
   gap: 16px;
   flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.map-stage-titles {
+  min-width: 0;
+  flex: 1 1 240px;
 }
 
 .map-stage-title {
@@ -388,7 +396,8 @@ button:focus-visible,
 }
 
 .rail-foot-meta {
-  margin-top: auto;
+  flex-shrink: 0;
+  margin-top: 4px;
   font-size: 11px;
   color: var(--ink-faint);
 }
@@ -594,6 +603,18 @@ button:focus-visible,
   color: var(--ink-soft);
 }
 
+.rail-scroll {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 2px;
+}
+
 .node-list {
   list-style: none;
   margin: 0;
@@ -601,17 +622,27 @@ button:focus-visible,
   display: flex;
   flex-direction: column;
   gap: 4px;
-  overflow: auto;
+  overflow: visible;
+  min-width: 0;
+}
+
+.node-list > li {
+  min-width: 0;
 }
 
 .node-list button {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   text-align: left;
   border: 1px solid transparent;
   background: transparent;
   border-radius: 6px;
   padding: 6px 8px;
   font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .node-list button:hover {
@@ -671,6 +702,11 @@ button:focus-visible,
 
 .graph-node.role-field {
   opacity: 0.28;
+}
+
+/* Unread field nodes stay legible (avoid orphan orange dots) */
+.graph-node.role-field.unread {
+  opacity: 0.72;
 }
 
 .graph-node.role-aggregate .ring {
@@ -777,17 +813,24 @@ button:focus-visible,
 
 .rail-live-row {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
 }
 
-.rail-live-row > button:first-child {
-  flex: 1;
+.rail-live-row > button.rail-item {
+  flex: 1 1 auto;
+  width: auto;
   min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rail-mini {
-  flex-shrink: 0;
+  flex: 0 0 22px;
   width: 22px;
   height: 22px;
   border: 0;
@@ -872,15 +915,19 @@ button:focus-visible,
   flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: 10px 14px;
-  margin-bottom: 4px;
+  margin: 0 0 8px;
+  max-width: min(880px, 100%);
+  align-self: center;
+  width: 100%;
   border-radius: 12px;
   background: color-mix(in srgb, var(--bg-card) 90%, var(--accent-soft));
   border: 1px solid var(--line);
   box-shadow: var(--shadow-soft);
+  box-sizing: border-box;
 }
 
 .reentry-kicker {

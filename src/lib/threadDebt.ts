@@ -60,6 +60,23 @@ export function groupUnreadByThread(
   });
 }
 
+/** Whether card belongs to any live thread (by root id). */
+export function isInLiveThread(
+  nodes: InquiryNode[],
+  liveIds: string[],
+  cardId: string,
+): boolean {
+  if (liveIds.includes(cardId)) return true;
+  const root = rootOf(nodes, cardId);
+  if (root && liveIds.includes(root.id)) return true;
+  // liveIds may store either root or mid-card; treat their roots as live too
+  for (const lid of liveIds) {
+    const lr = rootOf(nodes, lid);
+    if (lr && root && lr.id === root.id) return true;
+  }
+  return false;
+}
+
 /** All node ids in the subtree of rootId (inclusive). */
 export function subtreeIds(nodes: InquiryNode[], rootId: string): string[] {
   const kids = new Map<string, string[]>();

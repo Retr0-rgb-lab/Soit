@@ -60,15 +60,20 @@ function fitBounds(
   if (mode === "focus") {
     const focus = laid.find((n) => n.id === focusId);
     if (focus) {
+      // Always keep path-ish nodes + neighborhood so ancestors aren't clipped
       const near = laid.filter((n) => {
+        const role = roleOf(n, focusId);
+        if (role === "focus" || role === "path" || role === "context") {
+          return true;
+        }
         const dx = n.x - focus.x;
         const dy = n.y - focus.y;
-        return Math.hypot(dx, dy) < 120 || n.id === focusId;
+        return Math.hypot(dx, dy) < 160;
       });
-      return layoutBounds(near.length ? near : [focus], 48);
+      return layoutBounds(near.length ? near : laid, 56);
     }
   }
-  return layoutBounds(laid, 40);
+  return layoutBounds(laid, 56);
 }
 
 export default function GraphCanvas({

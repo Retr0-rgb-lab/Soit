@@ -163,12 +163,21 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
 
   loadSnapshot: (snap) => {
     idSeq = 0;
-    const prevFocus = get().focusId;
-    const root = snap.nodes.find((n) => n.id === snap.focusId);
-    const rootId =
-      root?.parentId == null
-        ? snap.focusId
-        : (snap.nodes.find((n) => !n.parentId)?.id ?? snap.focusId);
+    const prev = get();
+    const prevFocus = prev.focusId;
+    const keepMap = prev.workspaceMode === "map";
+    const focusNode = snap.nodes.find((n) => n.id === snap.focusId);
+    // Prefer tree root of focus for live set
+    let rootId = snap.focusId;
+    if (focusNode?.parentId) {
+      let cur: typeof focusNode | undefined = focusNode;
+      const guard = new Set<string>();
+      while (cur?.parentId && !guard.has(cur.id)) {
+        guard.add(cur.id);
+        cur = snap.nodes.find((n) => n.id === cur!.parentId);
+      }
+      if (cur) rootId = cur.id;
+    }
     set({
       nodes: snap.nodes.map((n) => ({ ...n })),
       turnsByCardId: Object.fromEntries(
@@ -179,13 +188,16 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       ),
       focusId: snap.focusId,
       source: snap.source,
-      workspaceMode: "focus",
-      mapScopeMode: "working",
+      // Keep map open when reloading stress seeds from MapStage
+      workspaceMode: keepMap ? "map" : "focus",
+      mapScopeMode: keepMap ? prev.mapScopeMode : "working",
       recentIds: snap.focusId ? [snap.focusId] : [],
-      liveIds: snap.focusId ? [rootId || snap.focusId] : [],
+      liveIds: snap.focusId ? [rootId] : [],
       sessionTouchIds: snap.focusId ? [snap.focusId] : [],
-      resumeHintId: prevFocus && prevFocus !== snap.focusId ? prevFocus : snap.focusId,
-      reentryDismissed: false,
+      resumeHintId:
+        prevFocus && prevFocus !== snap.focusId ? prevFocus : snap.focusId,
+      // Don't flash re-entry banner on DEV stress reloads while already in map
+      reentryDismissed: keepMap ? true : false,
     });
   },
 

@@ -45,7 +45,7 @@ export default function MapStage({ onClose }: Props) {
 
   const [expanded, setExpanded] = useState<ExpandedCaps>({});
   const [fitToken, setFitToken] = useState(0);
-  const [fitMode, setFitMode] = useState<"all" | "focus">("focus");
+  const [fitMode, setFitMode] = useState<"all" | "focus">("all");
   const [cursor, setCursor] = useState(focusId);
 
   const views = useMemo(() => {
@@ -87,7 +87,9 @@ export default function MapStage({ onClose }: Props) {
 
   useEffect(() => {
     setCursor(focusId);
-  }, [focusId, mapScopeMode]);
+    // Refit when scope or graph data changes so nodes aren't clipped
+    setFitToken((n) => n + 1);
+  }, [focusId, mapScopeMode, views.length]);
 
   // Map keyboard: move among visible real nodes
   useEffect(() => {
