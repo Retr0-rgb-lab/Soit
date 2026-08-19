@@ -19,3 +19,20 @@
 ## DEV
 
 Map 顶栏仅在 `import.meta.env.DEV` 显示压测种子（fan80 / deep40 / …）。
+
+## 续作（已落地）
+
+| 能力 | 说明 |
+|------|------|
+| Map pan/zoom | 拖拽平移、滚轮缩放；动态 layout bounds |
+| 跟焦 / 全览 | 按钮 + `F` / `0` |
+| 生长视图 | scope=`growth` = 本会话 touch |
+| 活线 | ≤5；左栏钉/停养；focus 自动 pin 根 |
+| 线债 | 未读按 root 聚合；「本线标已读」 |
+| 再进入条 | 冷启动/换库后的继续条 |
+| 命中区 | 最小 hit radius；未读 pulse ≤3 |
+| Map 键盘 | ↑↓/jk 浏览可见点，Enter 打开 |
+
+## 仍不做（产品非目标）
+
+WebGL 粒子宇宙、力导向、稳态高斯模糊、真 LLM、Obsidian 编辑器、universe.db 业务。

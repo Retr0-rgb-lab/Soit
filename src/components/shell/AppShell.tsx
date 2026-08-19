@@ -4,6 +4,7 @@ import CommandPalette from "./CommandPalette";
 import LeftRail from "./LeftRail";
 import LocusPeek from "./LocusPeek";
 import MapStage from "./MapStage";
+import ReentryBanner from "./ReentryBanner";
 import { useWorkspace } from "../../state/workspaceStore";
 
 function isTypingTarget(t: EventTarget | null): boolean {
@@ -141,6 +142,7 @@ export default function AppShell() {
         ) : (
           <>
             <main className="center-stage" aria-label="inquiry card">
+              <ReentryBanner />
               <InquiryCard />
             </main>
             <LocusPeek onExpandMap={() => setMode("map")} />

@@ -1,7 +1,7 @@
 import type { InquiryNode, NodeKind } from "../types";
 import { ancestorChain } from "./treeNav";
 
-export type MapScopeMode = "cone" | "working" | "atlas";
+export type MapScopeMode = "cone" | "working" | "atlas" | "growth";
 export type NodeRole = "focus" | "path" | "context" | "field" | "aggregate";
 
 export type MapNodeView = InquiryNode & {
@@ -279,6 +279,20 @@ function hardClamp(
   }
 
   return list.slice(0, hardCap);
+}
+
+/**
+ * Today's growth / session touches: cone + sessionTouchIds as field.
+ */
+export function mapGrowthNodes(
+  nodes: InquiryNode[],
+  focusId: string,
+  sessionTouchIds: string[],
+  caps: MapCaps = DEFAULT_MAP_CAPS,
+  expanded?: ExpandedCaps,
+): MapNodeView[] {
+  // Reuse working builder with session touches as "recent"
+  return mapWorkingNodes(nodes, focusId, sessionTouchIds, caps, expanded);
 }
 
 /**

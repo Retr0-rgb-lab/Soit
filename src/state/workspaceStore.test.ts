@@ -63,6 +63,28 @@ describe("workspaceStore", () => {
     useWorkspace.getState().setMapScopeMode("atlas");
     expect(useWorkspace.getState().mapScopeMode).toBe("atlas");
   });
+
+  it("markThreadRead clears unread in subtree", () => {
+    useWorkspace.getState().focusNode("c1");
+    // re-mark c4 unread via load
+    const snap = demoSnapshot();
+    useWorkspace.getState().loadSnapshot(snap);
+    expect(useWorkspace.getState().nodes.find((n) => n.id === "c4")!.unread).toBe(
+      true,
+    );
+    useWorkspace.getState().markThreadRead("c4");
+    expect(
+      useWorkspace.getState().nodes.filter((n) => n.unread).length,
+    ).toBe(0);
+  });
+
+  it("pinLive respects LIVE_MAX via repeated pins", () => {
+    const s = useWorkspace.getState();
+    for (let i = 0; i < 8; i++) {
+      s.pinLive(s.nodes[i % s.nodes.length]!.id);
+    }
+    expect(useWorkspace.getState().liveIds.length).toBeLessThanOrEqual(5);
+  });
 });
 
 describe("layoutGraph", () => {

@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DEFAULT_MAP_CAPS,
   EXPAND_STEP,
   isAggregateId,
   mapAtlasNodes,
   mapConeNodes,
+  mapGrowthNodes,
   mapWorkingNodes,
   parseAggregateKey,
   type ExpandedCaps,
@@ -26,19 +27,26 @@ type Props = {
 const SCOPE_LABEL: Record<MapScopeMode, string> = {
   working: "工作集",
   cone: "焦点锥",
+  growth: "本次生长",
   atlas: "总览",
 };
+
+const SCOPES: MapScopeMode[] = ["working", "cone", "growth", "atlas"];
 
 export default function MapStage({ onClose }: Props) {
   const nodes = useWorkspace((s) => s.nodes);
   const focusId = useWorkspace((s) => s.focusId);
   const recentIds = useWorkspace((s) => s.recentIds);
+  const sessionTouchIds = useWorkspace((s) => s.sessionTouchIds);
   const focusNode = useWorkspace((s) => s.focusNode);
   const mapScopeMode = useWorkspace((s) => s.mapScopeMode);
   const setMapScopeMode = useWorkspace((s) => s.setMapScopeMode);
   const loadSnapshot = useWorkspace((s) => s.loadSnapshot);
 
   const [expanded, setExpanded] = useState<ExpandedCaps>({});
+  const [fitToken, setFitToken] = useState(0);
+  const [fitMode, setFitMode] = useState<"all" | "focus">("focus");
+  const [cursor, setCursor] = useState(focusId);
 
   const views = useMemo(() => {
     if (mapScopeMode === "cone") {
@@ -47,6 +55,15 @@ export default function MapStage({ onClose }: Props) {
     if (mapScopeMode === "atlas") {
       return mapAtlasNodes(nodes, focusId, DEFAULT_MAP_CAPS);
     }
+    if (mapScopeMode === "growth") {
+      return mapGrowthNodes(
+        nodes,
+        focusId,
+        sessionTouchIds,
+        DEFAULT_MAP_CAPS,
+        expanded,
+      );
+    }
     return mapWorkingNodes(
       nodes,
       focusId,
@@ -54,10 +71,77 @@ export default function MapStage({ onClose }: Props) {
       DEFAULT_MAP_CAPS,
       expanded,
     );
-  }, [nodes, focusId, recentIds, mapScopeMode, expanded]);
+  }, [
+    nodes,
+    focusId,
+    recentIds,
+    sessionTouchIds,
+    mapScopeMode,
+    expanded,
+  ]);
+
+  const realViews = useMemo(
+    () => views.filter((v) => !isAggregateId(v.id)),
+    [views],
+  );
+
+  useEffect(() => {
+    setCursor(focusId);
+  }, [focusId, mapScopeMode]);
+
+  // Map keyboard: move among visible real nodes
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLElement) {
+        const t = e.target.tagName;
+        if (t === "INPUT" || t === "TEXTAREA") return;
+      }
+      if (e.key === "f" || e.key === "F") {
+        if (!e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          setFitMode("focus");
+          setFitToken((n) => n + 1);
+        }
+        return;
+      }
+      if (e.key === "0") {
+        e.preventDefault();
+        setFitMode("all");
+        setFitToken((n) => n + 1);
+        return;
+      }
+      const ids = realViews.map((v) => v.id);
+      if (!ids.length) return;
+      let i = Math.max(0, ids.indexOf(cursor));
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === "ArrowDown" || e.key === "j" || e.key === "J") {
+        e.preventDefault();
+        i = (i + 1) % ids.length;
+        setCursor(ids[i]!);
+        return;
+      }
+      if (e.key === "ArrowUp" || e.key === "k" || e.key === "K") {
+        e.preventDefault();
+        i = (i - 1 + ids.length) % ids.length;
+        setCursor(ids[i]!);
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const id = ids[i] ?? cursor;
+        if (id) {
+          focusNode(id);
+          onClose();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [realViews, cursor, focusNode, onClose]);
 
   const focus = nodes.find((n) => n.id === focusId);
   const unread = nodes.filter((n) => n.unread).length;
+  const highlightId = cursor || focusId;
 
   const openCard = (id: string) => {
     if (isAggregateId(id)) {
@@ -72,6 +156,7 @@ export default function MapStage({ onClose }: Props) {
             : DEFAULT_MAP_CAPS.siblingCap);
         return { ...prev, [key]: cur + EXPAND_STEP };
       });
+      setFitToken((n) => n + 1);
       return;
     }
     focusNode(id);
@@ -79,7 +164,10 @@ export default function MapStage({ onClose }: Props) {
   };
 
   return (
-    <section className="map-stage" aria-label={`探究图谱（${SCOPE_LABEL[mapScopeMode]}）`}>
+    <section
+      className="map-stage"
+      aria-label={`探究图谱（${SCOPE_LABEL[mapScopeMode]}）`}
+    >
       <header className="map-stage-bar">
         <div className="map-stage-titles">
           <p className="shell-label">图谱</p>
@@ -89,10 +177,10 @@ export default function MapStage({ onClose }: Props) {
           </h2>
           <p className="shell-meta">
             {unread > 0 ? `${unread} 未读 · ` : ""}
-            点节点打开 · 点聚合展开 · Esc 返回
+            拖拽平移 · 滚轮缩放 · F 跟焦 · 0 全览 · ↑↓ 浏览 · Enter 打开
           </p>
           <div className="map-scope-tabs" role="tablist" aria-label="图谱范围">
-            {(["working", "cone", "atlas"] as MapScopeMode[]).map((m) => (
+            {SCOPES.map((m) => (
               <button
                 key={m}
                 type="button"
@@ -102,6 +190,7 @@ export default function MapStage({ onClose }: Props) {
                 onClick={() => {
                   setMapScopeMode(m);
                   setExpanded({});
+                  setFitToken((n) => n + 1);
                 }}
               >
                 {SCOPE_LABEL[m]}
@@ -110,6 +199,28 @@ export default function MapStage({ onClose }: Props) {
           </div>
         </div>
         <div className="map-stage-actions">
+          <button
+            type="button"
+            className="map-btn ghost"
+            onClick={() => {
+              setFitMode("focus");
+              setFitToken((n) => n + 1);
+            }}
+            title="F"
+          >
+            跟焦
+          </button>
+          <button
+            type="button"
+            className="map-btn ghost"
+            onClick={() => {
+              setFitMode("all");
+              setFitToken((n) => n + 1);
+            }}
+            title="0"
+          >
+            全览
+          </button>
           <button type="button" className="map-btn ghost" onClick={onClose}>
             返回卡片
           </button>
@@ -146,8 +257,11 @@ export default function MapStage({ onClose }: Props) {
       <div className="map-stage-canvas">
         <GraphCanvas
           nodes={views}
-          focusId={focusId}
+          focusId={highlightId}
           labelMode="lod"
+          panZoom
+          fitToken={fitToken}
+          fitMode={fitMode}
           className="map-graph"
           onSelect={openCard}
           ariaLabel={`探究图谱 ${SCOPE_LABEL[mapScopeMode]}`}

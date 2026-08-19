@@ -1,29 +1,46 @@
 import { create } from "zustand";
+import {
+  LIVE_MAX,
+  pinLiveId,
+  touchSession,
+  unpinLiveId,
+} from "../lib/liveSet";
 import type { MapScopeMode } from "../lib/mapScope";
+import { rootOf, subtreeIds } from "../lib/threadDebt";
 import type { InquiryNode, NodeKind, Turn, WorkspaceSnapshot } from "../types";
 
 export type WorkspaceMode = "focus" | "map";
 
 const RECENT_MAX = 8;
 export const UNREAD_RAIL_CAP = 12;
+export { LIVE_MAX };
 
 export interface WorkspaceState {
   nodes: InquiryNode[];
   turnsByCardId: Record<string, Turn[]>;
   focusId: string;
   source: WorkspaceSnapshot["source"] | null;
-  /** focus = read card; map = full structure stage */
   workspaceMode: WorkspaceMode;
-  /** Map structure slice mode */
   mapScopeMode: MapScopeMode;
-  /** Most-recently focused card ids (newest first), excl. current optional */
   recentIds: string[];
+  /** Explicitly live threads (card ids), soft max LIVE_MAX */
+  liveIds: string[];
+  /** Cards touched this app session */
+  sessionTouchIds: string[];
+  /** For re-entry banner: previous focus when snapshot loaded */
+  resumeHintId: string | null;
+  reentryDismissed: boolean;
 
   loadSnapshot: (snap: WorkspaceSnapshot) => void;
   focusNode: (id: string) => void;
   setWorkspaceMode: (mode: WorkspaceMode) => void;
   setMapScopeMode: (mode: MapScopeMode) => void;
   toggleMapMode: () => void;
+  pinLive: (id: string) => void;
+  unpinLive: (id: string) => void;
+  /** Mark all unread in thread (by root) as read */
+  markThreadRead: (anyIdInThread: string) => void;
+  dismissReentry: () => void;
   spawnDeepen: (sourceLabel: string) => string;
   spawnDiverge: (sourceLabel: string) => string;
   regenerateTurn: (turnId: string) => void;
@@ -40,7 +57,6 @@ function pushRecent(recentIds: string[], id: string, prevFocus: string): string[
   if (prevFocus && prevFocus !== id) {
     next.splice(1, 0, prevFocus);
   }
-  // dedupe while preserving order
   const seen = new Set<string>();
   const out: string[] = [];
   for (const x of next) {
@@ -60,7 +76,11 @@ function nextId(prefix: string): string {
 
 function spawnChild(
   get: () => WorkspaceState,
-  set: (partial: Partial<WorkspaceState> | ((s: WorkspaceState) => Partial<WorkspaceState>)) => void,
+  set: (
+    partial:
+      | Partial<WorkspaceState>
+      | ((s: WorkspaceState) => Partial<WorkspaceState>),
+  ) => void,
   kind: Exclude<NodeKind, "root">,
   sourceLabel: string,
 ): string {
@@ -101,6 +121,33 @@ function spawnChild(
   return id;
 }
 
+function afterFocus(
+  s: WorkspaceState,
+  id: string,
+): Pick<
+  WorkspaceState,
+  "focusId" | "recentIds" | "sessionTouchIds" | "liveIds" | "nodes"
+> {
+  const idx = s.nodes.findIndex((n) => n.id === id);
+  const target = idx >= 0 ? s.nodes[idx] : null;
+  const nodes =
+    !target || target.unread === false
+      ? s.nodes
+      : s.nodes.map((n, i) => (i === idx ? { ...n, unread: false } : n));
+
+  const root = rootOf(nodes, id);
+  const liveTarget = root?.id ?? id;
+  const { liveIds } = pinLiveId(s.liveIds, liveTarget, LIVE_MAX);
+
+  return {
+    focusId: id,
+    recentIds: pushRecent(s.recentIds, id, s.focusId),
+    sessionTouchIds: touchSession(s.sessionTouchIds, id),
+    liveIds,
+    nodes,
+  };
+}
+
 export const useWorkspace = create<WorkspaceState>((set, get) => ({
   nodes: [],
   turnsByCardId: {},
@@ -109,9 +156,19 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   workspaceMode: "focus",
   mapScopeMode: "working",
   recentIds: [],
+  liveIds: [],
+  sessionTouchIds: [],
+  resumeHintId: null,
+  reentryDismissed: true,
 
   loadSnapshot: (snap) => {
     idSeq = 0;
+    const prevFocus = get().focusId;
+    const root = snap.nodes.find((n) => n.id === snap.focusId);
+    const rootId =
+      root?.parentId == null
+        ? snap.focusId
+        : (snap.nodes.find((n) => !n.parentId)?.id ?? snap.focusId);
     set({
       nodes: snap.nodes.map((n) => ({ ...n })),
       turnsByCardId: Object.fromEntries(
@@ -125,25 +182,17 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       workspaceMode: "focus",
       mapScopeMode: "working",
       recentIds: snap.focusId ? [snap.focusId] : [],
+      liveIds: snap.focusId ? [rootId || snap.focusId] : [],
+      sessionTouchIds: snap.focusId ? [snap.focusId] : [],
+      resumeHintId: prevFocus && prevFocus !== snap.focusId ? prevFocus : snap.focusId,
+      reentryDismissed: false,
     });
   },
 
   focusNode: (id) => {
     const s0 = get();
-    const idx = s0.nodes.findIndex((n) => n.id === id);
-    if (idx < 0) return;
-    const target = s0.nodes[idx]!;
-    const nodes =
-      target.unread === false
-        ? s0.nodes
-        : s0.nodes.map((n, i) =>
-            i === idx ? { ...n, unread: false } : n,
-          );
-    set({
-      focusId: id,
-      recentIds: pushRecent(s0.recentIds, id, s0.focusId),
-      nodes,
-    });
+    if (!s0.nodes.some((n) => n.id === id)) return;
+    set(afterFocus(s0, id));
   },
 
   setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
@@ -155,23 +204,59 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       workspaceMode: s.workspaceMode === "map" ? "focus" : "map",
     })),
 
+  pinLive: (id) => {
+    const s = get();
+    const root = rootOf(s.nodes, id);
+    const target = root?.id ?? id;
+    const { liveIds } = pinLiveId(s.liveIds, target, LIVE_MAX);
+    set({ liveIds });
+  },
+
+  unpinLive: (id) => {
+    set((s) => ({ liveIds: unpinLiveId(s.liveIds, id) }));
+  },
+
+  markThreadRead: (anyIdInThread) => {
+    const s = get();
+    const root = rootOf(s.nodes, anyIdInThread);
+    if (!root) return;
+    const ids = new Set(subtreeIds(s.nodes, root.id));
+    set({
+      nodes: s.nodes.map((n) =>
+        ids.has(n.id) && n.unread ? { ...n, unread: false } : n,
+      ),
+    });
+  },
+
+  dismissReentry: () => set({ reentryDismissed: true }),
+
   spawnDeepen: (sourceLabel) => {
     const prev = get().focusId;
     const id = spawnChild(get, set, "deepen", sourceLabel);
-    set((s) => ({
+    const s = get();
+    const root = rootOf(s.nodes, id);
+    const { liveIds } = pinLiveId(s.liveIds, root?.id ?? id, LIVE_MAX);
+    set({
       workspaceMode: "focus",
       recentIds: pushRecent(s.recentIds, id, prev),
-    }));
+      sessionTouchIds: touchSession(s.sessionTouchIds, id),
+      liveIds,
+    });
     return id;
   },
 
   spawnDiverge: (sourceLabel) => {
     const prev = get().focusId;
     const id = spawnChild(get, set, "diverge", sourceLabel);
-    set((s) => ({
+    const s = get();
+    const root = rootOf(s.nodes, id);
+    const { liveIds } = pinLiveId(s.liveIds, root?.id ?? id, LIVE_MAX);
+    set({
       workspaceMode: "focus",
       recentIds: pushRecent(s.recentIds, id, prev),
-    }));
+      sessionTouchIds: touchSession(s.sessionTouchIds, id),
+      liveIds,
+    });
     return id;
   },
 
@@ -230,9 +315,9 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
         ...s.turnsByCardId,
         [focusId]: [...(s.turnsByCardId[focusId] ?? []), turn],
       },
+      sessionTouchIds: touchSession(s.sessionTouchIds, focusId),
     }));
   },
 }));
 
-/** Alias used by tests / plan docs; same store instance. */
 export const useWorkspaceStore = useWorkspace;

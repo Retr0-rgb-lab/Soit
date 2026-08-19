@@ -1,5 +1,7 @@
 import { useMemo } from "react";
+import { LIVE_MAX } from "../../lib/liveSet";
 import { kindGlyph } from "../../lib/treeNav";
+import { groupUnreadByThread } from "../../lib/threadDebt";
 import { UNREAD_RAIL_CAP, useWorkspace } from "../../state/workspaceStore";
 
 type Props = {
@@ -11,24 +13,35 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
   const nodes = useWorkspace((s) => s.nodes);
   const focusId = useWorkspace((s) => s.focusId);
   const recentIds = useWorkspace((s) => s.recentIds);
+  const liveIds = useWorkspace((s) => s.liveIds);
   const focusNode = useWorkspace((s) => s.focusNode);
+  const pinLive = useWorkspace((s) => s.pinLive);
+  const unpinLive = useWorkspace((s) => s.unpinLive);
+  const markThreadRead = useWorkspace((s) => s.markThreadRead);
   const workspaceMode = useWorkspace((s) => s.workspaceMode);
   const setMode = useWorkspace((s) => s.setWorkspaceMode);
   const source = useWorkspace((s) => s.source);
 
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
 
-  const unread = useMemo(
-    () => nodes.filter((n) => n.unread && n.id !== focusId),
+  const debts = useMemo(
+    () => groupUnreadByThread(nodes, focusId),
     [nodes, focusId],
   );
 
+  const unreadTotal = useMemo(
+    () => nodes.filter((n) => n.unread && n.id !== focusId).length,
+    [nodes, focusId],
+  );
+
+  const live = useMemo(() => {
+    return liveIds
+      .map((id) => byId.get(id))
+      .filter((n): n is NonNullable<typeof n> => Boolean(n));
+  }, [liveIds, byId]);
+
   const recent = useMemo(() => {
-    const ids = recentIds.length
-      ? recentIds
-      : focusId
-        ? [focusId]
-        : [];
+    const ids = recentIds.length ? recentIds : focusId ? [focusId] : [];
     const list: typeof nodes = [];
     const seen = new Set<string>();
     for (const id of ids) {
@@ -38,7 +51,6 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
       list.push(n);
       if (list.length >= 8) break;
     }
-    // Fill with other nodes by title if recent is thin
     if (list.length < 5) {
       for (const n of nodes) {
         if (seen.has(n.id)) continue;
@@ -49,6 +61,11 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
     }
     return list;
   }, [recentIds, focusId, byId, nodes]);
+
+  const open = (id: string) => {
+    focusNode(id);
+    setMode("focus");
+  };
 
   return (
     <aside
@@ -136,56 +153,108 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
             </button>
           </div>
 
-          <p className="rail-section-label">最近</p>
-          {recent.length === 0 ? (
-            <p className="shell-placeholder">尚无探究</p>
+          <p className="rail-section-label">
+            活线 {live.length}/{LIVE_MAX}
+          </p>
+          {live.length === 0 ? (
+            <p className="shell-placeholder">打开卡片会自动进入活线</p>
           ) : (
             <ul className="node-list">
-              {recent.map((n) => (
-                <li key={n.id}>
+              {live.map((n) => (
+                <li key={n.id} className="rail-live-row">
                   <button
                     type="button"
-                    className={`${n.id === focusId ? "on" : ""} ${n.unread ? "unread" : ""}`.trim()}
-                    onClick={() => {
-                      focusNode(n.id);
-                      setMode("focus");
-                    }}
+                    className={n.id === focusId || liveIds.includes(n.id) ? "on" : ""}
+                    onClick={() => open(n.id)}
                   >
                     <span className="node-kind" aria-hidden>
                       {kindGlyph(n.kind)}
                     </span>
                     {n.title}
                   </button>
+                  <button
+                    type="button"
+                    className="rail-mini"
+                    title="停养"
+                    aria-label={`停养 ${n.title}`}
+                    onClick={() => unpinLive(n.id)}
+                  >
+                    ×
+                  </button>
                 </li>
               ))}
             </ul>
           )}
 
-          {unread.length > 0 && (
-            <>
-              <p className="rail-section-label">未读</p>
-              <ul className="node-list">
-                {unread.slice(0, UNREAD_RAIL_CAP).map((n) => (
-                  <li key={n.id}>
+          <p className="rail-section-label">最近</p>
+          {recent.length === 0 ? (
+            <p className="shell-placeholder">尚无探究</p>
+          ) : (
+            <ul className="node-list">
+              {recent.map((n) => (
+                <li key={n.id} className="rail-live-row">
+                  <button
+                    type="button"
+                    className={`${n.id === focusId ? "on" : ""} ${n.unread ? "unread" : ""}`.trim()}
+                    onClick={() => open(n.id)}
+                  >
+                    <span className="node-kind" aria-hidden>
+                      {kindGlyph(n.kind)}
+                    </span>
+                    {n.title}
+                  </button>
+                  {!liveIds.includes(n.id) && (
                     <button
                       type="button"
-                      className="unread"
-                      onClick={() => {
-                        focusNode(n.id);
-                        setMode("focus");
-                      }}
+                      className="rail-mini"
+                      title="钉为活线"
+                      aria-label={`钉活 ${n.title}`}
+                      onClick={() => pinLive(n.id)}
                     >
-                      <span className="node-kind" aria-hidden>
-                        {kindGlyph(n.kind)}
-                      </span>
-                      {n.title}
+                      +
                     </button>
-                  </li>
-                ))}
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {debts.length > 0 && (
+            <>
+              <p className="rail-section-label">
+                线债 · {debts.length} 线 · {unreadTotal} 未读
+              </p>
+              <ul className="node-list debt-list">
+                {debts.slice(0, UNREAD_RAIL_CAP).map((d) => {
+                  const sample = d.sampleIds[0];
+                  const sampleNode = sample ? byId.get(sample) : undefined;
+                  return (
+                    <li key={d.rootId}>
+                      <button
+                        type="button"
+                        className="debt-row"
+                        onClick={() => open(sample ?? d.rootId)}
+                      >
+                        <span className="debt-title">{d.rootTitle}</span>
+                        <span className="debt-count">{d.unreadCount}</span>
+                      </button>
+                      {sampleNode && (
+                        <p className="debt-sample">{sampleNode.title}</p>
+                      )}
+                      <button
+                        type="button"
+                        className="debt-skim"
+                        onClick={() => markThreadRead(d.rootId)}
+                      >
+                        本线标已读
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
-              {unread.length > UNREAD_RAIL_CAP && (
+              {debts.length > UNREAD_RAIL_CAP && (
                 <p className="rail-more-unread">
-                  还有 {unread.length - UNREAD_RAIL_CAP} 条未读 · Ctrl+K
+                  还有 {debts.length - UNREAD_RAIL_CAP} 条线 · Ctrl+K
                 </p>
               )}
             </>
