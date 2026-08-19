@@ -38,16 +38,25 @@ function spawnChild(
     title,
     parentId: parentId || null,
     kind,
-    unread: false,
+    unread: true,
   };
   const turn: Turn = {
     id: nextId("t"),
     title: kind === "deepen" ? "深挖开场" : "发散开场",
     collapsed: false,
-    user: sourceLabel,
-    think: "",
+    user:
+      kind === "deepen"
+        ? `从「${sourceLabel}」往下：它具体指什么？`
+        : `另开一条：和「${sourceLabel}」平行的问题。`,
+    think:
+      kind === "deepen"
+        ? "深挖：父状态 + 源跨度；不整段灌父 transcript。"
+        : "发散：空白对话 + 回边；父卡继续活。",
     thinkOpen: false,
-    aiHtml: kind === "deepen" ? "（深挖占位回复）" : "（发散占位回复）",
+    aiHtml:
+      kind === "deepen"
+        ? `这是对「${sourceLabel}」的深挖卡。（demo 占位）`
+        : `这是平行发散，回边指向「${sourceLabel}」。（demo 占位）`,
   };
   set((s) => ({
     nodes: [...s.nodes, node],
@@ -64,9 +73,15 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   source: null,
 
   loadSnapshot: (snap) => {
+    idSeq = 0;
     set({
-      nodes: snap.nodes,
-      turnsByCardId: snap.turnsByCardId,
+      nodes: snap.nodes.map((n) => ({ ...n })),
+      turnsByCardId: Object.fromEntries(
+        Object.entries(snap.turnsByCardId).map(([k, turns]) => [
+          k,
+          turns.map((t) => ({ ...t })),
+        ]),
+      ),
       focusId: snap.focusId,
       source: snap.source,
     });
@@ -145,3 +160,6 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     }));
   },
 }));
+
+/** Alias used by tests / plan docs; same store instance. */
+export const useWorkspaceStore = useWorkspace;
