@@ -1,0 +1,28 @@
+# deps / build
+node_modules/
+dist/
+dist-ssr/
+target/
+.output/
+.turbo/
+*.local
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# editors / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# tauri / rust
+src-tauri/target/
+src-tauri/gen/
+
+# Soit runtime (never commit a live universe)
+**/.soit/universe.db
+**/.soit/universe.db-*
