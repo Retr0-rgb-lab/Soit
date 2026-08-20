@@ -1,4 +1,5 @@
 mod chat_config;
+mod doc;
 mod obsidian;
 mod runtime;
 mod session_config;
@@ -452,6 +453,8 @@ pub fn run() {
       runtime::set_runtime_prefs,
       runtime::start_runtime_handoff,
       runtime::cancel_runtime_handoff,
+      doc::resolve_vault_doc,
+      doc::read_vault_text,
       ping
     ])
     .setup(|app| {

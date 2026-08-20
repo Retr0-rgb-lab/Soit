@@ -30,6 +30,8 @@
     "allow-set-runtime-prefs",
     "allow-start-runtime-handoff",
     "allow-cancel-runtime-handoff",
+    "allow-resolve-vault-doc",
+    "allow-read-vault-text",
     "allow-ping"
   ]
 }

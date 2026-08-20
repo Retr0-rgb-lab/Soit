@@ -127,3 +127,13 @@ commands.allow = ["start_runtime_handoff"]
 identifier = "allow-cancel-runtime-handoff"
 description = "Allow cancel_runtime_handoff command"
 commands.allow = ["cancel_runtime_handoff"]
+
+[[permission]]
+identifier = "allow-resolve-vault-doc"
+description = "Allow resolve_vault_doc command (vault path sandbox; PEL-156)"
+commands.allow = ["resolve_vault_doc"]
+
+[[permission]]
+identifier = "allow-read-vault-text"
+description = "Allow read_vault_text command (UTF-8 text under vault; PEL-156)"
+commands.allow = ["read_vault_text"]
