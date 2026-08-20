@@ -1428,10 +1428,10 @@ body.has-selbar .ic-turn-bar {
   max-height: 100%;
 }
 
-/* Hide non-card chrome while in 专注模式 */
+/* Hide non-card chrome while in 专注模式 (whole chrome-stack, not gear only) */
 .app-shell:has(.inquiry-root.is-focus-mode) .left-rail,
 .app-shell:has(.inquiry-root.is-focus-mode) .locus-peek,
-.app-shell:has(.inquiry-root.is-focus-mode) .settings-gear {
+.app-shell:has(.inquiry-root.is-focus-mode) .chrome-stack {
   opacity: 0;
   pointer-events: none;
   visibility: hidden;

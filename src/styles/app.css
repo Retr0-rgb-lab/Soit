@@ -66,12 +66,19 @@ button:focus-visible,
   background: transparent;
   /* room for floating rail when expanded */
   padding-left: var(--rail-w);
-  transition: padding-left 0.2s var(--ease-soft, ease);
+  transition:
+    padding-left 0.2s var(--ease-soft, ease),
+    padding-inline-end 0.2s var(--ease-soft, ease);
   box-sizing: border-box;
 }
 
 .app-shell.rail-collapsed .workspace-main {
   padding-left: var(--rail-w-collapsed, 48px);
+}
+
+/* Materials rail open: reserve right dock (SPE §2.4) */
+.app-shell.materials-rail-open .workspace-main {
+  padding-inline-end: 260px;
 }
 
 /* Floating chrome-less rail — sits on app bg, no panel plate */

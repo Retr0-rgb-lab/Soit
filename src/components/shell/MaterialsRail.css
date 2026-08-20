@@ -1,0 +1,206 @@
+/* Materials rail — right dock under chrome-stack (materials-rail SPE §2.4) */
+
+.materials-rail {
+  position: absolute;
+  z-index: 12;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: color-mix(in srgb, var(--bg-panel) 94%, transparent);
+  border-inline-start: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  box-shadow: -4px 0 18px rgb(43 36 28 / 4%);
+  backdrop-filter: blur(10px);
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+.materials-rail__head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 12px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.materials-rail__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+
+.materials-rail__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.materials-rail__btn {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1;
+  transition:
+    background 0.14s var(--ease-soft, ease),
+    color 0.14s var(--ease-soft, ease),
+    border-color 0.14s var(--ease-soft, ease);
+}
+
+.materials-rail__btn:hover:not(:disabled) {
+  background: var(--bg-card);
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.materials-rail__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.materials-rail__btn.is-primary {
+  background: var(--ink);
+  color: var(--bg-card);
+  border-color: var(--ink);
+}
+
+.materials-rail__btn.is-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 88%, var(--accent));
+  color: var(--bg-card);
+}
+
+.materials-rail__btn--close {
+  width: 28px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.materials-rail__file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.materials-rail__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+}
+
+.materials-rail__status,
+.materials-rail__empty {
+  margin: 0;
+  padding: 16px 10px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.materials-rail__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.materials-rail__empty p {
+  margin: 0;
+}
+
+.materials-rail__hint {
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.materials-rail__error {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.materials-rail__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.materials-rail__item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  text-align: start;
+  font-size: 13px;
+  line-height: 1.3;
+  transition:
+    background 0.12s var(--ease-soft, ease),
+    border-color 0.12s var(--ease-soft, ease);
+}
+
+.materials-rail__item:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--bg-card) 80%, transparent);
+  border-color: color-mix(in srgb, var(--line) 55%, transparent);
+}
+
+.materials-rail__item.is-selected {
+  background: color-mix(in srgb, var(--accent-soft) 70%, var(--bg-card));
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+}
+
+.materials-rail__item.is-dir:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.materials-rail__kind {
+  flex: 0 0 auto;
+  min-width: 28px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bg-muted) 80%, transparent);
+  color: var(--ink-faint);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.materials-rail__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .materials-rail__btn,
+  .materials-rail__item {
+    transition: none;
+  }
+}

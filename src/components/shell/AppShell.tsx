@@ -7,6 +7,7 @@ import EmptyWorkspace from "./EmptyWorkspace";
 import LeftRail from "./LeftRail";
 import LocusPeek from "./LocusPeek";
 import MapStage from "./MapStage";
+import MaterialsRail from "./MaterialsRail";
 import SettingsPanel, { type SettingsSection } from "./SettingsPanel";
 import { useWorkspace } from "../../state/workspaceStore";
 import "./settings/settings.css";
@@ -72,6 +73,10 @@ export default function AppShell() {
   const focusNode = useWorkspace((s) => s.focusNode);
   const docSession = useWorkspace((s) => s.docSession);
   const closeDoc = useWorkspace((s) => s.closeDoc);
+  const materialsOpen = useWorkspace((s) => s.materialsRail.open);
+  const toggleMaterialsRail = useWorkspace((s) => s.toggleMaterialsRail);
+  const openMaterialsRail = useWorkspace((s) => s.openMaterialsRail);
+  const closeMaterialsRail = useWorkspace((s) => s.closeMaterialsRail);
 
   const showEmpty =
     source === "empty" ||
@@ -123,9 +128,20 @@ export default function AppShell() {
   }, [openSettings]);
 
   useEffect(() => {
+    const onToggle = () => toggleMaterialsRail();
+    const onOpen = () => openMaterialsRail();
+    window.addEventListener("soit:toggle-materials", onToggle);
+    window.addEventListener("soit:open-materials", onOpen);
+    return () => {
+      window.removeEventListener("soit:toggle-materials", onToggle);
+      window.removeEventListener("soit:open-materials", onOpen);
+    };
+  }, [toggleMaterialsRail, openMaterialsRail]);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
-      // Ctrl/Cmd+, — settings
+      // Ctrl/Cmd+, — settings (does not force-close materials rail)
       if (mod && e.key === ",") {
         e.preventDefault();
         setPaletteOpen(false);
@@ -133,7 +149,7 @@ export default function AppShell() {
         setSettingsOpen((v) => !v);
         return;
       }
-      // Ctrl/Cmd+K — jump to card
+      // Ctrl/Cmd+K — jump to card (does not force-close materials rail)
       if (mod && (e.key === "k" || e.key === "K")) {
         e.preventDefault();
         setSettingsOpen(false);
@@ -160,7 +176,7 @@ export default function AppShell() {
         return;
       }
       if (e.key === "Escape") {
-        // settings → palette → open-doc popover → doc peek/close → map→focus
+        // settings → palette → open-doc → materials rail → doc → map→focus
         if (settingsOpen) {
           e.preventDefault();
           setSettingsOpen(false);
@@ -174,6 +190,11 @@ export default function AppShell() {
         if (openDocOpen) {
           e.preventDefault();
           setOpenDocOpen(false);
+          return;
+        }
+        if (materialsOpen) {
+          e.preventDefault();
+          closeMaterialsRail();
           return;
         }
         if (docOpen) {
@@ -252,6 +273,8 @@ export default function AppShell() {
     paletteOpen,
     settingsOpen,
     openDocOpen,
+    materialsOpen,
+    closeMaterialsRail,
     docOpen,
     closeDoc,
     workspaceMode,
@@ -324,28 +347,41 @@ export default function AppShell() {
 
   return (
     <div
-      className={`app-shell${railCollapsed ? " rail-collapsed" : ""}${workspaceMode === "map" ? " mode-map" : " mode-focus"}`}
+      className={`app-shell${railCollapsed ? " rail-collapsed" : ""}${workspaceMode === "map" ? " mode-map" : " mode-focus"}${materialsOpen ? " materials-rail-open" : ""}`}
     >
       <LeftRail
         collapsed={railCollapsed}
         onToggleCollapse={toggleRail}
       />
       <div className="workspace-main">{renderMain()}</div>
-      {/* Permanent chrome entry — focus / empty / demo / map */}
-      <button
-        type="button"
-        className={`settings-gear${settingsOpen ? " on" : ""}`}
-        aria-label="打开设置"
-        aria-expanded={settingsOpen}
-        aria-haspopup="dialog"
-        title="设置 (Ctrl+,)"
-        onClick={() => {
-          if (settingsOpen) closeSettings();
-          else openSettings();
-        }}
-      >
-        ⚙
-      </button>
+      <MaterialsRail />
+      {/* Permanent chrome stack — gear + materials toggle (SPE §2.4) */}
+      <div className="chrome-stack">
+        <button
+          type="button"
+          className={`settings-gear${settingsOpen ? " on" : ""}`}
+          aria-label="打开设置"
+          aria-expanded={settingsOpen}
+          aria-haspopup="dialog"
+          title="设置 (Ctrl+,)"
+          onClick={() => {
+            if (settingsOpen) closeSettings();
+            else openSettings();
+          }}
+        >
+          ⚙
+        </button>
+        <button
+          type="button"
+          className={`materials-toggle${materialsOpen ? " on" : ""}`}
+          aria-label={materialsOpen ? "关闭资料" : "打开资料"}
+          aria-expanded={materialsOpen}
+          title="资料"
+          onClick={() => toggleMaterialsRail()}
+        >
+          📄
+        </button>
+      </div>
       <CommandPalette open={paletteOpen} onClose={closePalette} />
       <OpenDocPopover open={openDocOpen} onClose={closeOpenDoc} />
       <SettingsPanel

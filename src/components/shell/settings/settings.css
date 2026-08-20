@@ -2,13 +2,22 @@
    Inspired by: astryx template "settings" + Settings Dialog / Settings Panels
    (sidebar nav, section heading+copy, card groups, list rows, primary footer). */
 
-/* ── Permanent gear ───────────────────────────────────────── */
+/* ── Permanent chrome stack (gear + materials toggle) ─────── */
 
-.settings-gear {
+.chrome-stack {
   position: fixed;
   top: 14px;
   right: 14px;
   z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.settings-gear,
+.materials-toggle {
+  position: relative;
   width: 38px;
   height: 38px;
   display: grid;
@@ -30,7 +39,8 @@
     transform 0.16s var(--ease-soft);
 }
 
-.settings-gear:hover {
+.settings-gear:hover,
+.materials-toggle:hover {
   background: var(--bg-card);
   color: var(--ink);
   border-color: var(--line-strong);
@@ -38,17 +48,23 @@
   transform: translateY(-1px);
 }
 
-.settings-gear:focus-visible {
+.settings-gear:focus-visible,
+.materials-toggle:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--focus) 55%, transparent);
   outline-offset: 2px;
 }
 
-.settings-gear.on {
+.settings-gear.on,
+.materials-toggle.on {
   background: var(--ink);
   color: var(--bg-card);
   border-color: var(--ink);
   backdrop-filter: none;
   box-shadow: var(--e2);
+}
+
+.materials-toggle {
+  font-size: 15px;
 }
 
 .mode-map .map-stage-actions {
@@ -1164,6 +1180,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .settings-gear,
+  .materials-toggle,
   .settings-nav-item,
   .settings-skills .skills-toggle,
   .settings-skills .skills-toggle::after {
