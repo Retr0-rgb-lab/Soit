@@ -2,7 +2,7 @@
 
 > **After M3**  
 > **Spec:** v1.1 §2.4 §2.5  
-> **工作目录:** `E:\学习软件\Soit`
+> **工作目录:** `E:\学习软件\Soit-wt-model-providers`
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** Wave 1; ~0.5–1d; no FE UI  
 > **Spec:** `docs/superpowers/specs/2026-08-20-materials-rail-spec.md` v1.1 §2.2  
-> **工作目录:** `E:\学习软件\Soit`
+> **工作目录:** `E:\学习软件\Soit-wt-model-providers`
 
 ---
 
