@@ -137,3 +137,13 @@ commands.allow = ["resolve_vault_doc"]
 identifier = "allow-read-vault-text"
 description = "Allow read_vault_text command (UTF-8 text under vault; PEL-156)"
 commands.allow = ["read_vault_text"]
+
+[[permission]]
+identifier = "allow-list-vault-materials"
+description = "Allow list_vault_materials command (lazy list under vault/materials/)"
+commands.allow = ["list_vault_materials"]
+
+[[permission]]
+identifier = "allow-import-vault-material"
+description = "Allow import_vault_material command (base64 import ≤2MB into materials/)"
+commands.allow = ["import_vault_material"]

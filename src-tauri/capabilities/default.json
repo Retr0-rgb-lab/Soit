@@ -32,6 +32,8 @@
     "allow-cancel-runtime-handoff",
     "allow-resolve-vault-doc",
     "allow-read-vault-text",
+    "allow-list-vault-materials",
+    "allow-import-vault-material",
     "allow-ping"
   ]
 }

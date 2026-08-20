@@ -455,6 +455,8 @@ pub fn run() {
       runtime::cancel_runtime_handoff,
       doc::resolve_vault_doc,
       doc::read_vault_text,
+      doc::materials::list_vault_materials,
+      doc::materials::import_vault_material,
       ping
     ])
     .setup(|app| {

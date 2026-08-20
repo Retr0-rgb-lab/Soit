@@ -1,4 +1,6 @@
-//! Vault document resolve + text read (PEL-156). Path sandbox only; no base64 PDF.
+//! Vault document resolve + text read (PEL-156) and materials list/import.
+
+pub mod materials;
 
 use serde::Serialize;
 use std::fs;
@@ -257,7 +259,7 @@ pub fn read_vault_text_impl(
   }
 }
 
-fn with_open_vault<T>(
+pub(crate) fn with_open_vault<T>(
   state: &AppState,
   f: impl FnOnce(&Path) -> T,
 ) -> Result<T, String> {
