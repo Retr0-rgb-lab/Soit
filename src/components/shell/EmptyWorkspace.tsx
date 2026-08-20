@@ -43,8 +43,25 @@ export default function EmptyWorkspace() {
       <p className="shell-placeholder">
         {vaultLabel
           ? `已绑定「${vaultLabel}」。卡片只活在本库 .soit/universe.db，不会为每张卡写一篇笔记。`
-          : "先绑定 Obsidian vault（可在空态流程中完成），再新建根探究。"}
+          : "先绑定 Obsidian vault，再新建根探究。可从设置 · 空间打开本机路径。"}
       </p>
+      {!vaultPath && (
+        <div className="empty-form">
+          <button
+            type="button"
+            className="empty-submit"
+            onClick={() => {
+              window.dispatchEvent(
+                new CustomEvent("soit:open-settings", {
+                  detail: { section: "space" },
+                }),
+              );
+            }}
+          >
+            打开设置 · 空间
+          </button>
+        </div>
+      )}
       {vaultPath && (
         <form
           className="empty-form"
