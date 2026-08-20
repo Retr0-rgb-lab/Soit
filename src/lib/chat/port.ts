@@ -1,5 +1,7 @@
 /** ChatPort — single complete path for send + regenerate (Wave C). */
 
+import { renderAssistantHtml } from "./assistantHtml";
+
 export type ChatRole = "user" | "assistant" | "system";
 
 export interface ChatMessage {
@@ -53,12 +55,14 @@ export function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
-/** Wrap mark terms in assistant text as `<span class="mark" data-term="...">`. */
-export function applyMarksHtml(
-  text: string,
+/**
+ * Wrap mark terms on already-escaped HTML (first match each, longer first).
+ * Does not call escapeHtml on `html` — callers escape once.
+ */
+export function wrapMarksOnEscaped(
+  html: string,
   marks?: ChatMark[],
 ): string {
-  let html = escapeHtml(text);
   if (!marks?.length) return html;
 
   // Longer terms first so nested substrings do not steal matches.
@@ -66,31 +70,40 @@ export function applyMarksHtml(
     .filter((m) => m.term.trim())
     .sort((a, b) => b.term.length - a.term.length);
 
+  let out = html;
   for (const m of sorted) {
     const termEsc = escapeHtml(m.term);
     const attr = escapeHtml(m.term);
     const needle = termEsc;
-    const idx = html.indexOf(needle);
+    const idx = out.indexOf(needle);
     if (idx < 0) continue;
+    const before = out.slice(0, idx);
     // Skip if already inside a mark tag for this occurrence (simple guard).
-    const before = html.slice(0, idx);
     if (before.lastIndexOf('<span class="mark"') > before.lastIndexOf("</span>")) {
       continue;
     }
+    // Skip match inside an HTML tag / attribute.
+    if (before.lastIndexOf("<") > before.lastIndexOf(">")) {
+      continue;
+    }
     const wrapped = `<span class="mark" data-term="${attr}" data-mark-id="${attr}">${termEsc}</span>`;
-    html = html.slice(0, idx) + wrapped + html.slice(idx + needle.length);
+    out = out.slice(0, idx) + wrapped + out.slice(idx + needle.length);
   }
-  return html;
+  return out;
 }
 
-/** Turn a port result into aiHtml (paragraph-ish plain + mark spans). */
+/** Escape plain text then wrap mark terms as `<span class="mark" …>`. */
+export function applyMarksHtml(
+  text: string,
+  marks?: ChatMark[],
+): string {
+  return wrapMarksOnEscaped(escapeHtml(text), marks);
+}
+
+/** Turn a port result into aiHtml (safe md subset + mark spans). */
 export function completeResultToHtml(result: ChatCompleteResult): string {
-  const raw = result.text.trim();
-  if (!raw) return "";
-  // Always escape — never trust model text as HTML (XSS via dangerouslySetInnerHTML).
-  const withMarks = applyMarksHtml(raw, result.marks);
-  // Preserve newlines as <br> for simple multi-line replies.
-  return withMarks.replace(/\n/g, "<br>");
+  // Delegate — escape + structure live in renderAssistantHtml (XSS-safe).
+  return renderAssistantHtml(result.text, result.marks);
 }
 
 /** Strip tags for message history fed back into the model. */
@@ -98,6 +111,9 @@ export function stripHtml(html: string): string {
   return html
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>/gi, "\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<\/h[1-3]>/gi, "\n")
+    .replace(/<\/pre>/gi, "\n")
     .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")

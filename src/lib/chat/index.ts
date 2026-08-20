@@ -23,7 +23,9 @@ export {
   completeResultToHtml,
   escapeHtml,
   stripHtml,
+  wrapMarksOnEscaped,
 } from "./port";
+export { renderAssistantHtml } from "./assistantHtml";
 export {
   CHAT_CONFIG_LS_KEY,
   DEFAULT_CHAT_CONFIG,
