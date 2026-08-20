@@ -1,0 +1,273 @@
+/* FocusOrbit — side-arc multi-ring (Option Wheel–inspired, no GSAP) */
+
+.focus-orbit {
+  --fo-curve: 14px;
+  --fo-spacing: 28px;
+  --fo-font: 12.5px;
+  --fo-font-outer: 11px;
+  --fo-active-scale: 1.08;
+  --fo-blur-max: 2.4px;
+  --fo-smooth: 140ms;
+  --fo-deepen: #3d6b8c;
+  --fo-diverge: #8b5e34;
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+  font-family: var(--font);
+  color: var(--ink);
+}
+
+.focus-orbit__stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(52px, 0.42fr) minmax(0, 1fr);
+  gap: 4px 6px;
+  align-items: center;
+  min-height: 148px;
+  min-width: 0;
+  padding: 4px 2px 4px 0;
+}
+
+.focus-orbit__center {
+  justify-self: start;
+  align-self: center;
+  z-index: 2;
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--bg-card);
+  box-shadow: var(--e1);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 7px 10px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.focus-orbit__center:hover {
+  background: var(--accent-soft);
+}
+
+.focus-orbit__center:focus-visible,
+.focus-orbit__item:focus-visible,
+.focus-orbit__fallback-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.focus-orbit__center.is-focus {
+  border-color: var(--ink);
+  background: var(--accent-soft);
+}
+
+.focus-orbit__rings {
+  position: relative;
+  min-width: 0;
+  min-height: 132px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.focus-orbit__ring {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.focus-orbit__ring--1 {
+  z-index: 2;
+  right: 0;
+  left: 8%;
+}
+
+.focus-orbit__ring--2 {
+  z-index: 1;
+  right: -2px;
+  left: 18%;
+  opacity: 0.92;
+}
+
+.focus-orbit__item {
+  pointer-events: auto;
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: var(--fo-font);
+  line-height: 1.2;
+  padding: 3px 4px 3px 2px;
+  text-align: left;
+  cursor: pointer;
+  transform-origin: left center;
+  will-change: transform, opacity, filter;
+  transition:
+    color var(--fo-smooth) var(--ease-soft, ease),
+    background-color var(--fo-smooth) ease;
+}
+
+.focus-orbit__ring--2 .focus-orbit__item {
+  font-size: var(--fo-font-outer);
+  color: var(--ink-faint);
+}
+
+.focus-orbit__item.is-active {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.focus-orbit__item.is-focus:not(.is-active) {
+  color: var(--ink);
+}
+
+.focus-orbit__item:hover {
+  color: var(--ink);
+}
+
+.focus-orbit__glyph {
+  flex: 0 0 auto;
+  width: 0.9em;
+  font-size: 0.85em;
+  opacity: 0.85;
+}
+
+.focus-orbit__item[data-kind="deepen"] .focus-orbit__glyph {
+  color: var(--fo-deepen);
+}
+
+.focus-orbit__item[data-kind="diverge"] .focus-orbit__glyph {
+  color: var(--fo-diverge);
+}
+
+.focus-orbit__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focus-orbit__unread {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--focus);
+  box-shadow: 0 0 0 1px rgb(255 253 248 / 70%);
+}
+
+.focus-orbit__empty {
+  margin: 0;
+  padding: 8px 4px;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+/* Keyboard / SR fallback list — always in a11y tree; visually hidden unless reduced motion */
+.focus-orbit__fallback {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.focus-orbit__fallback-btn {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  padding: 5px 6px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.focus-orbit__fallback-btn:hover {
+  background: var(--bg-muted);
+  color: var(--ink);
+}
+
+.focus-orbit__fallback-btn.is-focus {
+  background: var(--accent-soft);
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.focus-orbit__fallback-btn .focus-orbit__label {
+  flex: 1 1 auto;
+}
+
+.focus-orbit__fallback-group {
+  margin: 0 0 2px;
+  padding: 0 2px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* Default: wheel visible, fallback for SR only */
+.focus-orbit:not(.is-reduced) .focus-orbit__fallback {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Reduced motion: flat stacked buttons, no blur/arc */
+.focus-orbit.is-reduced .focus-orbit__stage {
+  display: none;
+}
+
+.focus-orbit.is-reduced .focus-orbit__fallback {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-orbit__item {
+    transition: none !important;
+    filter: none !important;
+  }
+}
