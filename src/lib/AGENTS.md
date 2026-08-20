@@ -24,7 +24,8 @@ Parent: `src/AGENTS.md`.
 | `composerPayload.ts` | Composer body builder + **`formatDocAnchorQuote`** (doc selection → single quote string) |
 | `paletteRank.ts` | Command-palette ranking |
 | `marks.ts` | Mark DOM helpers for assistant HTML (no static term-explanation dictionary) |
-| `chat/` | ChatPort + MockChat + OpenAI-compat BYOK + config + systemPrompt + `assistantHtml` / `explain` (Inquiry main track) |
+| `chat/` | ChatPort + MockChat + OpenAI-compat BYOK + config + **`modelSettings`** + systemPrompt + `assistantHtml` / `explain` (Inquiry main track) |
+| `chat/modelSettings.ts` | `ModelSettings` v1 types, migrate flat `ChatConfig`, `resolveChatConfig` / `activeModelLabel`, LS read/write + legacy key migrate |
 | `runtime/` | RuntimeId/info/prefs types + localStorage prefs mirror — spec §2.5; host wrappers in `host.ts` |
 
 ## Rules
@@ -36,12 +37,19 @@ Parent: `src/AGENTS.md`.
   - vault docs (PEL-156): `resolve_vault_doc` / `read_vault_text` — path sandbox under open vault; reject `..` / outside vault / `vault/.soit/**`; browser mock fixtures `demo/*.md` (e.g. `demo/welcome.md`)
   - materials (materials-rail SPE): `list_vault_materials` / `import_vault_material` — vault `materials/` only; import ≤2MB decoded; **not** bootstrap; browser mock list includes `demo/welcome.md` + in-memory imports
   - skills: `list_skills`, `set_skill_enabled`, `get_enabled_skills_text`
-  - BYOK: `get_model_settings` / `set_model_settings` (authoritative); `get_chat_config` / `set_chat_config` (active projection / legacy upsert); app config / localStorage — never `universe.db`
+  - BYOK multi-provider: `get_model_settings` / `set_model_settings` (authoritative `ModelSettings`); `get_chat_config` / `set_chat_config` (project active → flat `ChatConfig` / legacy upsert); app config JSON / localStorage — **never** `universe.db`
   - Runtime (dual-track): `list_runtimes` / `get_runtime_prefs` / `set_runtime_prefs` / `start_runtime_handoff` / `cancel_runtime_handoff` — app config + `vault/.soit/runs/`; never treat external session as universe source; browser mock-only
+- **ModelSettings contract** (`chat/modelSettings.ts`; Rust mirror `src-tauri/src/chat_config.rs`):
+  - Shape: `{ version:1, providers[], models[], activeModelId }` — provider = name + baseUrl + apiKey; model = providerId + modelId + optional label + enabled
+  - Migrate: legacy flat `ChatConfig` with non-empty key → 1 provider + 1 model + active; empty key → empty catalog
+  - Resolve: active → provider credentials for Port; no active / disabled / empty key → Mock (`apiKey: ""`)
+  - Normalize drops orphan models (unknown providerId) and invalid active; write path mirrors projected `ChatConfig` for legacy readers
+  - Cold start: bootstrap **must not** read model settings or hit model network
+  - Spec: `docs/superpowers/specs/2026-08-20-model-providers-spec.md`
 - **DocSession FSM** (`docSession.ts`): statuses `closed|loading|ready|error|closing`; events include `open` / `load_ok|load_err` / `set_layout` / `retry` / `close|closed` / **`force_close`** (map + `loadSnapshot` — skip anim, bump epoch). Store owns IO + epoch guards (`state/workspaceStore.ts`); this module stays pure.
 - **SplitRatio** (`splitRatio.ts`): `--doc-fraction` ∈ [0.28, 0.72], default 0.42, wide display 0.68; localStorage only. UI host is `components/shell/SplitSash.tsx`.
 - **`formatDocAnchorQuote`** (`composerPayload.ts`): `{ path, text, page? }` → `（path [p.N]）\ntext` single quote string for composer; no multi-chip `docQuotes[]` in v1.
-- Chat secrets: app config / localStorage only — never `universe.db`.
+- Chat secrets: app config / localStorage only — never `universe.db`; UI lists show 已配置/未配置 only, never plaintext keys.
 - **`renderAssistantHtml`** (`chat/assistantHtml.ts`): safe subset pipeline order — **escapeHtml → code protect → wrapMarks → md-subset** (paragraphs/lists/headings/bold/code). Whitelist tags only from the pipeline; **never trust model HTML**. `completeResultToHtml` delegates here.
 - **`ChatPort.explain?` / `explainSpan`** (`state/explainActions.ts`): short 2–4 sentence explain; **no marks required, no db/turns write, no spawn**. UI sole entry is `explainSpan` (resolves port); overlays must not call `port.explain` or `fetch`.
 - **Deepen scope v2** (`deepenScope.ts`): `{ parent: { title, status, question, stuck, next }, span, why, recentTurns }` — **child turns only**; never parent transcript.

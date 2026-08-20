@@ -19,7 +19,11 @@ Doc companion (PEL-156): `docs/superpowers/specs/2026-08-20-doc-companion-viewer
 | `SettingsPanel.tsx` | Settings modal — 空间 / **外观** / 模型 / 运行时 / 技能 / 关于 |
 | `settings/SpaceSection.tsx` | Vault bind / switch / unbind / lastVault |
 | `settings/AppearanceSection.tsx` | Theme (5) + font family + font size — `lib/appearance.ts` |
-| `settings/ModelSettingsForm.tsx` | BYOK (single source; Composer chip only) |
+| `settings/ModelSettingsForm.tsx` | 模型段壳：子 Tab 供应商 \| 可用模型；默认空供应商→供应商，否则可用模型 |
+| `settings/ProvidersPanel.tsx` | BYOK 供应商列表 + 添加/编辑/删除（级联模型；密钥列表只显示已配置/未配置） |
+| `settings/ProviderForm.tsx` | 供应商表单：名*、Base URL*（http/s）、API Key（编辑留空不改） |
+| `settings/ModelsPanel.tsx` | 可用模型目录 + 启用开关 + 设为对话模型 + 编辑/删除 |
+| `settings/ModelForm.tsx` | 模型表单：供应商*、Model ID*、可选显示名 |
 | `settings/SkillsList.tsx` | Skills toggles (embedded, not a second modal) |
 | `settings/RuntimeSection.tsx` | External coding-agent detect/prefs/handoff enable |
 | `settings/AboutSection.tsx` | Version + memory boundary copy |
@@ -44,12 +48,19 @@ Doc companion (PEL-156): `docs/superpowers/specs/2026-08-20-doc-companion-viewer
 
 - 空间 → open/close universe (path text; no folder dialog v1)
 - **外观** → themes paper/matcha/celadon/ink/cinnabar + fonts system/song/hei/kai/mono + size sm–xl; `soit-appearance` localStorage; boot in `index.html`
-- 模型 → BYOK; dispatches `soit:chat-config-changed`
+- **模型** (nav hint: **供应商 · 密钥**) → 本机 BYOK 多供应商 + 模型目录；**不**抄套餐墙 / ChatGPT 登录
+  - 权威数据：`ModelSettings` v1（`providers[]` / `models[]` / `activeModelId`）via `getModelSettings` / `setModelSettings`
+  - 子 Tab：**供应商**（凭证+端点）· **可用模型**（目录 + 对话选用）
+  - 删供应商 → 级联删其下模型；若删到 active → `activeModelId=null`（回 Mock）
+  - 编辑供应商 API Key 留空 → 保留旧密钥；列表永不展示密钥明文
+  - Base URL 须 http(s)；保存后 `soit:chat-config-changed`；Composer chip：`Mock · 本地` / `在线 · {label|modelId}`
+  - 投影：`getChatConfig` = active → 旧扁平 `ChatConfig`（Port 兼容）；密钥仅 app config / localStorage，**不进** universe.db
+  - Spec: `docs/superpowers/specs/2026-08-20-model-providers-spec.md`
 - **运行时** → external coding-agent detect/prefs/`enableSpawn`
 - 技能 → SkillsList; unbound guides to 空间
 - 关于 → version + db/md/key boundaries
 - Nav order (frozen): **空间 · 外观 · 模型 · 运行时 · 技能 · 关于**
-- Events: `soit:open-settings` `{ section? }` including `appearance` / `runtime`; `soit:open-skills` → settings skills
+- Events: `soit:open-settings` `{ section? }` including `appearance` / `runtime` / `model`; `soit:open-skills` → settings skills
 - `RuntimeSection` lazy-loads runtimes **on first select**, not App boot
 - No CDN fonts; appearance never writes universe.db
 
