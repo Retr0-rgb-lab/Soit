@@ -16,7 +16,7 @@ Parent: `src/AGENTS.md`. Map product notes: `知识库/docs/map-scale-lod.md`.
 | `CommandPalette.tsx` | Jump (Ctrl+K) |
 | `ReentryBanner.tsx` | Resume hint |
 | `EmptyWorkspace.tsx` | Empty vault CTA (bind / root) |
-| `SkillsPanel.tsx` | Skills modal (not in rail) |
+| `settings/SkillsList.tsx` | Skills list inside SettingsPanel (not a second modal) |
 
 ## LeftRail (current)
 

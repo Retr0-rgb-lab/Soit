@@ -7,7 +7,6 @@ import LocusPeek from "./LocusPeek";
 import MapStage from "./MapStage";
 import ReentryBanner from "./ReentryBanner";
 import SettingsPanel, { type SettingsSection } from "./SettingsPanel";
-import SkillsPanel from "./SkillsPanel";
 import { useWorkspace } from "../../state/workspaceStore";
 import "./settings/settings.css";
 
@@ -29,7 +28,6 @@ function parseSettingsSection(raw: unknown): SettingsSection | null {
 export default function AppShell() {
   const [railCollapsed, setRailCollapsed] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [skillsOpen, setSkillsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] =
     useState<SettingsSection>("space");
@@ -41,7 +39,6 @@ export default function AppShell() {
   const openSettings = useCallback((section?: SettingsSection) => {
     if (section) setSettingsSection(section);
     setPaletteOpen(false);
-    setSkillsOpen(false);
     setSettingsOpen(true);
   }, []);
 
@@ -61,7 +58,6 @@ export default function AppShell() {
     (source !== "demo" && source !== null && !focusId);
 
   const closePalette = useCallback(() => setPaletteOpen(false), []);
-  const closeSkills = useCallback(() => setSkillsOpen(false), []);
 
   useEffect(() => {
     const onOpen = () => setPaletteOpen(true);
@@ -79,7 +75,7 @@ export default function AppShell() {
     return () => window.removeEventListener("soit:open-settings", onOpen);
   }, [openSettings]);
 
-  // Compat: skills entry opens settings skills section (S4 removes SkillsPanel).
+  // Compat: legacy skills entry → settings skills section only.
   useEffect(() => {
     const onOpen = () => {
       openSettings("skills");
@@ -95,14 +91,12 @@ export default function AppShell() {
       if (mod && e.key === ",") {
         e.preventDefault();
         setPaletteOpen(false);
-        setSkillsOpen(false);
         setSettingsOpen((v) => !v);
         return;
       }
       // Ctrl/Cmd+K — jump to card
       if (mod && (e.key === "k" || e.key === "K")) {
         e.preventDefault();
-        setSkillsOpen(false);
         setSettingsOpen(false);
         setPaletteOpen((v) => !v);
         return;
@@ -120,21 +114,15 @@ export default function AppShell() {
         }
         e.preventDefault();
         setPaletteOpen(false);
-        setSkillsOpen(false);
         setSettingsOpen(false);
         toggleMap();
         return;
       }
       if (e.key === "Escape") {
-        // settings → palette → map (skills modal still self-handles until S4)
+        // settings → palette → map
         if (settingsOpen) {
           e.preventDefault();
           setSettingsOpen(false);
-          return;
-        }
-        if (skillsOpen) {
-          e.preventDefault();
-          setSkillsOpen(false);
           return;
         }
         if (paletteOpen) {
@@ -155,7 +143,6 @@ export default function AppShell() {
         (e.key === "m" || e.key === "M") &&
         !isTypingTarget(e.target) &&
         !paletteOpen &&
-        !skillsOpen &&
         !settingsOpen &&
         !document.querySelector(".ic-float, .ic-selbar, .ic-chooser")
       ) {
@@ -170,7 +157,6 @@ export default function AppShell() {
         !mod &&
         workspaceMode === "focus" &&
         !paletteOpen &&
-        !skillsOpen &&
         !settingsOpen &&
         !isTypingTarget(e.target)
       ) {
@@ -211,7 +197,6 @@ export default function AppShell() {
     return () => window.removeEventListener("keydown", onKey);
   }, [
     paletteOpen,
-    skillsOpen,
     settingsOpen,
     workspaceMode,
     setMode,
@@ -269,8 +254,6 @@ export default function AppShell() {
         section={settingsSection}
         onSectionChange={setSettingsSection}
       />
-      {/* Kept until S4 merges skills into settings; open-skills already routes to settings */}
-      <SkillsPanel open={skillsOpen} onClose={closeSkills} />
     </div>
   );
 }
