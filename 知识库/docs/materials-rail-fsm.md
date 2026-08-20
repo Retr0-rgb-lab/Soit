@@ -159,19 +159,16 @@ settings → palette → open-doc popover → materials rail close → doc close
 
 ---
 
-## 右上 chrome 栈
+## 壳层入口
 
 ```text
-┌────┐
-│ ⚙  │  settings-gear（已有）
-├────┤
-│ 📄 │  materials-toggle（本波新增，在齿轮正下方）
-└────┘
+左下：⚙ 设置
+右缘：鼠标靠近 → 三角形 → 点击展开陪读面（列表/预览共用）
 ```
 
-- 常驻：focus / empty / demo / map 均可见。  
-- map 下点开资料轨：v1 **允许打开列表**，但 **禁止** 与 Orbit 叠预览——若 map 下 select 文件，先 `setMode('focus')` 再 `openDoc`（或 disable 预览并 toast「请先退出图谱」）。  
-  **P0 拍板：map 下点文件 → 自动 focus + openDoc**（资料优先于继续看图）。
+- 无常驻「资料」按钮（避免与预览重叠）。  
+- 陪读已开时隐藏右缘三角形。  
+- map 下不显示右缘；点文件仍 focus + openDoc。
 
 ---
 

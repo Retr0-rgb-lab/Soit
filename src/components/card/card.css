@@ -68,8 +68,9 @@
   margin: 0;
   padding: 14px 18px;
   border-radius: 17px;
-  background: color-mix(in srgb, var(--bg-muted) 72%, var(--bg-card));
-  border: 1px solid rgb(42 36 28 / 10%);
+  /* Stay on the theme surface ladder — never paper-cream under ink */
+  background: color-mix(in srgb, var(--bg-muted) 70%, var(--bg-app));
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
   pointer-events: auto;
   cursor: pointer;
   text-align: left;
@@ -122,7 +123,7 @@
 .inquiry-sheet.s2 {
   transform: translate(var(--sheet-2-x, 30px), var(--sheet-2-y, 22px))
     rotate(var(--sheet-2-r, -2.2deg)) scale(var(--sheet-2-s, 0.955));
-  box-shadow: 0 1px 2px rgb(42 36 28 / 3%), 0 14px 28px rgb(42 36 28 / 5%);
+  box-shadow: var(--e1);
   opacity: 0.72;
   z-index: 0;
 }
@@ -160,18 +161,22 @@
   position: absolute;
   inset: 0;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: stretch;
   z-index: 2;
-  /* Allow external history dock to paint outside the card box */
-  overflow: visible;
+  /* History rail is in-flow: open state shrinks the card, stays on-screen */
+  overflow: hidden;
   transition: transform 0.22s var(--ease-soft);
   will-change: transform;
+  min-width: 0;
 }
 
 .inquiry-card {
   position: relative;
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
+  width: auto;
   background: var(--bg-card);
   border: 1px solid color-mix(in srgb, var(--line-strong) 88%, var(--accent) 12%);
   border-radius: 18px;
@@ -184,8 +189,15 @@
   flex-direction: column;
   overflow: hidden;
   transform-origin: 50% 40%;
-  /* Full width of wrap — history docks outside, no grid squeeze */
-  width: 100%;
+  transition: border-radius 0.22s var(--ease-soft);
+}
+
+/* History open: card corners square off against the rail */
+.inquiry-card-wrap:has(.ic-history-dock.is-open) .inquiry-card,
+.inquiry-card-wrap:has(.ic-history-dock:hover) .inquiry-card,
+.inquiry-card-wrap:has(.ic-history-dock:focus-within) .inquiry-card {
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
 }
 
 .inquiry-stack.peeling .inquiry-card-wrap {
@@ -203,6 +215,129 @@
 
 .ic-drag-surface:active {
   cursor: grabbing;
+}
+
+/* YouTube-like card PiP — fixed to viewport via portal (see CardPipWindow) */
+.card-pip {
+  position: fixed;
+  z-index: 12000;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid color-mix(in srgb, var(--line-strong) 70%, var(--accent) 30%);
+  box-shadow:
+    0 1px 0 rgb(255 253 248 / 75%) inset,
+    0 18px 40px rgb(20 16 10 / 28%),
+    0 4px 12px rgb(20 16 10 / 14%);
+  color: var(--ink);
+  user-select: none;
+  touch-action: none;
+}
+
+.card-pip-chrome {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 10px;
+  background: color-mix(in srgb, var(--bg-muted) 55%, var(--bg-card));
+  border-bottom: 1px solid rgb(42 36 28 / 10%);
+  cursor: grab;
+  transition:
+    opacity 0.3s ease-in-out,
+    transform 0.3s ease-in-out,
+    visibility 0.3s ease-in-out;
+  will-change: opacity, transform;
+  z-index: 2;
+}
+
+.card-pip.is-scrolled .card-pip-chrome {
+  /* keep a thin gradient edge when title fades */
+  border-bottom-color: transparent;
+}
+
+.card-pip-chrome:active {
+  cursor: grabbing;
+}
+
+.card-pip-kind {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.card-pip-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  /* Match main card title weight/scale (slightly capped for PiP width). */
+  font-size: clamp(16px, 2vw, 22px);
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-pip-actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+}
+
+.card-pip-btn {
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: var(--ink-soft);
+  background: transparent;
+}
+
+.card-pip-btn:hover {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink);
+}
+
+.card-pip-btn.danger:hover {
+  background: color-mix(in srgb, #c44 16%, transparent);
+  color: #a33;
+}
+
+.card-pip-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 4px 12px 12px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.card-pip-snippet {
+  margin: 0;
+  /* Same body type as .ic-msgs / normal inquiry card */
+  font-size: var(--font-size-root);
+  line-height: 1.55;
+  color: var(--ink);
+  /* tall enough to scroll so chrome-fade is exercisable */
+  min-height: 140%;
+  white-space: pre-wrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-pip {
+    transition: none !important;
+  }
 }
 
 .ic-round.on {
@@ -337,21 +472,59 @@
   text-align: center;
 }
 
-/* Header */
+/*
+ * Header overlays the scroll body (Explore pattern):
+ * - does NOT consume flex height when faded
+ * - content scrolls underneath via --ic-head-pad on .ic-msgs
+ */
 .ic-head {
-  flex: 0 0 auto;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  padding: 14px 16px 18px 20px;
+  pointer-events: none; /* clicks fall through faded areas to content */
+  background: linear-gradient(
+    180deg,
+    var(--bg-card) 0%,
+    var(--bg-card) 42%,
+    color-mix(in srgb, var(--bg-card) 55%, transparent) 72%,
+    transparent 100%
+  );
+  transition: background 0.3s ease, opacity 0.3s ease;
+}
+
+.ic-head.is-scrolled {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--bg-card) 88%, transparent) 0%,
+    color-mix(in srgb, var(--bg-card) 35%, transparent) 55%,
+    transparent 100%
+  );
+}
+
+.ic-head.is-faded {
+  /* fully out of the way for hit-testing; gradient nearly gone */
+  background: transparent;
+}
+
+.ic-head-fade {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 16px 8px 20px;
-  background: linear-gradient(180deg, var(--bg-card) 65%, transparent);
-  position: relative;
-  z-index: 5;
+  pointer-events: auto; /* titles + tools stay clickable while visible */
+  transition:
+    opacity 0.3s ease-in-out,
+    transform 0.3s ease-in-out,
+    visibility 0.3s ease-in-out;
+  will-change: opacity, transform;
 }
 
 .ic-head .titles {
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .ic-crumbs {
@@ -487,8 +660,112 @@
   gap: 8px;
   flex: 0 0 auto;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
+  position: relative;
+  z-index: 6;
+}
+
+/*
+ * Hover icon tray (React Bits Dock–inspired, CSS-only slide).
+ * Collapsed: ⋯ at top-right. Open → icons slide in; trigger (卡片工具) hides.
+ */
+.ic-icon-tray {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+  /* Enlarge hover hit toward the card corner */
+  padding: 4px 0 4px 12px;
+  margin: -4px 0;
+}
+
+.ic-icon-tray-trigger {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  transition:
+    opacity var(--motion-fade, 0.16s) var(--ease-soft),
+    width var(--motion-pop, 0.28s) var(--ease-out),
+    min-width var(--motion-pop, 0.28s) var(--ease-out),
+    margin var(--motion-fade, 0.16s) var(--ease-soft),
+    background 0.14s var(--ease-soft),
+    color 0.14s var(--ease-soft);
+}
+
+.ic-icon-tray-rail {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(12px);
+  overflow: hidden;
+  pointer-events: none;
+  transition:
+    max-width var(--motion-pop, 0.28s) var(--ease-out),
+    opacity var(--motion-fade, 0.16s) var(--ease-soft),
+    transform var(--motion-pop, 0.28s) var(--ease-out);
+}
+
+.ic-icon-tray-rail > .ic-round {
+  flex: 0 0 auto;
+  opacity: 0;
+  transform: translateX(8px);
+  transition:
+    opacity var(--motion-fade, 0.16s) var(--ease-soft),
+    transform var(--motion-pop, 0.28s) var(--ease-out),
+    background 0.14s var(--ease-soft),
+    box-shadow 0.14s var(--ease-soft);
+}
+
+/* Stagger children when open (Dock-like cascade, CSS only) */
+.ic-icon-tray-rail > .ic-round:nth-child(1) {
+  transition-delay: 0ms;
+}
+.ic-icon-tray-rail > .ic-round:nth-child(2) {
+  transition-delay: 28ms;
+}
+.ic-icon-tray-rail > .ic-round:nth-child(3) {
+  transition-delay: 56ms;
+}
+.ic-icon-tray-rail > .ic-round:nth-child(4) {
+  transition-delay: 84ms;
+}
+.ic-icon-tray-rail > .ic-round:nth-child(5) {
+  transition-delay: 112ms;
+}
+
+.ic-icon-tray:hover .ic-icon-tray-rail,
+.ic-icon-tray:focus-within .ic-icon-tray-rail,
+.ic-icon-tray.is-open .ic-icon-tray-rail {
+  max-width: 220px;
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.ic-icon-tray:hover .ic-icon-tray-rail > .ic-round,
+.ic-icon-tray:focus-within .ic-icon-tray-rail > .ic-round,
+.ic-icon-tray.is-open .ic-icon-tray-rail > .ic-round {
+  opacity: 1;
+  transform: none;
+}
+
+/* Expanded: hide ⋯ / 卡片工具 trigger — only the icon set remains */
+.ic-icon-tray:hover .ic-icon-tray-trigger,
+.ic-icon-tray:focus-within .ic-icon-tray-trigger,
+.ic-icon-tray.is-open .ic-icon-tray-trigger {
+  opacity: 0;
+  width: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 /* Round buttons — rest flat; hover lifts one step only */
@@ -510,7 +787,7 @@
 }
 
 .ic-round:hover {
-  background: #e7dccb;
+  background: color-mix(in srgb, var(--ink) 10%, var(--bg-muted));
   box-shadow: var(--e1);
 }
 
@@ -538,89 +815,78 @@
   box-shadow: none;
 }
 
-.ic-round svg {
+.ic-round svg,
+.ic-round .reicon {
   width: 18px;
   height: 18px;
+  display: block;
+  flex-shrink: 0;
 }
 
-/* Wave D — real precipitate actions (not bookmark toggle) */
-.ic-precip-btn {
-  height: 32px;
-  border-radius: 999px;
-  border: 1px solid rgb(42 36 28 / 12%);
-  background: var(--bg-muted);
-  color: var(--ink);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  padding: 0 12px;
-  white-space: nowrap;
-  box-shadow: var(--e0);
-  transition:
-    background 0.14s var(--ease-soft),
-    border-color 0.14s var(--ease-soft),
-    box-shadow 0.14s var(--ease-soft);
+@media (prefers-reduced-motion: reduce) {
+  .ic-icon-tray-rail,
+  .ic-icon-tray-rail > .ic-round,
+  .ic-icon-tray-trigger,
+  .ic-history-panel {
+    transition: none !important;
+    transition-delay: 0ms !important;
+    transform: none !important;
+  }
 }
 
-.ic-precip-btn:hover:not(:disabled) {
-  background: #e7dccb;
-  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
-  box-shadow: var(--e1);
-}
 
-.ic-precip-btn:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--focus) 55%, transparent);
-  outline-offset: 3px;
-}
 
-.ic-precip-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-/* Body + turns — full width; history docks outside card */
+/* Body fills the card; header floats above (no permanent top dead zone) */
 .ic-body {
   position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
+  /* body is the only vertical flex child that grows */
+  align-self: stretch;
+  width: 100%;
 }
 
 .ic-msgs {
   flex: 1;
   min-width: 0;
   overflow: auto;
-  padding: 2px 18px 20px 22px;
+  /* Reserve space under overlay header; content scrolls into it as chrome fades */
+  padding: var(--ic-head-pad, 88px) 18px 20px 22px;
+  scroll-padding-top: var(--ic-head-pad, 88px);
   font-size: var(--font-size-root);
+  color: var(--ink);
   scrollbar-width: thin;
-  scrollbar-color: rgb(90 80 65 / 28%) transparent;
+  scrollbar-color: color-mix(in srgb, var(--ink) 28%, transparent) transparent;
 }
 
 /*
- * External history dock (PEL-148 + React Bits Line Sidebar).
- * Positioned on the card's right border — does not shrink the card.
+ * History dock (PEL-148 + React Bits Line Sidebar).
+ * In-flow beside the card: open → panel width grows, card flex-shrinks (stays on-screen).
  */
 .ic-history-dock {
-  position: absolute;
-  top: 52px;
-  bottom: 12px;
-  left: 100%;
-  /* sit flush on the outer right border */
-  margin-left: -1px;
+  --history-panel-w: 176px;
+  --history-hit-w: 14px;
+  position: relative;
   z-index: 6;
+  flex: 0 0 auto;
+  align-self: stretch;
   display: flex;
   flex-direction: row;
   align-items: stretch;
+  /* Align with overlay header band */
+  margin-top: 12px;
+  margin-bottom: 8px;
+  max-height: calc(100% - 24px);
+  min-height: 0;
   pointer-events: none;
+  box-sizing: border-box;
 }
 
 .ic-history-hit {
   pointer-events: auto;
-  width: 14px;
+  width: var(--history-hit-w);
   flex-shrink: 0;
-  /* invisible grip on the card edge */
   cursor: ew-resize;
   background: transparent;
 }
@@ -650,41 +916,51 @@
   pointer-events: none;
   box-sizing: border-box;
   flex: 0 0 auto;
-  width: 176px;
-  max-width: 176px;
+  width: 0;
+  max-width: 0;
   height: 100%;
   min-height: 0;
   opacity: 0;
-  transform: translateX(-8px);
-  transition:
-    opacity 0.2s var(--ease-soft),
-    transform 0.28s var(--ease-out);
-  /* paper chip floating outside the card */
-  background: color-mix(in srgb, var(--bg-card) 94%, var(--bg-app));
-  border: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
-  border-left: 1px solid color-mix(in srgb, var(--line-strong) 55%, transparent);
-  border-radius: 0 14px 14px 0;
-  box-shadow: var(--e2);
   overflow: hidden;
+  transform: translateX(-6px);
+  transition:
+    width 0.28s var(--ease-out),
+    max-width 0.28s var(--ease-out),
+    opacity 0.2s var(--ease-soft),
+    transform 0.28s var(--ease-out),
+    border-color 0.2s var(--ease-soft);
+  background: color-mix(in srgb, var(--bg-card) 94%, var(--bg-app));
+  border: 1px solid transparent;
+  border-left: 1px solid transparent;
+  border-radius: 0 14px 14px 0;
+  box-shadow: none;
 }
 
 .ic-history-dock.is-open .ic-history-panel,
 .ic-history-dock:hover .ic-history-panel,
 .ic-history-dock:focus-within .ic-history-panel {
   pointer-events: auto;
+  width: var(--history-panel-w);
+  max-width: min(var(--history-panel-w), 42vw);
   opacity: 1;
   transform: none;
+  border-color: color-mix(in srgb, var(--line) 85%, transparent);
+  border-left-color: color-mix(in srgb, var(--line-strong) 55%, transparent);
+  box-shadow: var(--e2);
 }
 
 .ic-history-panel .line-sidebar {
   height: 100%;
+  width: var(--history-panel-w);
+  min-width: var(--history-panel-w);
   padding-left: 4px;
+  box-sizing: border-box;
 }
 
 .ic-turn.rail-target {
-  border-color: rgb(90 80 65 / 22%);
-  background: rgb(255 252 246 / 78%);
-  box-shadow: 0 0 0 1px rgb(90 80 65 / 8%);
+  border-color: color-mix(in srgb, var(--line-strong) 55%, transparent);
+  background: color-mix(in srgb, var(--bg-muted) 55%, var(--bg-card));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 40%, transparent);
 }
 
 .ic-turn {
@@ -693,23 +969,24 @@
   padding: 10px 10px 12px;
   border-radius: 14px;
   border: 1px solid transparent;
+  background: transparent;
   transition: background 0.18s, border-color 0.18s, box-shadow 0.18s;
 }
 
 .ic-turn:hover {
-  border-color: rgb(90 80 65 / 14%);
-  background: rgb(255 252 246 / 62%);
+  border-color: color-mix(in srgb, var(--line) 70%, transparent);
+  background: color-mix(in srgb, var(--bg-muted) 35%, transparent);
 }
 
 .ic-turn.collapsed {
   padding: 10px 12px;
-  background: rgb(255 252 246 / 45%);
-  border-color: rgb(90 80 65 / 12%);
-  cursor: pointer;
+  /* Solid muted well — transparent mixes can read as bright fog on dark cards */
+  background: var(--bg-muted);
+  border-color: color-mix(in srgb, var(--line) 70%, transparent);
 }
 
 .ic-turn.collapsed:hover {
-  background: rgb(255 252 246 / 72%);
+  background: color-mix(in srgb, var(--bg-muted) 70%, var(--bg-card));
 }
 
 .ic-turn-top {
@@ -726,13 +1003,60 @@
 }
 
 .ic-turn-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   font-size: 12px;
   color: var(--ink-soft);
   letter-spacing: 0.02em;
 }
 
-.ic-turn-label .hint {
-  opacity: 0.65;
+.ic-turn-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Top-left expand/collapse — Reicon AngleRight / AngleDown */
+.ic-turn-toggle {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+  transition:
+    background 0.14s var(--ease-soft),
+    color 0.14s var(--ease-soft);
+}
+
+.ic-turn-toggle:hover {
+  background: color-mix(in srgb, var(--bg-muted) 85%, transparent);
+  color: var(--ink);
+}
+
+.ic-turn-toggle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--focus) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.ic-turn-toggle svg,
+.ic-turn-toggle .reicon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.ic-turn.collapsed .ic-turn-toggle {
+  color: var(--accent);
 }
 
 /* Hover bar: opacity only — no scale bounce */
@@ -742,8 +1066,8 @@
   gap: 4px;
   padding: 4px;
   border-radius: 999px;
-  background: #f3ece2;
-  border: 1px solid rgb(90 80 65 / 16%);
+  background: var(--bg-muted);
+  border: 1px solid color-mix(in srgb, var(--line-strong) 70%, transparent);
   box-shadow: var(--e2);
   opacity: 0;
   pointer-events: none;
@@ -774,13 +1098,13 @@ body.has-selbar .ic-turn-bar {
 }
 
 .ic-turn-bar .ic-round:hover {
-  background: #e7dccb;
+  background: color-mix(in srgb, var(--ink) 8%, var(--bg-muted));
 }
 
 .ic-turn-bar .sep {
   width: 1px;
   height: 18px;
-  background: rgb(90 80 65 / 18%);
+  background: color-mix(in srgb, var(--ink) 18%, transparent);
   margin: 0 2px;
 }
 
@@ -812,13 +1136,14 @@ body.has-selbar .ic-turn-bar {
 .ic-msg.you {
   margin-left: auto;
   max-width: min(70%, 420px);
-  background: #ebe3d6;
-  color: #3d3830;
+  background: var(--chat-user-bg, var(--bg-muted));
+  color: var(--chat-user-ink, var(--ink));
   border-radius: 16px 16px 6px 16px;
   padding: 10px 14px;
   width: fit-content;
   box-shadow: var(--e0);
   white-space: pre-wrap;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
 }
 
 .ic-msg.ai {
@@ -850,12 +1175,12 @@ body.has-selbar .ic-turn-bar {
 
 .ic-think-body {
   font-size: 12px;
-  color: #6b645c;
+  color: var(--ink-soft);
   line-height: 1.5;
   margin: -2px 0 12px 8px;
   padding: 0 10px;
   border-radius: 10px;
-  background: rgb(0 0 0 / 3%);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
   display: grid;
   grid-template-rows: 0fr;
   opacity: 0;
@@ -974,10 +1299,12 @@ body.has-selbar .ic-turn-bar {
   margin: 0.5em 0 0.75em;
   padding: 0.65em 0.75em;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  background: var(--code-bg, color-mix(in srgb, var(--ink) 5%, transparent));
+  color: var(--ink-soft);
   overflow-x: auto;
   font-size: 0.88em;
   line-height: 1.45;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
 }
 
 .ai-html code {
@@ -988,7 +1315,8 @@ body.has-selbar .ic-turn-bar {
 .ai-html :not(pre) > code {
   padding: 0.1em 0.35em;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  background: var(--code-bg, color-mix(in srgb, var(--ink) 7%, transparent));
+  color: var(--ink-soft);
 }
 
 .ai-html pre code {
@@ -1089,7 +1417,7 @@ body.has-selbar .ic-turn-bar {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  color: #3d3830;
+  color: var(--ink-soft);
 }
 
 .ic-chat-settings input {
@@ -1115,13 +1443,13 @@ body.has-selbar .ic-turn-bar {
   font: inherit;
   font-size: 12px;
   background: var(--ink);
-  color: #f4efe6;
+  color: var(--bg-card);
   cursor: pointer;
 }
 
 .ic-chat-settings-actions button.ghost {
   background: var(--bg-muted);
-  color: #3d3830;
+  color: var(--ink-soft);
   box-shadow: var(--e0);
 }
 
@@ -1131,8 +1459,9 @@ body.has-selbar .ic-turn-bar {
 }
 
 .ic-dock {
+  position: relative;
   width: 100%;
-  background: var(--bg-card);
+  background: var(--bg-panel);
   border: 1px solid var(--line-strong);
   border-radius: 20px;
   padding: 10px 12px;
@@ -1140,35 +1469,12 @@ body.has-selbar .ic-turn-bar {
   align-items: flex-end;
   gap: 10px;
   box-shadow: var(--e2);
+  color: var(--ink);
 }
 
 .ic-dock:focus-within {
   border-color: color-mix(in srgb, var(--line-strong) 70%, var(--focus) 30%);
   box-shadow: var(--e2), 0 0 0 3px color-mix(in srgb, var(--accent-soft) 45%, transparent);
-}
-
-.ic-dock .model {
-  flex: 0 0 auto;
-  border: 0;
-  background: var(--bg-muted);
-  border-radius: 999px;
-  padding: 8px 12px;
-  font-size: 12px;
-  color: #3d3830;
-  box-shadow: var(--e0);
-  cursor: pointer;
-  max-width: 9.5rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ic-dock .model.is-mock {
-  color: #6b6358;
-}
-
-.ic-dock .model.is-byok {
-  background: color-mix(in srgb, var(--accent-soft) 55%, var(--bg-muted));
 }
 
 .ic-dock .fields {
@@ -1238,143 +1544,6 @@ body.has-selbar .ic-turn-bar {
   transform: scale(1.04);
 }
 
-/* Dual-track agent menu — above composer dock */
-.ic-agent-menu {
-  width: 100%;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  z-index: 8;
-}
-
-.ic-agent-menu-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-.ic-agent-btn {
-  border: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
-  color: var(--ink-soft);
-  font: inherit;
-  font-size: 11.5px;
-  font-weight: 550;
-  padding: 5px 11px;
-  cursor: pointer;
-  box-shadow: var(--e0);
-  transition:
-    background 0.12s var(--ease-soft),
-    border-color 0.12s var(--ease-soft),
-    color 0.12s var(--ease-soft);
-}
-
-.ic-agent-btn:hover:not(:disabled) {
-  background: var(--bg-card);
-  border-color: var(--line-strong);
-  color: var(--ink);
-}
-
-.ic-agent-btn:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.ic-agent-btn.on,
-.ic-agent-btn.confirm {
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
-  background: color-mix(in srgb, var(--accent-soft) 50%, var(--bg-card));
-  color: var(--accent);
-}
-
-.ic-agent-btn.handoff.confirm {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--bg-card);
-}
-
-.ic-agent-btn.primary {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--bg-card);
-}
-
-.ic-agent-btn.ghost {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-  color: var(--ink-faint);
-}
-
-.ic-agent-btn.ghost:hover:not(:disabled) {
-  background: var(--bg-muted);
-  color: var(--ink);
-  border-color: transparent;
-}
-
-.ic-agent-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
-  background: color-mix(in srgb, var(--bg-card) 96%, transparent);
-  box-shadow: var(--e1);
-}
-
-.ic-agent-import-label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--ink-soft);
-}
-
-.ic-agent-import-label textarea {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--bg-muted);
-  color: var(--ink);
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 400;
-  line-height: 1.45;
-  padding: 8px 10px;
-  resize: vertical;
-  min-height: 72px;
-}
-
-.ic-agent-import-label textarea:focus {
-  outline: none;
-  border-color: color-mix(in srgb, var(--focus) 50%, var(--line-strong));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 14%, transparent);
-}
-
-.ic-agent-panel-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.ic-agent-feedback {
-  margin: 0;
-  font-size: 11.5px;
-  line-height: 1.35;
-  color: var(--ink-soft);
-  padding: 0 2px;
-}
-
-.ic-agent-feedback.err {
-  color: var(--danger);
-}
-
 .ic-quote-chip {
   display: none;
   align-items: center;
@@ -1384,7 +1553,7 @@ body.has-selbar .ic-turn-bar {
   border-radius: 10px;
   background: var(--bg-muted);
   font-size: 12px;
-  color: #4a453e;
+  color: var(--ink-soft);
 }
 
 .ic-quote-chip.on {
@@ -1397,6 +1566,267 @@ body.has-selbar .ic-turn-bar {
   color: var(--ink-faint);
   margin-left: auto;
   padding: 0 4px;
+  cursor: pointer;
+}
+
+/* Composer chips: card refs + attachments */
+.ic-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.ic-ref-chip,
+.ic-att-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 3px 6px 3px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
+  background: color-mix(in srgb, var(--bg-muted) 92%, var(--bg-card));
+  font-size: 11.5px;
+  line-height: 1.2;
+  color: var(--ink-soft);
+}
+
+.ic-ref-chip {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
+  background: color-mix(in srgb, var(--accent-soft) 45%, var(--bg-card));
+  color: var(--ink);
+}
+
+.ic-ref-at {
+  font-weight: 700;
+  color: var(--accent);
+  opacity: 0.9;
+}
+
+.ic-ref-title,
+.ic-att-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 10rem;
+}
+
+.ic-att-size {
+  font-size: 10px;
+  color: var(--ink-faint);
+  flex: 0 0 auto;
+}
+
+.ic-ref-chip button,
+.ic-att-chip button {
+  border: 0;
+  background: transparent;
+  color: var(--ink-faint);
+  padding: 0 2px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.ic-ref-chip button:hover,
+.ic-att-chip button:hover {
+  color: var(--ink);
+}
+
+.ic-dock-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  min-height: 28px;
+}
+
+.ic-dock-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.ic-tool-btn {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-soft);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+  transition:
+    background 0.12s var(--ease-soft),
+    color 0.12s var(--ease-soft);
+}
+
+.ic-tool-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ic-tool-btn:hover:not(:disabled) {
+  background: var(--bg-muted);
+  color: var(--ink);
+}
+
+.ic-tool-btn.on {
+  background: color-mix(in srgb, var(--accent-soft) 55%, transparent);
+  color: var(--accent);
+}
+
+.ic-tool-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ic-dock-toolbar .hint {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * @ mention popover — Astryx Typeahead (size=sm) + List density=compact patterns.
+ * Not TabList. Fixed narrow menu above toolbar, not full-width dock chrome.
+ */
+.ic-mention-pop {
+  position: absolute;
+  left: 10px;
+  bottom: calc(100% + 6px);
+  z-index: 20;
+  width: min(220px, calc(100% - 56px));
+  max-height: 168px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--line-strong) 92%, transparent);
+  background: var(--bg-card);
+  box-shadow: var(--e2);
+  overflow: hidden;
+}
+
+.ic-mention-pop[data-size="sm"] .ic-mention-head {
+  padding: 4px 5px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+}
+
+.ic-mention-filter {
+  width: 100%;
+  box-sizing: border-box;
+  height: 26px;
+  border: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
+  border-radius: 6px;
+  padding: 0 7px;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 24px;
+  background: var(--bg-muted);
+  color: var(--ink);
+}
+
+.ic-mention-filter::placeholder {
+  color: var(--ink-faint);
+}
+
+.ic-mention-filter:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--focus) 42%, var(--line));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus) 12%, transparent);
+}
+
+.ic-mention-q {
+  display: block;
+  height: 26px;
+  line-height: 26px;
+  padding: 0 6px;
+  font-size: 11.5px;
+  font-weight: 550;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ic-mention-empty {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.ic-mention-list {
+  list-style: none;
+  margin: 0;
+  padding: 2px;
+  overflow-y: auto;
+  max-height: 132px;
+}
+
+.ic-mention-list[data-density="compact"] .ic-mention-item {
+  gap: 6px;
+  border-radius: 6px;
+  padding: 4px 7px;
+  font-size: 12px;
+  min-height: 26px;
+}
+
+.ic-mention-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 4px 7px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ic-mention-item:hover,
+.ic-mention-item.active {
+  background: color-mix(in srgb, var(--accent-soft) 38%, var(--bg-muted));
+}
+
+.ic-mention-glyph {
+  flex: 0 0 auto;
+  width: 0.9em;
+  opacity: 0.45;
+  font-size: 10px;
+  text-align: center;
+}
+
+.ic-mention-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.ic-mention-unread {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  font-size: 0;
+  color: transparent;
+  overflow: hidden;
 }
 
 .center-stage:has(.inquiry-root) {
@@ -1428,10 +1858,11 @@ body.has-selbar .ic-turn-bar {
   max-height: 100%;
 }
 
-/* Hide non-card chrome while in 专注模式 (whole chrome-stack, not gear only) */
+/* Hide non-card chrome while in 专注模式 */
 .app-shell:has(.inquiry-root.is-focus-mode) .left-rail,
 .app-shell:has(.inquiry-root.is-focus-mode) .locus-peek,
-.app-shell:has(.inquiry-root.is-focus-mode) .chrome-stack {
+.app-shell:has(.inquiry-root.is-focus-mode) .settings-gear,
+.app-shell:has(.inquiry-root.is-focus-mode) .edge-affordance {
   opacity: 0;
   pointer-events: none;
   visibility: hidden;

@@ -9,7 +9,7 @@ Doc companion (PEL-156): `docs/superpowers/specs/2026-08-20-doc-companion-viewer
 
 | File | Role |
 |------|------|
-| `AppShell.tsx` | Shell; rail collapse (`Ctrl+B`); **chrome-stack** (gear + materials toggle); center matrix (card / companion / Orbit); Esc order |
+| `AppShell.tsx` | Shell; rail collapse (`Ctrl+B`); **settings gear bottom-left**; **right-edge triangle** opens companion; center matrix; Esc |
 | `CompanionPane.tsx` | **One** right slot: materials list **or** DocPane preview (never both as two columns) |
 | `MaterialsRail.tsx` | List body only (`MaterialsList`); embedded in CompanionPane |
 | `SplitSash.tsx` | `WorkspaceSplit`: Card \| sash \| CompanionPane; owns `--doc-fraction` + persist (`lib/splitRatio`) |
@@ -83,10 +83,12 @@ Doc companion (PEL-156): `docs/superpowers/specs/2026-08-20-doc-companion-viewer
 - Drag sash → update fraction + persist; if was doc-wide → `setDocLayout("split")`. Double-click sash → 0.42 + persist + split.
 - DocPane **加宽** toggles layout only — must not write fraction.
 
-### Materials chrome
+### Materials / settings chrome
 
-- `chrome-stack` (gear + materials toggle) fixed top-right; **focus mode hides whole stack**.
-- Toggle opens companion list in split slot (not a separate dock). `soit:toggle-materials` / `soit:open-materials`.
+- **Settings gear:** fixed **bottom-left** (offsets past left rail); no top-right stack (avoids overlapping companion).
+- **No permanent materials button.** Right-edge hover zone shows a **triangle**; click → `openMaterialsRail()` (companion list in split slot).
+- Hidden while companion already open or in map mode. Focus mode hides gear + edge affordance.
+- Events still: `soit:toggle-materials` / `soit:open-materials`.
 - Lazy `list_vault_materials` on open — never bootstrap.
 - Close companion → also ends DocSession (one surface).
 

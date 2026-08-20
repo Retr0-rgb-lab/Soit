@@ -2,22 +2,13 @@
    Inspired by: astryx template "settings" + Settings Dialog / Settings Panels
    (sidebar nav, section heading+copy, card groups, list rows, primary footer). */
 
-/* ── Permanent chrome stack (gear + materials toggle) ─────── */
+/* ── Settings gear: bottom-left (clears companion on the right) ─ */
 
-.chrome-stack {
+.settings-gear {
   position: fixed;
-  top: 14px;
-  right: 14px;
+  left: 14px;
+  bottom: 14px;
   z-index: 40;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-}
-
-.settings-gear,
-.materials-toggle {
-  position: relative;
   width: 38px;
   height: 38px;
   display: grid;
@@ -36,11 +27,20 @@
     color 0.16s var(--ease-soft),
     border-color 0.16s var(--ease-soft),
     box-shadow 0.16s var(--ease-soft),
-    transform 0.16s var(--ease-soft);
+    transform 0.16s var(--ease-soft),
+    left 0.2s var(--ease-soft);
 }
 
-.settings-gear:hover,
-.materials-toggle:hover {
+/* Sit past expanded left rail */
+.app-shell:not(.rail-collapsed) .settings-gear {
+  left: calc(var(--rail-w, 220px) + 14px);
+}
+
+.app-shell.rail-collapsed .settings-gear {
+  left: calc(var(--rail-w-collapsed, 48px) + 10px);
+}
+
+.settings-gear:hover {
   background: var(--bg-card);
   color: var(--ink);
   border-color: var(--line-strong);
@@ -48,14 +48,12 @@
   transform: translateY(-1px);
 }
 
-.settings-gear:focus-visible,
-.materials-toggle:focus-visible {
+.settings-gear:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--focus) 55%, transparent);
   outline-offset: 2px;
 }
 
-.settings-gear.on,
-.materials-toggle.on {
+.settings-gear.on {
   background: var(--ink);
   color: var(--bg-card);
   border-color: var(--ink);
@@ -63,12 +61,98 @@
   box-shadow: var(--e2);
 }
 
-.materials-toggle {
-  font-size: 15px;
+/* ── Right-edge hover triangle → open companion ───────────── */
+
+.edge-affordance {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 36;
+  width: 14px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  pointer-events: auto;
+  transition: width 0.18s var(--ease-soft);
+}
+
+.edge-affordance:hover,
+.edge-affordance:focus-within {
+  width: 36px;
+}
+
+.edge-affordance__tri {
+  appearance: none;
+  border: none;
+  padding: 0;
+  margin: 0 4px 0 0;
+  width: 22px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border-radius: 10px 0 0 10px;
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-right: none;
+  box-shadow: var(--e1);
+  color: var(--ink-soft);
+  opacity: 0;
+  transform: translateX(10px);
+  pointer-events: none;
+  transition:
+    opacity 0.16s var(--ease-soft),
+    transform 0.16s var(--ease-soft),
+    background 0.16s var(--ease-soft),
+    color 0.16s var(--ease-soft);
+}
+
+.edge-affordance:hover .edge-affordance__tri,
+.edge-affordance:focus-within .edge-affordance__tri {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.edge-affordance__tri:hover {
+  background: var(--bg-card);
+  color: var(--ink);
+}
+
+.edge-affordance__tri:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--focus) 55%, transparent);
+  outline-offset: 2px;
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+/* Triangle pointing left (pull open from the right edge) */
+.edge-affordance__chev {
+  display: block;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 7px 9px 7px 0;
+  border-color: transparent currentColor transparent transparent;
+  margin-right: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edge-affordance,
+  .edge-affordance__tri,
+  .settings-gear {
+    transition: none;
+  }
 }
 
 .mode-map .map-stage-actions {
-  margin-right: 52px;
+  margin-right: 12px;
+}
+
+.mode-map .orbit-stage__head {
+  padding-right: 16px;
 }
 
 /* ── Scrim + shell ────────────────────────────────────────── */
@@ -1180,7 +1264,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .settings-gear,
-  .materials-toggle,
+  .edge-affordance,
+  .edge-affordance__tri,
   .settings-nav-item,
   .settings-skills .skills-toggle,
   .settings-skills .skills-toggle::after {

@@ -84,9 +84,9 @@ export default function AppShell() {
   const docSession = useWorkspace((s) => s.docSession);
   const closeDoc = useWorkspace((s) => s.closeDoc);
   const materialsOpen = useWorkspace((s) => s.materialsRail.open);
-  const toggleMaterialsRail = useWorkspace((s) => s.toggleMaterialsRail);
   const openMaterialsRail = useWorkspace((s) => s.openMaterialsRail);
   const closeMaterialsRail = useWorkspace((s) => s.closeMaterialsRail);
+  const toggleMaterialsRail = useWorkspace((s) => s.toggleMaterialsRail);
 
   const showEmpty =
     source === "empty" ||
@@ -397,33 +397,35 @@ export default function AppShell() {
         onToggleCollapse={toggleRail}
       />
       <div className="workspace-main">{renderFocusMain()}</div>
-      {/* Permanent chrome stack — gear + materials toggle */}
-      <div className="chrome-stack">
-        <button
-          type="button"
-          className={`settings-gear${settingsOpen ? " on" : ""}`}
-          aria-label="打开设置"
-          aria-expanded={settingsOpen}
-          aria-haspopup="dialog"
-          title="设置 (Ctrl+,)"
-          onClick={() => {
-            if (settingsOpen) closeSettings();
-            else openSettings();
-          }}
-        >
-          ⚙
-        </button>
-        <button
-          type="button"
-          className={`materials-toggle${materialsOpen ? " on" : ""}`}
-          aria-label={materialsOpen ? "关闭资料" : "打开资料"}
-          aria-expanded={materialsOpen}
-          title="资料"
-          onClick={() => toggleMaterialsRail()}
-        >
-          📄
-        </button>
-      </div>
+      {/* Settings — bottom-left (not over companion) */}
+      <button
+        type="button"
+        className={`settings-gear${settingsOpen ? " on" : ""}`}
+        aria-label="打开设置"
+        aria-expanded={settingsOpen}
+        aria-haspopup="dialog"
+        title="设置 (Ctrl+,)"
+        onClick={() => {
+          if (settingsOpen) closeSettings();
+          else openSettings();
+        }}
+      >
+        ⚙
+      </button>
+      {/* Right-edge hover triangle → open shared companion (list/preview) */}
+      {!companionOpen && workspaceMode === "focus" ? (
+        <div className="edge-affordance" aria-hidden={false}>
+          <button
+            type="button"
+            className="edge-affordance__tri"
+            aria-label="打开资料与预览"
+            title="打开资料"
+            onClick={() => openMaterialsRail()}
+          >
+            <span className="edge-affordance__chev" aria-hidden />
+          </button>
+        </div>
+      ) : null}
       <CommandPalette open={paletteOpen} onClose={closePalette} />
       <OpenDocPopover open={openDocOpen} onClose={closeOpenDoc} />
       <SettingsPanel
