@@ -2,7 +2,7 @@
 
 > **For agentic workers:** Wave 1 parallel M1; pure FE  
 > **Spec:** v1.1 §2.6  
-> **工作目录:** `E:\学习软件\Soit-wt-model-providers`
+> **工作目录:** `E:\学习软件\Soit`
 
 ---
 

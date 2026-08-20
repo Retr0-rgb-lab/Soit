@@ -2,7 +2,7 @@
 
 > **After M1+M2**  
 > **Spec:** v1.1 §2.2–2.3 §2.5 mock  
-> **工作目录:** `E:\学习软件\Soit-wt-model-providers`
+> **工作目录:** `E:\学习软件\Soit`
 
 ---
 
