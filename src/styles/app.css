@@ -13,6 +13,7 @@ body,
 
 body {
   font-family: var(--font);
+  font-size: var(--font-size-root);
   color: var(--ink);
   background: var(--bg-app);
   -webkit-font-smoothing: antialiased;

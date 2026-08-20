@@ -593,6 +593,7 @@
   min-width: 0;
   overflow: auto;
   padding: 2px 18px 20px 22px;
+  font-size: var(--font-size-root);
   scrollbar-width: thin;
   scrollbar-color: rgb(90 80 65 / 28%) transparent;
 }
@@ -805,6 +806,7 @@ body.has-selbar .ic-turn-bar {
   margin: 0 0 12px;
   line-height: 1.65;
   position: relative;
+  font-size: inherit;
 }
 
 .ic-msg.you {
@@ -926,6 +928,7 @@ body.has-selbar .ic-turn-bar {
 
 .ai-html {
   line-height: 1.65;
+  font-size: inherit;
 }
 
 /* Structured assistant HTML (safe md subset) — compact paper, not doc-site */
@@ -1183,6 +1186,7 @@ body.has-selbar .ic-turn-bar {
   max-height: 120px;
   line-height: 1.45;
   font: inherit;
+  font-size: inherit;
   color: inherit;
 }
 

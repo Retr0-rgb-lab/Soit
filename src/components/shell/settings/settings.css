@@ -233,6 +233,7 @@
   min-width: 0;
   overflow: auto;
   padding: 22px 26px 28px;
+  font-size: var(--font-size-root);
   background:
     linear-gradient(
       165deg,
