@@ -18,7 +18,15 @@ import {
   type ComposerAttachment,
   type ComposerCardRef,
 } from "../../lib/composerPayload";
-import { stripHtml } from "../../lib/chat";
+import {
+  activeModelLabel,
+  DEFAULT_CHAT_CONFIG,
+  portKindFromConfig,
+  resolveChatConfig,
+  stripHtml,
+  type ChatConfig,
+} from "../../lib/chat";
+import { getChatConfig, getModelSettings } from "../../lib/host";
 import { rankPaletteNodes } from "../../lib/paletteRank";
 import { kindGlyph } from "../../lib/treeNav";
 import { useWorkspace } from "../../state/workspaceStore";
@@ -40,6 +48,26 @@ interface Props {
 function nextAttId(): string {
   return `a_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 }
+function truncateChip(text: string, max = 18): string {
+  const t = text.trim();
+  if (!t) return "model";
+  return t.length > max ? `${t.slice(0, max - 2)}…` : t;
+}
+
+/** Mock · 本地 | 在线 · {label|modelId} */
+function chipLabel(cfg: ChatConfig, displayName: string | null): string {
+  if (portKindFromConfig(cfg) === "mock") return "Mock · 本地";
+  const name = displayName?.trim() || cfg.model.trim() || "model";
+  return `在线 · ${truncateChip(name)}`;
+}
+
+function chipTip(cfg: ChatConfig, displayName: string | null): string {
+  if (portKindFromConfig(cfg) === "mock") {
+    return "未配置 API Key · 使用 MockChat（点击设置 BYOK）";
+  }
+  const name = displayName?.trim() || cfg.model || "model";
+  return `${cfg.baseUrl || "endpoint"} · ${name}（点击改配置）`;
+}
 
 export default function Composer({
   draft,
@@ -52,6 +80,8 @@ export default function Composer({
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const [cfg, setCfg] = useState<ChatConfig>({ ...DEFAULT_CHAT_CONFIG });
+  const [modelDisplay, setModelDisplay] = useState<string | null>(null);
 
   const nodes = useWorkspace((s) => s.nodes);
   const focusId = useWorkspace((s) => s.focusId);
@@ -83,6 +113,33 @@ export default function Composer({
     Boolean(quote.trim()) ||
     cardRefs.length > 0 ||
     attachments.length > 0;
+
+  const kind = portKindFromConfig(cfg);
+
+  const reloadConfig = useCallback(async () => {
+    try {
+      const settings = await getModelSettings();
+      setModelDisplay(activeModelLabel(settings));
+      setCfg(resolveChatConfig(settings));
+    } catch {
+      const c = await getChatConfig();
+      setCfg(c);
+      setModelDisplay(c.model.trim() || null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void reloadConfig();
+  }, [reloadConfig]);
+
+  useEffect(() => {
+    const onChanged = () => {
+      void reloadConfig();
+    };
+    window.addEventListener("soit:chat-config-changed", onChanged);
+    return () =>
+      window.removeEventListener("soit:chat-config-changed", onChanged);
+  }, [reloadConfig]);
 
   useEffect(() => {
     const el = taRef.current;
@@ -402,6 +459,20 @@ export default function Composer({
   return (
     <div className="ic-dock-wrap">
       <div className={`ic-dock${pickerOpen ? " picker-open" : ""}`}>
+        <button
+          type="button"
+          className={`model${kind === "mock" ? " is-mock" : " is-byok"}`}
+          data-tip={chipTip(cfg, modelDisplay)}
+          onClick={() => {
+            window.dispatchEvent(
+              new CustomEvent("soit:open-settings", {
+                detail: { section: "model" },
+              }),
+            );
+          }}
+        >
+          {chipLabel(cfg, modelDisplay)}
+        </button>
         <div className="fields">
           {quote ? (
             <div className="ic-quote-chip on">
