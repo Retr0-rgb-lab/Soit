@@ -19,8 +19,8 @@ Parent: `src/AGENTS.md`.
 | `deepenScope.ts` | Deepen parent/edge scope for chat complete (v2: parent fields, no parent turns) |
 | `cardBrief.ts` | Pure card brief builder / markdown / import parse (Spec §2.3; no parent transcript) |
 | `paletteRank.ts` | Command-palette ranking |
-| `marks.ts` | Mark / term helpers for assistant HTML |
-| `chat/` | ChatPort + MockChat + OpenAI-compat BYOK + config + systemPrompt (Inquiry main track) |
+| `marks.ts` | Mark DOM helpers for assistant HTML (no static term-explanation dictionary) |
+| `chat/` | ChatPort + MockChat + OpenAI-compat BYOK + config + systemPrompt + `assistantHtml` / `explain` (Inquiry main track) |
 | `runtime/` | RuntimeId/info/prefs types + localStorage prefs mirror — spec §2.5; host wrappers in `host.ts` |
 
 ## Rules
@@ -33,7 +33,8 @@ Parent: `src/AGENTS.md`.
   - BYOK: `get_chat_config` / `set_chat_config` (app config / localStorage — never `universe.db`)
   - Runtime (dual-track): `list_runtimes` / `get_runtime_prefs` / `set_runtime_prefs` / `start_runtime_handoff` / `cancel_runtime_handoff` — app config + `vault/.soit/runs/`; never treat external session as universe source; browser mock-only
 - Chat secrets: app config / localStorage only — never `universe.db`.
-- **`completeResultToHtml`** (`chat/port.ts`): always `escapeHtml` on model text, then mark spans — **never trust model HTML** (XSS via `dangerouslySetInnerHTML`).
+- **`renderAssistantHtml`** (`chat/assistantHtml.ts`): safe subset pipeline order — **escapeHtml → code protect → wrapMarks → md-subset** (paragraphs/lists/headings/bold/code). Whitelist tags only from the pipeline; **never trust model HTML**. `completeResultToHtml` delegates here.
+- **`ChatPort.explain?` / `explainSpan`** (`state/explainActions.ts`): short 2–4 sentence explain; **no marks required, no db/turns write, no spawn**. UI sole entry is `explainSpan` (resolves port); overlays must not call `port.explain` or `fetch`.
 - **Deepen scope v2** (`deepenScope.ts`): `{ parent: { title, status, question, stuck, next }, span, why, recentTurns }` — **child turns only**; never parent transcript.
 - **Load matrix** (`App.tsx`): only inject `demoSnapshot()` when `source === "demo"`. Never when `empty` or `universe`.
 - Browser path (no Tauri): mock bootstrap + demo snapshot; turn/card host helpers throw (store must not call them off universe path).
