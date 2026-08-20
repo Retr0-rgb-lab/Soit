@@ -1,29 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
-import { demoSnapshot } from "../../../lib/demoSeed";
-import {
-  closeUniverse,
-  getLastVault,
-  openUniverse,
-  setLastVault,
-} from "../../../lib/host";
+import { useEffect, useState } from "react";
+import { getSessionConfig, setLastVault } from "../../../lib/host";
 import { useWorkspace } from "../../../state/workspaceStore";
 
 type Props = {
-  /** When true (settings space tab visible), refresh lastVault display. */
+  /** When true (settings space tab visible), keep lastVault display fresh. */
   active?: boolean;
 };
-
-function mapOpenError(err: string | undefined): string {
-  const raw = (err ?? "打开失败").trim();
-  if (
-    /requires tauri/i.test(raw) ||
-    /tauri-missing/i.test(raw) ||
-    /browser stays on demo/i.test(raw)
-  ) {
-    return "需要桌面版";
-  }
-  return raw || "打开失败";
-}
 
 function vaultLeaf(path: string | null): string | null {
   if (!path) return null;
@@ -31,102 +13,86 @@ function vaultLeaf(path: string | null): string | null {
 }
 
 /**
- * Settings · 空间 — bind / switch / unbind vault + lastVault controls.
- * Spec v1.1 §2.2: beginBootLoad epoch, close-then-open, Host writes lastVault.
+ * Settings · 空间 — steward only: path, badge, switch, clear last, leave.
+ * Open/leave/switch go through store spaceNav (workspace-hall §2.5 §2.6).
+ * No private openUniverse / closeUniverse success path.
  */
 export default function SpaceSection({ active = true }: Props) {
   const vaultPath = useWorkspace((s) => s.vaultPath);
   const source = useWorkspace((s) => s.source);
-  const beginBootLoad = useWorkspace((s) => s.beginBootLoad);
-  const loadSnapshot = useWorkspace((s) => s.loadSnapshot);
-  const setVaultPath = useWorkspace((s) => s.setVaultPath);
+  const sessionConfig = useWorkspace((s) => s.sessionConfig);
+  const spaceBusy = useWorkspace((s) => s.spaceBusy);
+  const shellPhase = useWorkspace((s) => s.shellPhase);
+  const enterError = useWorkspace((s) => s.enterError);
+  const leave = useWorkspace((s) => s.leave);
+  const switchVault = useWorkspace((s) => s.switch);
+
+  const lastVault = sessionConfig?.lastVault ?? null;
 
   const [pathInput, setPathInput] = useState(vaultPath ?? "");
-  const [lastVault, setLastVaultState] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [clearBusy, setClearBusy] = useState(false);
+  const [clearError, setClearError] = useState<string | null>(null);
 
-  const refreshLastVault = useCallback(async () => {
-    try {
-      const last = await getLastVault();
-      setLastVaultState(last);
-    } catch {
-      setLastVaultState(null);
-    }
-  }, []);
+  const navBusy =
+    spaceBusy || shellPhase === "entering" || shellPhase === "leaving";
+  const busy = navBusy || clearBusy;
 
   useEffect(() => {
     if (!active) return;
-    void refreshLastVault();
-  }, [active, refreshLastVault]);
+    // sessionConfig is store mirror; refresh if missing while panel open.
+    if (sessionConfig != null) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const session = await getSessionConfig();
+        if (!cancelled) {
+          useWorkspace.setState({ sessionConfig: session });
+        }
+      } catch {
+        /* non-fatal */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [active, sessionConfig]);
 
   useEffect(() => {
     if (vaultPath) setPathInput(vaultPath);
   }, [vaultPath]);
 
-  const openPath = async (raw: string) => {
+  const onSwitch = (raw: string) => {
     const path = raw.trim();
-    if (!path || busy) return;
-
-    const epoch = beginBootLoad();
-    setBusy(true);
-    setError(null);
-    try {
-      if (vaultPath && vaultPath !== path) {
-        await closeUniverse();
-      }
-      const res = await openUniverse(path);
-      if (!res.ok) {
-        setError(mapOpenError(res.error));
-        return;
-      }
-      setVaultPath(res.path);
-      setPathInput(res.path);
-      if (res.snapshot) loadSnapshot(res.snapshot, epoch);
-      // Host already wrote lastVault on successful open.
-      await refreshLastVault();
-    } catch (e) {
-      setError(mapOpenError(e instanceof Error ? e.message : String(e)));
-    } finally {
-      setBusy(false);
-    }
+    if (!path || navBusy) return;
+    setClearError(null);
+    void switchVault(path);
   };
 
-  const onUnbind = async () => {
-    if (busy) return;
-    const epoch = beginBootLoad();
-    setBusy(true);
-    setError(null);
-    try {
-      await closeUniverse();
-      setVaultPath(null);
-      loadSnapshot(demoSnapshot(), epoch);
-      // closeUniverse does not clear lastVault.
-      await refreshLastVault();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
+  const onLeave = () => {
+    if (navBusy || !vaultPath) return;
+    setClearError(null);
+    void leave();
   };
 
   const onClearLast = async () => {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
+    if (busy || !lastVault) return;
+    setClearBusy(true);
+    setClearError(null);
     try {
       await setLastVault(null);
-      setLastVaultState(null);
+      const session = await getSessionConfig();
+      useWorkspace.setState({ sessionConfig: session });
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setClearError(e instanceof Error ? e.message : String(e));
     } finally {
-      setBusy(false);
+      setClearBusy(false);
     }
   };
 
   const boundLabel = vaultLeaf(vaultPath);
   const lastLabel = vaultLeaf(lastVault);
   const sourceLabel = source ?? "—";
+  const error = enterError || clearError;
 
   return (
     <section className="settings-space" aria-label="空间">
@@ -163,7 +129,7 @@ export default function SpaceSection({ active = true }: Props) {
           className="settings-card-body"
           onSubmit={(e) => {
             e.preventDefault();
-            void openPath(pathInput);
+            onSwitch(pathInput);
           }}
         >
           <label className="settings-field">
@@ -183,16 +149,20 @@ export default function SpaceSection({ active = true }: Props) {
               className="settings-btn primary"
               disabled={busy || !pathInput.trim()}
             >
-              {busy ? "处理中…" : vaultPath ? "更换 / 打开" : "打开"}
+              {shellPhase === "entering"
+                ? "打开中…"
+                : vaultPath
+                  ? "更换 / 打开"
+                  : "打开"}
             </button>
             {vaultPath ? (
               <button
                 type="button"
                 className="settings-btn ghost"
                 disabled={busy}
-                onClick={() => void onUnbind()}
+                onClick={() => onLeave()}
               >
-                解绑
+                {shellPhase === "leaving" ? "退出中…" : "退出工作区"}
               </button>
             ) : null}
           </div>
@@ -210,7 +180,7 @@ export default function SpaceSection({ active = true }: Props) {
           >
             {lastVault
               ? lastVault
-              : "尚无记录（成功打开后由 Host 写入；解绑不会清除）"}
+              : "尚无记录（成功打开后由 Host 写入；退出工作区不会清除）"}
           </p>
           <div className="settings-actions">
             <button
@@ -218,10 +188,9 @@ export default function SpaceSection({ active = true }: Props) {
               className="settings-btn"
               disabled={busy || !lastVault}
               onClick={() => {
-                if (lastVault) {
-                  setPathInput(lastVault);
-                  void openPath(lastVault);
-                }
+                if (!lastVault) return;
+                setPathInput(lastVault);
+                onSwitch(lastVault);
               }}
             >
               {lastLabel ? `使用「${lastLabel}」` : "使用记住的库"}
@@ -245,7 +214,7 @@ export default function SpaceSection({ active = true }: Props) {
       ) : null}
 
       <p className="settings-hint">
-        绑定只打开本机 vault 的 .soit/universe.db。浏览器预览无法绑库。清除记忆不会解绑当前会话。
+        更换库走同一进入管道（先关后开）。退出工作区回到门厅，不会清除「记住的库」。浏览器预览无法绑库。
       </p>
     </section>
   );

@@ -9,8 +9,14 @@ type Props = {
   onToggleCollapse?: () => void;
 };
 
+function vaultLeaf(path: string | null): string {
+  if (!path) return "未绑定";
+  return path.replace(/\\/g, "/").split("/").filter(Boolean).pop() ?? path;
+}
+
 /**
- * Left rail = orbit (top) + vertical tree Line Sidebar (bottom, hideable).
+ * Left rail = vault strip (leaf + leave) + orbit (top) + path tree (bottom).
+ * Leave → store.leave() only (workspace-hall §2.5).
  */
 export default function LeftRail({
   collapsed = false,
@@ -21,6 +27,11 @@ export default function LeftRail({
   const liveIds = useWorkspace((s) => s.liveIds);
   const focusNode = useWorkspace((s) => s.focusNode);
   const setMode = useWorkspace((s) => s.setWorkspaceMode);
+  const vaultPath = useWorkspace((s) => s.vaultPath);
+  const leave = useWorkspace((s) => s.leave);
+  const spaceBusy = useWorkspace((s) => s.spaceBusy);
+  const shellPhase = useWorkspace((s) => s.shellPhase);
+  const enterError = useWorkspace((s) => s.enterError);
 
   const orbitFocusId = focusId || liveIds[0] || "";
   const orbitModel = useMemo(() => {
@@ -36,6 +47,10 @@ export default function LeftRail({
   const openGlobal = () => {
     setMode("map");
   };
+
+  const leaveBusy =
+    spaceBusy || shellPhase === "entering" || shellPhase === "leaving";
+  const leaf = vaultLeaf(vaultPath);
 
   return (
     <aside
@@ -55,6 +70,29 @@ export default function LeftRail({
 
       {!collapsed && (
         <div className="rail-scroll rail-scroll--orbit">
+          <div className="rail-vault compact" aria-label="当前工作区">
+            <span className="rail-vault-kicker">本库</span>
+            <p className="rail-vault-name" title={vaultPath ?? undefined}>
+              {leaf}
+            </p>
+            <div className="rail-vault-actions">
+              <button
+                type="button"
+                className="rail-action ghost"
+                disabled={leaveBusy || !vaultPath}
+                onClick={() => void leave()}
+                title="退出工作区，返回门厅"
+              >
+                {shellPhase === "leaving" ? "退出中…" : "退出工作区"}
+              </button>
+            </div>
+            {enterError ? (
+              <p className="rail-vault-error" role="alert">
+                {enterError}
+              </p>
+            ) : null}
+          </div>
+
           {orbitModel?.hub ?? orbitModel?.center ? (
             <>
               <div className="rail-orbit-block">
