@@ -1,74 +1,74 @@
 import { useEffect } from "react";
 import AppShell from "./components/shell/AppShell";
-import { demoSnapshot } from "./lib/demoSeed";
+import WorkspacePicker from "./components/shell/WorkspacePicker";
+import { unboundEmptySnapshot } from "./lib/demoSeed";
 import {
+  closeUniverse,
   getBootstrapState,
-  getWorkspaceSnapshot,
-  openUniverse,
+  getSessionConfig,
 } from "./lib/host";
+import { emptySessionConfig } from "./lib/sessionConfig";
 import { useWorkspace } from "./state/workspaceStore";
 
 /**
- * Load matrix (Spec v1.1):
- * - source === "demo"  → may fill frontend demo seed (never write disk)
- * - source === "empty" → keep empty; no silent demo
- * - source === "universe" → host DB snapshot as-is
- *
- * Boot epoch (Spec §6.3): stale bootstrap/open/snapshot must not overwrite
- * a newer loadSnapshot after the user binds another vault.
- * Uses store `beginBootLoad` + `loadSnapshot(snap, epoch)`.
+ * Cold start (workspace-hall §2.4):
+ * - Default shellPhase = picker → first paint is hall, not AppShell flash
+ * - close if Host already bound; getSessionConfig for last+recents
+ * - never silent openUniverse(lastVault)
+ * - unbound empty snapshot (no product demo cards)
  */
 export default function App() {
   const loadSnapshot = useWorkspace((s) => s.loadSnapshot);
   const setVaultPath = useWorkspace((s) => s.setVaultPath);
   const beginBootLoad = useWorkspace((s) => s.beginBootLoad);
+  const shellPhase = useWorkspace((s) => s.shellPhase);
 
   useEffect(() => {
     let cancelled = false;
     const epoch = beginBootLoad();
 
-    const isStale = () => cancelled;
-
     (async () => {
-      const boot = await getBootstrapState();
-      if (isStale()) return;
+      let bootError: string | null = null;
 
-      // Currently open vault (usually null on cold start).
-      if (boot.vault) {
-        setVaultPath(boot.vault);
-      }
+      try {
+        const boot = await getBootstrapState();
+        if (cancelled) return;
 
-      // H4: restore lastVault via explicit open — never open DB in bootstrap.
-      // Failure → stay unbound / demo matrix; do not crash.
-      const last = boot.lastVault?.trim() || null;
-      if (!boot.vault && last) {
-        try {
-          const res = await openUniverse(last);
-          if (isStale()) return;
-          if (res.ok && res.snapshot) {
-            setVaultPath(res.path);
-            loadSnapshot(res.snapshot, epoch);
-            return;
+        // Host already bound (rare cold start) → close before hall.
+        if (boot.vault) {
+          try {
+            await closeUniverse();
+          } catch (e) {
+            bootError =
+              (e instanceof Error ? e.message : String(e)).trim() ||
+              "关闭已打开的库失败";
           }
-          // open failed — fall through to unbound snapshot
-        } catch {
-          if (isStale()) return;
         }
+      } catch {
+        /* bootstrap probe failed — stay on hall */
       }
+      if (cancelled) return;
 
-      const snap = await getWorkspaceSnapshot();
-      if (isStale()) return;
-
-      if (snap.source === "demo") {
-        loadSnapshot(
-          snap.nodes.length > 0 ? snap : demoSnapshot(),
-          epoch,
-        );
-      } else {
-        // empty | universe — never inject demo
-        if (boot.vault) setVaultPath(boot.vault);
-        loadSnapshot(snap, epoch);
+      let session = emptySessionConfig();
+      try {
+        session = await getSessionConfig();
+      } catch {
+        session = emptySessionConfig();
       }
+      if (cancelled) return;
+
+      // Unbound empty graph; no open lastVault.
+      setVaultPath(null);
+      loadSnapshot(unboundEmptySnapshot(), epoch);
+      if (cancelled) return;
+
+      useWorkspace.setState({
+        sessionConfig: session,
+        vaultPath: null,
+        enterError: bootError,
+        shellPhase: bootError ? "error" : "picker",
+        spaceBusy: false,
+      });
     })();
 
     return () => {
@@ -76,6 +76,14 @@ export default function App() {
     };
   }, [beginBootLoad, loadSnapshot, setVaultPath]);
 
-  // First paint: shell immediately (even while bootstrap/snapshot pending).
+  const showHall =
+    shellPhase === "picker" ||
+    shellPhase === "entering" ||
+    shellPhase === "error";
+
+  if (showHall) {
+    return <WorkspacePicker />;
+  }
+
   return <AppShell />;
 }
