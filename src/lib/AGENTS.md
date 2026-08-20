@@ -20,8 +20,7 @@ Parent: `src/AGENTS.md`.
 | `cardBrief.ts` | Pure card brief builder / markdown / import parse (Spec §2.3; no parent transcript) |
 | `paletteRank.ts` | Command-palette ranking |
 | `marks.ts` | Mark / term helpers for assistant HTML |
-| `chat/` | ChatPort + MockChat + OpenAI-compat BYOK + config (Inquiry main track) |
-| `cardBrief.ts` | *(planned)* pure CardBrief build/MD export; deepen must not leak parent turns — spec §2.3 |
+| `chat/` | ChatPort + MockChat + OpenAI-compat BYOK + config + systemPrompt (Inquiry main track) |
 | `runtime/` | *(planned)* RuntimeId/info/prefs types + detect helpers — spec §2.5 |
 
 ## Rules

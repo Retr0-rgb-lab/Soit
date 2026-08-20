@@ -4,6 +4,7 @@ import type {
   ChatPort,
 } from "./port";
 import type { ChatConfig } from "./config";
+import { buildInquirySystemPrompt } from "./systemPrompt";
 
 /**
  * OpenAI-compatible Chat Completions (BYOK).
@@ -17,18 +18,8 @@ export class OpenAICompatChat implements ChatPort {
     const url = `${base}/chat/completions`;
     const model = this.config.model.trim() || "gpt-4o-mini";
 
-    const systemBits: string[] = [
-      "You are Soit, an inquiry-workspace assistant. Reply in the user's language.",
-      "Be concise. When introducing technical terms worth forking, wrap each once as [[term]].",
-    ];
-    if (input.scope != null) {
-      systemBits.push(
-        `Deepen scope (JSON): ${JSON.stringify(input.scope).slice(0, 2000)}`,
-      );
-    }
-
     const messages = [
-      { role: "system" as const, content: systemBits.join("\n") },
+      { role: "system" as const, content: buildInquirySystemPrompt(input.scope) },
       ...input.messages.map((m) => ({
         role: m.role,
         content: m.content,

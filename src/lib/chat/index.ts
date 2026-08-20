@@ -37,6 +37,7 @@ export {
   OpenAICompatChat,
   parseAssistantContent,
 } from "./openaiCompat";
+export { buildInquirySystemPrompt } from "./systemPrompt";
 
 export type PortKind = "mock" | "openai";
 
