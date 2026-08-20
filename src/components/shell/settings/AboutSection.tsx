@@ -17,10 +17,20 @@ export default function AboutSection() {
 
   return (
     <section className="settings-about" aria-label="关于">
-      <h3 className="settings-about-title">Soit</h3>
-      <p className="settings-about-version">
-        {version === null ? "…" : `版本 ${version}`}
-      </p>
+      <header className="settings-section-intro">
+        <h3 className="settings-section-title">关于</h3>
+        <p className="settings-section-desc">
+          本机 Agent Host · 会话在卡上，记忆在库里。
+        </p>
+      </header>
+
+      <div className="settings-about-hero">
+        <h4 className="settings-about-title">Soit</h4>
+        <p className="settings-about-version">
+          {version === null ? "…" : `版本 ${version}`}
+        </p>
+      </div>
+
       <ul className="settings-about-copy">
         <li>
           宇宙图保存在本库 <code>vault/.soit/universe.db</code>

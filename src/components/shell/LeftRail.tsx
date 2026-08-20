@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { buildOrbitModel } from "../../lib/orbitLayout";
 import { useWorkspace } from "../../state/workspaceStore";
 import FocusOrbit from "./FocusOrbit";
+import PathLineNav from "./PathLineNav";
 
 type Props = {
   collapsed?: boolean;
@@ -9,8 +10,7 @@ type Props = {
 };
 
 /**
- * Left rail = stacked Option Wheels only (+ hide).
- * No vault / live list / recent / debt / action chrome.
+ * Left rail = orbit (top) + vertical tree Line Sidebar (bottom, hideable).
  */
 export default function LeftRail({
   collapsed = false,
@@ -33,10 +33,14 @@ export default function LeftRail({
     setMode("focus");
   };
 
+  const openGlobal = () => {
+    setMode("map");
+  };
+
   return (
     <aside
       className={`left-rail left-rail--orbit-only${collapsed ? " collapsed" : ""}`}
-      aria-label="探究叠轮"
+      aria-label="探究导航"
     >
       <button
         type="button"
@@ -51,8 +55,29 @@ export default function LeftRail({
 
       {!collapsed && (
         <div className="rail-scroll rail-scroll--orbit">
-          {orbitModel?.center ? (
-            <FocusOrbit model={orbitModel} onSelect={open} />
+          {orbitModel?.hub ?? orbitModel?.center ? (
+            <>
+              <div className="rail-orbit-block">
+                <div className="rail-orbit-head">
+                  <button
+                    type="button"
+                    className="rail-orbit-expand"
+                    onClick={openGlobal}
+                    title="全局视角 (M 或 Ctrl+\\)"
+                  >
+                    全局视角
+                  </button>
+                </div>
+                <FocusOrbit model={orbitModel} onSelect={open} />
+              </div>
+              <div className="rail-path-block">
+                <PathLineNav
+                  nodes={nodes}
+                  focusId={orbitFocusId}
+                  onSelect={open}
+                />
+              </div>
+            </>
           ) : (
             <p className="rail-orbit-empty">尚无探究树</p>
           )}

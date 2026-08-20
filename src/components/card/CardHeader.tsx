@@ -1,11 +1,16 @@
-import { useMemo, useState } from "react";
+import {
+  forwardRef,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
+import { chromeFadeStyle } from "../../lib/scrollChromeFade";
 import {
   collapseCrumbs,
   ELLIPSIS_CRUMB_ID,
 } from "../../lib/treeNav";
 import type { InquiryNode } from "../../types";
-import { IconDeepen } from "./icons";
-
 interface Crumb {
   id: string;
   title: string;
@@ -18,67 +23,81 @@ interface Props {
   status?: string | null;
   /** Guiding question — read-only under title when present. */
   question?: string | null;
-  onDeepen: () => void;
   onCrumb: (id: string) => void;
   /** Source chip: return to parent and highlight source span. */
   onReturnToSource?: () => void;
-  onOpenMap?: () => void;
-  onOpenPalette?: () => void;
+  /**
+   * PEL-150 — peel-drag on title surface to switch cards.
+   * Does not free-move the card on the stage.
+   */
+  onDragSurfacePointerDown?: (e: ReactPointerEvent) => void;
+  onDragSurfacePointerMove?: (e: ReactPointerEvent) => void;
+  onDragSurfacePointerUp?: (e: ReactPointerEvent) => void;
+  onDragSurfacePointerCancel?: (e: ReactPointerEvent) => void;
   parent?: InquiryNode | null;
-  /** Bound vault path present — enables Obsidian write actions */
-  vaultBound?: boolean;
-  onPrecipitateConcept?: () => void | Promise<void>;
-  onAppendResidue?: () => void | Promise<void>;
+  /**
+   * Explore-like: 0 = full chrome, 1 = title faded after scroll down.
+   */
+  chromeFade?: number;
 }
 
-export default function CardHeader({
+const CardHeader = forwardRef<HTMLDivElement, Props>(function CardHeader(
+  {
   crumbs,
   title,
   status,
   question,
-  onDeepen,
   onCrumb,
   onReturnToSource,
-  onOpenMap,
-  onOpenPalette,
+  onDragSurfacePointerDown,
+  onDragSurfacePointerMove,
+  onDragSurfacePointerUp,
+  onDragSurfacePointerCancel,
   parent,
-  vaultBound = false,
-  onPrecipitateConcept,
-  onAppendResidue,
-}: Props) {
+  chromeFade = 0,
+},
+  ref,
+) {
   const [crumbsExpanded, setCrumbsExpanded] = useState(false);
-  const [busy, setBusy] = useState<"concept" | "residue" | null>(null);
 
   const visible = useMemo(() => {
     if (crumbsExpanded) return crumbs;
     return collapseCrumbs(crumbs);
   }, [crumbs, crumbsExpanded]);
 
-  const vaultTip = "需要先绑定 Obsidian vault";
+  const dragEnabled = Boolean(onDragSurfacePointerDown);
+  const fade = chromeFadeStyle(chromeFade);
+  const fadeStyle = fade as CSSProperties;
 
-  const runConcept = async () => {
-    if (!vaultBound || !onPrecipitateConcept || busy) return;
-    setBusy("concept");
-    try {
-      await onPrecipitateConcept();
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const runResidue = async () => {
-    if (!vaultBound || !onAppendResidue || busy) return;
-    setBusy("residue");
-    try {
-      await onAppendResidue();
-    } finally {
-      setBusy(null);
-    }
-  };
+  const faded = chromeFade > 0.92;
 
   return (
-    <div className="ic-head">
-      <div className="titles">
+    <div
+      ref={ref}
+      className={`ic-head${chromeFade > 0.02 ? " is-scrolled" : ""}${faded ? " is-faded" : ""}`}
+      data-chrome-fade={chromeFade.toFixed(3)}
+      aria-hidden={faded || undefined}
+    >
+      <div
+        className="ic-head-fade"
+        style={{
+          ...fadeStyle,
+          /* When fully faded, never block scroll/clicks in the top band */
+          pointerEvents: faded ? "none" : fade.pointerEvents,
+        }}
+      >
+      <div
+        className={`titles${dragEnabled ? " ic-drag-surface" : ""}`}
+        onPointerDown={onDragSurfacePointerDown}
+        onPointerMove={onDragSurfacePointerMove}
+        onPointerUp={onDragSurfacePointerUp}
+        onPointerCancel={onDragSurfacePointerCancel}
+        title={
+          dragEnabled
+            ? "拖标题：甩开切换 · 按住片刻在拖动处打开小窗"
+            : undefined
+        }
+      >
         <nav className="ic-crumbs" aria-label="探究路径">
           {visible.length === 0 ? (
             <span className="ic-crumb muted">Soit</span>
@@ -155,74 +174,9 @@ export default function CardHeader({
           </p>
         )}
       </div>
-      <div className="ic-head-tools">
-        {onOpenPalette && (
-          <button
-            type="button"
-            className="ic-round"
-            data-tip="跳转卡片 Ctrl+K"
-            aria-label="跳转卡片"
-            onClick={onOpenPalette}
-          >
-            <span className="ic-tool-glyph" aria-hidden>
-              ⌕
-            </span>
-          </button>
-        )}
-        {onOpenMap && (
-          <button
-            type="button"
-            className="ic-round"
-            data-tip="图谱 Ctrl+\\"
-            aria-label="打开图谱"
-            onClick={onOpenMap}
-          >
-            <span className="ic-tool-glyph" aria-hidden>
-              ◎
-            </span>
-          </button>
-        )}
-        <button
-          type="button"
-          className="ic-round"
-          data-tip="从此卡片深挖"
-          aria-label="从此卡片深挖"
-          onClick={onDeepen}
-        >
-          <IconDeepen />
-        </button>
-        <button
-          type="button"
-          className="ic-precip-btn"
-          data-tip={
-            vaultBound
-              ? "写入概念页到 vault/concepts/"
-              : vaultTip
-          }
-          aria-label="写入概念"
-          title={vaultBound ? "写入概念" : vaultTip}
-          disabled={!vaultBound || busy !== null}
-          onClick={() => void runConcept()}
-        >
-          {busy === "concept" ? "写入中…" : "写入概念"}
-        </button>
-        <button
-          type="button"
-          className="ic-precip-btn"
-          data-tip={
-            vaultBound
-              ? "追加残渣到 vault/inquiry/"
-              : vaultTip
-          }
-          aria-label="记下残渣"
-          title={vaultBound ? "记下残渣" : vaultTip}
-          disabled={!vaultBound || busy !== null}
-          onClick={() => void runResidue()}
-        >
-          {busy === "residue" ? "记录中…" : "记下残渣"}
-        </button>
-
       </div>
     </div>
   );
-}
+});
+
+export default CardHeader;

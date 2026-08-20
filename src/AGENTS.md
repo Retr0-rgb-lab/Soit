@@ -34,6 +34,6 @@ Project-wide constraints: root `AGENTS.md`. Product rules: `知识库/AGENTS.md`
 |------|------|
 | `state/AGENTS.md` | Store API, caps, spawn/regenerate semantics |
 | `lib/AGENTS.md` | Host mock, map/graph pure logic, seeds |
-| `components/shell/AGENTS.md` | Shell / map chrome |
+| `components/shell/AGENTS.md` | Shell / map chrome · **global orbit on app bg, never over card** |
 | `components/card/AGENTS.md` | Card / turns / composer |
 | `components/overlays/AGENTS.md` | Floats and selection chrome |

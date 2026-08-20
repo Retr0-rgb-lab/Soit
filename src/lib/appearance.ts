@@ -42,12 +42,13 @@ const FONTS = new Set<string>(["system", "song", "hei", "kai", "mono"]);
 const FONT_SIZES = new Set<string>(["sm", "md", "lg", "xl"]);
 
 /** Critical FOUC bg — keep in sync with index.html boot + tokens --bg-app. */
+/** Critical FOUC bg — keep in sync with index.html boot + tokens --bg-app. */
 export const THEME_CRITICAL_BG: Record<AppearanceTheme, string> = {
-  paper: "#f3ebe0",
-  matcha: "#e8efe3",
-  celadon: "#e6eeec",
-  ink: "#1c1916",
-  cinnabar: "#f3e8e2",
+  paper: "#efe4d4",
+  matcha: "#e2ebd9",
+  celadon: "#dde8e5",
+  ink: "#161310",
+  cinnabar: "#f0e3da",
 };
 
 function pickEnum<T extends string>(

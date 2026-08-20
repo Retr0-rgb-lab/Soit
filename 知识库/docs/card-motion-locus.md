@@ -18,7 +18,7 @@
 | diverge | X+12 微旋 |
 | back | Y−8 |
 
-时长 `--motion-card: 0.28s`；换卡时 edge/dock 暂退 opacity。
+时长 `--motion-focus` / `--motion-card`（默认 **0.32s**，与 FocusOrbit 相机同步，见 PEL-153）；换卡时 edge/dock 暂退 opacity。导航种类由树/边关系推断（`inferFocusNavKind`）。
 
 ## 方位图
 

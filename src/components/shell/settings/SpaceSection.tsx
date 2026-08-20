@@ -130,98 +130,122 @@ export default function SpaceSection({ active = true }: Props) {
 
   return (
     <section className="settings-space" aria-label="空间">
-      <header className="settings-space-head">
-        <p className="shell-label">当前空间</p>
-        <div className="settings-space-status">
-          <p className="settings-space-path" title={vaultPath ?? undefined}>
-            {vaultPath ? vaultPath : "未绑定"}
-          </p>
+      <header className="settings-section-intro">
+        <h3 className="settings-section-title">空间</h3>
+        <p className="settings-section-desc">
+          一个空间对应一个 Obsidian 库。换库即换宇宙，卡片跟着本库走。
+        </p>
+      </header>
+
+      <div className="settings-card">
+        <div className="settings-card-head">
+          <p className="shell-label">当前绑定</p>
           <span className="settings-space-badge" data-source={sourceLabel}>
             {sourceLabel}
             {boundLabel ? ` · ${boundLabel}` : ""}
           </span>
         </div>
-      </header>
-
-      <form
-        className="settings-space-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void openPath(pathInput);
-        }}
-      >
-        <label className="settings-field">
-          <span>Vault 绝对路径</span>
-          <input
-            value={pathInput}
-            onChange={(e) => setPathInput(e.target.value)}
-            placeholder="例如：E:\\Notes\\MyVault"
-            disabled={busy}
-            autoComplete="off"
-            spellCheck={false}
-          />
-        </label>
-        <div className="settings-space-actions">
-          <button
-            type="submit"
-            className="map-btn primary"
-            disabled={busy || !pathInput.trim()}
+        <div className="settings-card-body">
+          <p
+            className={`settings-space-path settings-mono${vaultPath ? "" : " is-empty"}`}
+            title={vaultPath ?? undefined}
           >
-            {busy ? "处理中…" : vaultPath ? "更换 / 打开" : "打开"}
-          </button>
-          {vaultPath && (
-            <button
-              type="button"
-              className="map-btn ghost"
-              disabled={busy}
-              onClick={() => void onUnbind()}
-            >
-              解绑
-            </button>
-          )}
-        </div>
-      </form>
-
-      <div className="settings-space-remembered">
-        <p className="shell-label">记住的库</p>
-        <p className="settings-space-path" title={lastVault ?? undefined}>
-          {lastVault
-            ? lastVault
-            : "无（成功打开后由 Host 写入；解绑不会清除）"}
-        </p>
-        <div className="settings-space-actions">
-          <button
-            type="button"
-            className="map-btn"
-            disabled={busy || !lastVault}
-            onClick={() => {
-              if (lastVault) {
-                setPathInput(lastVault);
-                void openPath(lastVault);
-              }
-            }}
-          >
-            {lastLabel ? `使用「${lastLabel}」` : "使用记住的库"}
-          </button>
-          <button
-            type="button"
-            className="map-btn ghost"
-            disabled={busy || !lastVault}
-            onClick={() => void onClearLast()}
-          >
-            清除记住的库
-          </button>
+            {vaultPath ? vaultPath : "未绑定本库"}
+          </p>
         </div>
       </div>
 
-      {error && (
-        <p className="settings-space-error" role="alert">
+      <div className="settings-card">
+        <div className="settings-card-head">
+          <p className="shell-label">打开 / 更换</p>
+        </div>
+        <form
+          className="settings-card-body"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void openPath(pathInput);
+          }}
+        >
+          <label className="settings-field">
+            <span>Vault 绝对路径</span>
+            <input
+              value={pathInput}
+              onChange={(e) => setPathInput(e.target.value)}
+              placeholder="例如：E:\Notes\MyVault"
+              disabled={busy}
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </label>
+          <div className="settings-actions">
+            <button
+              type="submit"
+              className="settings-btn primary"
+              disabled={busy || !pathInput.trim()}
+            >
+              {busy ? "处理中…" : vaultPath ? "更换 / 打开" : "打开"}
+            </button>
+            {vaultPath ? (
+              <button
+                type="button"
+                className="settings-btn ghost"
+                disabled={busy}
+                onClick={() => void onUnbind()}
+              >
+                解绑
+              </button>
+            ) : null}
+          </div>
+        </form>
+      </div>
+
+      <div className="settings-card">
+        <div className="settings-card-head">
+          <p className="shell-label">记住的库</p>
+        </div>
+        <div className="settings-card-body">
+          <p
+            className={`settings-space-path settings-mono${lastVault ? "" : " is-empty"}`}
+            title={lastVault ?? undefined}
+          >
+            {lastVault
+              ? lastVault
+              : "尚无记录（成功打开后由 Host 写入；解绑不会清除）"}
+          </p>
+          <div className="settings-actions">
+            <button
+              type="button"
+              className="settings-btn"
+              disabled={busy || !lastVault}
+              onClick={() => {
+                if (lastVault) {
+                  setPathInput(lastVault);
+                  void openPath(lastVault);
+                }
+              }}
+            >
+              {lastLabel ? `使用「${lastLabel}」` : "使用记住的库"}
+            </button>
+            <button
+              type="button"
+              className="settings-btn danger-ghost"
+              disabled={busy || !lastVault}
+              onClick={() => void onClearLast()}
+            >
+              清除记忆
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {error ? (
+        <p className="settings-error" role="alert" style={{ marginTop: 14 }}>
           {error}
         </p>
-      )}
+      ) : null}
 
-      <p className="settings-space-hint">
-        绑定只打开本机 vault 的 .soit/universe.db；浏览器 mock 无法绑库。清除记住的库不会解绑当前会话。
+      <p className="settings-hint">
+        绑定只打开本机 vault 的 .soit/universe.db。浏览器预览无法绑库。清除记忆不会解绑当前会话。
       </p>
     </section>
   );

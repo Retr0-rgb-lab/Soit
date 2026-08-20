@@ -1,6 +1,79 @@
-import type { SVGProps } from "react";
+import type { SVGProps, ComponentType } from "react";
+import Command from "reicon-react/icons/Command";
+import Hierarchy2 from "reicon-react/icons/Hierarchy2";
+import Maximize from "reicon-react/icons/Maximize";
+import Minimize from "reicon-react/icons/Minimize";
+import More from "reicon-react/icons/More";
+import SearchZoomIn from "reicon-react/icons/SearchZoomIn";
+import BranchUp from "reicon-react/icons/BranchUp";
+import Send from "reicon-react/icons/Send";
+import AngleDown from "reicon-react/icons/AngleDown";
+import AngleRight from "reicon-react/icons/AngleRight";
 
 type IconProps = SVGProps<SVGSVGElement>;
+
+/** Shared size for header / edge rounds (36px buttons). */
+const TOOL = 18;
+
+type ReiconProps = {
+  size?: number | string;
+  color?: string;
+  weight?: "Outline" | "Filled";
+  className?: string;
+  "aria-hidden"?: boolean | "true" | "false";
+};
+
+function reicon(
+  Comp: ComponentType<ReiconProps>,
+  props: IconProps = {},
+) {
+  const { className, ...rest } = props;
+  return (
+    <Comp
+      size={TOOL}
+      weight="Outline"
+      color="currentColor"
+      className={className}
+      aria-hidden
+      {...(rest as object)}
+    />
+  );
+}
+
+/** Ctrl+K jump / command palette */
+export function IconJump(p: IconProps = {}) {
+  return reicon(Command, p);
+}
+
+/** Open inquiry graph / map */
+export function IconMap(p: IconProps = {}) {
+  return reicon(Hierarchy2, p);
+}
+
+/** Enter 专注模式 */
+export function IconFocus(p: IconProps = {}) {
+  return reicon(Maximize, p);
+}
+
+/** Exit 专注模式 */
+export function IconFocusExit(p: IconProps = {}) {
+  return reicon(Minimize, p);
+}
+
+/** Hover tray trigger */
+export function IconMore(p: IconProps = {}) {
+  return reicon(More, p);
+}
+
+/** Turn expand (collapsed → open) */
+export function IconTurnExpand(p: IconProps = {}) {
+  return reicon(AngleRight, p);
+}
+
+/** Turn collapse (open → collapsed) */
+export function IconTurnCollapse(p: IconProps = {}) {
+  return reicon(AngleDown, p);
+}
 
 function base(props: IconProps) {
   return {
@@ -15,24 +88,14 @@ function base(props: IconProps) {
   };
 }
 
-export function IconDeepen(p: IconProps) {
-  return (
-    <svg {...base(p)}>
-      <path d="M9 9H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-4" />
-      <path d="M15 7v4M13 9h4" />
-      <path d="M15 3h4a2 2 0 0 1 2 2v4" />
-    </svg>
-  );
+/** 深挖 — Reicon SearchZoomIn */
+export function IconDeepen(p: IconProps = {}) {
+  return reicon(SearchZoomIn, p);
 }
 
-export function IconDiverge(p: IconProps) {
-  return (
-    <svg {...base(p)}>
-      <path d="M4 5h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4" />
-      <path d="M20 5h-6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h6" />
-      <path d="M17 10v4M15 12h4" />
-    </svg>
-  );
+/** 发散 — Reicon BranchUp */
+export function IconDiverge(p: IconProps = {}) {
+  return reicon(BranchUp, p);
 }
 
 export function IconBookmark(p: IconProps) {
@@ -103,13 +166,8 @@ export function IconExplain(p: IconProps) {
   );
 }
 
-export function IconSend(p: IconProps) {
-  return (
-    <svg {...base(p)}>
-      <path d="M5 12h14" />
-      <path d="M13 6l6 6-6 6" />
-    </svg>
-  );
+export function IconSend(p: IconProps = {}) {
+  return reicon(Send, p);
 }
 
 export function IconChev(p: IconProps) {
@@ -128,6 +186,15 @@ export function IconX(p: IconProps) {
   );
 }
 
+/** Composer attach file */
+export function IconAttach(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+    </svg>
+  );
+}
+
 /** Open vault doc companion (PEL-156) */
 export function IconDoc(p: IconProps) {
   return (
@@ -135,6 +202,16 @@ export function IconDoc(p: IconProps) {
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
       <path d="M14 2v6h6" />
       <path d="M8 13h8M8 17h6" />
+    </svg>
+  );
+}
+
+/** Composer @ mention card */
+export function IconAt(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8" />
     </svg>
   );
 }

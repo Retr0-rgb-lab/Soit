@@ -95,8 +95,28 @@ export function demoSnapshot(): WorkspaceSnapshot {
         },
       ],
       // Diverge cards start empty (L4); demo edges still back-link to source.
-      c4: [],
-      c5: [],
+      c4: [
+        {
+          id: "c4_t0",
+          title: "开场",
+          collapsed: false,
+          user: "自然变换是什么？",
+          think: "",
+          thinkOpen: false,
+          aiHtml: "自然变换是函子之间的态射：在每个对象上给一个箭头，并与态射自然交换。",
+        },
+      ],
+      c5: [
+        {
+          id: "c5_t0",
+          title: "开场",
+          collapsed: false,
+          user: "伴随呢？",
+          think: "",
+          thinkOpen: false,
+          aiHtml: "伴随是一对函子之间的可逆 Hom 自然同构关系。",
+        },
+      ],
     },
   };
 }

@@ -7,6 +7,8 @@ import {
   IconDiverge,
   IconRefresh,
   IconTrash,
+  IconTurnCollapse,
+  IconTurnExpand,
 } from "./icons";
 
 interface Props {
@@ -45,10 +47,6 @@ export default function TurnItem({
   const [thinkOpen, setThinkOpen] = useState(turn.thinkOpen);
   const collapsed = forceExpand ? false : turn.collapsed;
 
-  const onCollapsedClick = () => {
-    if (collapsed) onToggleCollapsed();
-  };
-
   const onMarkPointer = (e: React.MouseEvent) => {
     const t = e.target;
     if (!(t instanceof HTMLElement)) return;
@@ -69,24 +67,23 @@ export default function TurnItem({
     <div
       className={`ic-turn${collapsed ? " collapsed" : ""}${railTarget ? " rail-target" : ""}`}
       data-turn={turn.id}
-      onClick={onCollapsedClick}
-      role={collapsed ? "button" : undefined}
-      tabIndex={collapsed ? 0 : undefined}
-      onKeyDown={
-        collapsed
-          ? (e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onToggleCollapsed();
-              }
-            }
-          : undefined
-      }
     >
       <div className="ic-turn-top">
         <div className="ic-turn-label">
-          {collapsed ? <span className="hint">点击展开 · </span> : null}
-          {turn.title}
+          <button
+            type="button"
+            className="ic-turn-toggle"
+            data-tip={collapsed ? "展开本轮" : "收起本轮"}
+            aria-label={collapsed ? `展开：${turn.title}` : `收起：${turn.title}`}
+            aria-expanded={!collapsed}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleCollapsed();
+            }}
+          >
+            {collapsed ? <IconTurnExpand /> : <IconTurnCollapse />}
+          </button>
+          <span className="ic-turn-title">{turn.title}</span>
         </div>
         <div
           className="ic-turn-bar"

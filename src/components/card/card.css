@@ -164,8 +164,8 @@
   flex-direction: row;
   align-items: stretch;
   z-index: 2;
-  /* History rail is in-flow: open state shrinks the card, stays on-screen */
-  overflow: hidden;
+  /* visible: tools bar sits half above the card top edge */
+  overflow: visible;
   transition: transform 0.22s var(--ease-soft);
   will-change: transform;
   min-width: 0;
@@ -512,9 +512,9 @@
 .ic-head-fade {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 12px;
-  pointer-events: auto; /* titles + tools stay clickable while visible */
+  pointer-events: auto; /* titles stay clickable while visible */
   transition:
     opacity 0.3s ease-in-out,
     transform 0.3s ease-in-out,
@@ -655,30 +655,49 @@
   line-height: 1;
 }
 
-.ic-head-tools {
+/*
+ * Card tools bar — centered above the card (not top-right; avoids history rail).
+ */
+.ic-card-tools-bar {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 8;
+  transform: translate(-50%, -50%);
   display: flex;
-  gap: 8px;
-  flex: 0 0 auto;
-  align-items: center;
-  flex-wrap: nowrap;
-  justify-content: flex-end;
-  position: relative;
-  z-index: 6;
+  justify-content: center;
+  pointer-events: none;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.ic-card-tools-bar > * {
+  pointer-events: auto;
+}
+
+.ic-card-tools-bar.is-faded {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
 }
 
 /*
  * Hover icon tray (React Bits Dock–inspired, CSS-only slide).
- * Collapsed: ⋯ at top-right. Open → icons slide in; trigger (卡片工具) hides.
+ * Collapsed: ⋯ centered. Open → icons expand outward; trigger hides.
  */
 .ic-icon-tray {
   position: relative;
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: center;
   gap: 0;
-  /* Enlarge hover hit toward the card corner */
-  padding: 4px 0 4px 12px;
-  margin: -4px 0;
+  padding: 6px 10px;
+  margin: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  box-shadow: var(--e1);
+  backdrop-filter: blur(10px);
 }
 
 .ic-icon-tray-trigger {
@@ -701,7 +720,7 @@
   gap: 6px;
   max-width: 0;
   opacity: 0;
-  transform: translateX(12px);
+  transform: translateY(6px) scale(0.96);
   overflow: hidden;
   pointer-events: none;
   transition:
@@ -713,7 +732,7 @@
 .ic-icon-tray-rail > .ic-round {
   flex: 0 0 auto;
   opacity: 0;
-  transform: translateX(8px);
+  transform: translateY(4px);
   transition:
     opacity var(--motion-fade, 0.16s) var(--ease-soft),
     transform var(--motion-pop, 0.28s) var(--ease-out),

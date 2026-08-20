@@ -2,22 +2,23 @@
    Inspired by: astryx template "settings" + Settings Dialog / Settings Panels
    (sidebar nav, section heading+copy, card groups, list rows, primary footer). */
 
-/* ── Settings gear: bottom-left (clears companion on the right) ─ */
+/* ── Settings gear: screen bottom-left, inside left-rail column ─
+   Do NOT offset past --rail-w — that sits on the composer. */
 
 .settings-gear {
   position: fixed;
-  left: 14px;
+  left: 12px;
   bottom: 14px;
-  z-index: 40;
-  width: 38px;
-  height: 38px;
+  z-index: 40; /* above left-rail (z:8) */
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
   border: 1px solid color-mix(in srgb, var(--line) 65%, transparent);
   border-radius: 12px;
   background: color-mix(in srgb, var(--bg-card) 92%, transparent);
   color: var(--ink-soft);
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1;
   padding: 0;
   backdrop-filter: blur(10px);
@@ -27,17 +28,7 @@
     color 0.16s var(--ease-soft),
     border-color 0.16s var(--ease-soft),
     box-shadow 0.16s var(--ease-soft),
-    transform 0.16s var(--ease-soft),
-    left 0.2s var(--ease-soft);
-}
-
-/* Sit past expanded left rail */
-.app-shell:not(.rail-collapsed) .settings-gear {
-  left: calc(var(--rail-w, 220px) + 14px);
-}
-
-.app-shell.rail-collapsed .settings-gear {
-  left: calc(var(--rail-w-collapsed, 48px) + 10px);
+    transform 0.16s var(--ease-soft);
 }
 
 .settings-gear:hover {

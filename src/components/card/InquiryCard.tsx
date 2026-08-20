@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { appendResidue, precipitateConcept } from "../../lib/host";
+import type { FocusNavKind } from "../../lib/focusMotion";
+import { scrollChromeFade } from "../../lib/scrollChromeFade";
 import { ancestorChain } from "../../lib/treeNav";
 import { explainSpan } from "../../state/explainActions";
 import { useWorkspace } from "../../state/workspaceStore";
@@ -11,12 +12,21 @@ import SelectionBar, {
 import TermFloat, { type TermFloatState } from "../overlays/TermFloat";
 import TooltipLayer from "../overlays/TooltipLayer";
 import "../overlays/overlays.css";
-import CardAgentMenu from "./CardAgentMenu";
 import CardHeader from "./CardHeader";
 import Composer from "./Composer";
 import EdgeActions from "./EdgeActions";
+import CardPipWindow from "./CardPipWindow";
+import HoverIconTray from "./HoverIconTray";
+import {
+  IconDeepen,
+  IconFocus,
+  IconFocusExit,
+  IconJump,
+  IconMap,
+} from "./icons";
 import TurnHistoryRail from "./TurnHistoryRail";
 import TurnItem from "./TurnItem";
+import { useCardPip } from "./useCardPip";
 import "./card.css";
 
 function copyText(text: string) {
@@ -42,7 +52,6 @@ export default function InquiryCard() {
   const deleteTurn = useWorkspace((s) => s.deleteTurn);
   const toggleTurnCollapsed = useWorkspace((s) => s.toggleTurnCollapsed);
   const appendUserMessage = useWorkspace((s) => s.appendUserMessage);
-  const vaultPath = useWorkspace((s) => s.vaultPath);
 
   const focus = useMemo(
     () => nodes.find((n) => n.id === focusId),
@@ -58,6 +67,18 @@ export default function InquiryCard() {
     if (!focus?.parentId) return null;
     return nodes.find((n) => n.id === focus.parentId) ?? null;
   }, [focus, nodes]);
+
+  /** Under-sheets: nearest ancestors (excluding focus). */
+  const sheetAncestors = useMemo(() => {
+    const chain = ancestorChain(nodes, focusId);
+    // chain is root → focus; drop focus
+    return chain.slice(0, -1);
+  }, [nodes, focusId]);
+  const sheetNear = sheetAncestors[sheetAncestors.length - 1] ?? null;
+  const sheetFar =
+    sheetAncestors.length >= 2
+      ? sheetAncestors[sheetAncestors.length - 2]!
+      : null;
 
   const inbound = useMemo(
     () => edges.find((e) => e.toCardId === focusId) ?? null,
@@ -89,10 +110,91 @@ export default function InquiryCard() {
   const [activeTurnId, setActiveTurnId] = useState<string | null>(null);
   /** External right-edge history dock open (hover hit strip / panel). */
   const [historyOpen, setHistoryOpen] = useState(false);
+  /** 专注模式 — card + composer only */
+  const [focusMode, setFocusMode] = useState(false);
+  /** Explore-like: title chrome fades as body scrolls down (0..1). */
+  const [chromeFade, setChromeFade] = useState(0);
   const prevFocusRef = useRef(focusId);
   const msgsRef = useRef<HTMLDivElement | null>(null);
+  const cardWrapRef = useRef<HTMLDivElement | null>(null);
+  const headRef = useRef<HTMLDivElement | null>(null);
+
+  /** Overlay header height → body padding so content can scroll into the top band. */
+  const syncHeadPad = useCallback(() => {
+    const head = headRef.current;
+    const card = cardWrapRef.current?.querySelector(
+      ".inquiry-card",
+    ) as HTMLElement | null;
+    if (!head || !card) return;
+    const fadeRow = head.querySelector(".ic-head-fade") as HTMLElement | null;
+    const contentH = fadeRow?.offsetHeight ?? head.offsetHeight;
+    const styles = getComputedStyle(head);
+    const padY =
+      (parseFloat(styles.paddingTop) || 0) +
+      (parseFloat(styles.paddingBottom) || 0);
+    const h = Math.ceil(contentH + padY);
+    card.style.setProperty("--ic-head-pad", `${Math.max(72, h)}px`);
+  }, []);
+
+  const onMsgsScroll = useCallback(() => {
+    const el = msgsRef.current;
+    if (!el) return;
+    setChromeFade(scrollChromeFade(el.scrollTop));
+  }, []);
+
+  useEffect(() => {
+    syncHeadPad();
+    const head = headRef.current;
+    if (!head || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => syncHeadPad());
+    ro.observe(head);
+    return () => ro.disconnect();
+  }, [
+    syncHeadPad,
+    focusId,
+    focus?.title,
+    focus?.question,
+    focus?.status,
+    focusMode,
+  ]);
+
+  const onFocusCard = useCallback(
+    (targetId: string, kind: FocusNavKind) => {
+      setNavKind(
+        kind === "deepen" || kind === "diverge" || kind === "back"
+          ? kind
+          : "jump",
+      );
+      focusNode(targetId);
+      setMode("focus");
+    },
+    [focusNode, setMode],
+  );
+
+  const {
+    mode: pipMode,
+    peel,
+    session: pipSession,
+    pipMeta,
+    onDragSurfacePointerDown,
+    onDragSurfacePointerMove,
+    onDragSurfacePointerUp,
+    onDragSurfacePointerCancel,
+    onPipDragTo,
+    onPipEntered,
+    onExpand,
+    onClose,
+    onExitDone,
+  } = useCardPip({
+    focusId,
+    nodes,
+    turnsByCardId,
+    cardWrapRef,
+    onFocusCard,
+  });
 
   // Clear ephemeral UI + one-shot enter motion when focus card changes
+  // (PiP session is independent — entering PiP intentionally switches stage focus)
   useEffect(() => {
     setDraft("");
     setQuote("");
@@ -103,6 +205,8 @@ export default function InquiryCard() {
     setSpawnError(null);
     setActiveTurnId(null);
     setHistoryOpen(false);
+    setChromeFade(0);
+    if (msgsRef.current) msgsRef.current.scrollTop = 0;
     if (!focusId) return;
 
     const prev = prevFocusRef.current;
@@ -211,6 +315,19 @@ export default function InquiryCard() {
     return () => window.removeEventListener("keydown", onKey, true);
   }, [chooser, selBar, float]);
 
+  useEffect(() => {
+    return useWorkspace.subscribe((s, prev) => {
+      if (s.workspaceMode === "map" && prev.workspaceMode !== "map") {
+        setFocusMode(false);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle("soit-focus-mode", focusMode);
+    return () => document.body.classList.remove("soit-focus-mode");
+  }, [focusMode]);
+
   // Enter animation: clear enterOn even when prefers-reduced-motion skips animationend
   useEffect(() => {
     if (!enterOn) return;
@@ -304,47 +421,17 @@ export default function InquiryCard() {
     [runSpawn, sourceLabel],
   );
 
-  const onSend = useCallback(() => {
-    const text = draft.trim();
-    if (!text || !focusId) return;
-    appendUserMessage(text, quote || undefined);
-    setDraft("");
-    setQuote("");
-  }, [appendUserMessage, draft, focusId, quote]);
-
-  const onPrecipitateConcept = useCallback(async () => {
-    if (!focus) return;
-    const r = await precipitateConcept({
-      cardId: focus.id,
-      title: focus.title,
-      question: focus.question ?? null,
-    });
-    if (!r.ok) {
-      window.alert(r.error || "写入概念失败");
-      return;
-    }
-    if (r.bodySkipped) {
-      window.alert(
-        `已合并卡片 id 到概念页（保留你的正文）\n${r.path ?? ""}`,
-      );
-    } else {
-      window.alert(`已写入概念\n${r.path ?? ""}`);
-    }
-  }, [focus]);
-
-  const onAppendResidue = useCallback(async () => {
-    if (!focus) return;
-    const text = window.prompt("记下残渣（短笔记，会追加到 vault/inquiry/）");
-    if (text == null) return;
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    const r = await appendResidue(focus.id, trimmed);
-    if (!r.ok) {
-      window.alert(r.error || "记下残渣失败");
-      return;
-    }
-    window.alert(`已记下残渣\n${r.path ?? ""}`);
-  }, [focus]);
+  const onSend = useCallback(
+    (body: string) => {
+      const text = body.trim();
+      if (!text || !focusId) return;
+      // Quote / card refs / attachments already folded into body by Composer.
+      appendUserMessage(text);
+      setDraft("");
+      setQuote("");
+    },
+    [appendUserMessage, focusId],
+  );
 
   const runExplain = useCallback(
     async (span: string, cardId: string, seq: number) => {
@@ -564,15 +651,114 @@ export default function InquiryCard() {
     );
   }
 
+  const peelDx = peel?.dx ?? 0;
+  const peelDy = peel?.dy ?? 0;
+  const peelStyle =
+    peel?.peeling && pipMode === "dragging"
+      ? {
+          transform: `translate3d(${peelDx * 0.92}px, ${peelDy * 0.92}px, 0) rotate(${peelDx * 0.03}deg)`,
+        }
+      : undefined;
+
   return (
-    <div className="inquiry-root">
+    <div className={`inquiry-root${focusMode ? " is-focus-mode" : ""}`}>
       <div className="inquiry-stage">
         <div
-          className={`inquiry-stack${settleOn ? " settle" : ""}${enterOn ? " switching" : ""}`}
+          className={`inquiry-stack${settleOn ? " settle" : ""}${enterOn ? " switching" : ""}${peel?.peeling ? " peeling" : ""}`}
         >
-          <div className="inquiry-sheet s2" />
-          <div className="inquiry-sheet s1" />
-          <div className="inquiry-card-wrap">
+          {sheetFar ? (
+            <button
+              type="button"
+              className="inquiry-sheet s2"
+              onClick={() => {
+                setNavKind("back");
+                focusNode(sheetFar.id);
+                setMode("focus");
+              }}
+              aria-label={`返回 ${sheetFar.title}`}
+            >
+              <span className="inquiry-sheet-label">{sheetFar.title}</span>
+            </button>
+          ) : (
+            <div className="inquiry-sheet s2" aria-hidden />
+          )}
+
+          {sheetNear ? (
+            <button
+              type="button"
+              className="inquiry-sheet s1"
+              onClick={() => {
+                setNavKind("back");
+                focusNode(sheetNear.id);
+                setMode("focus");
+              }}
+              aria-label={`返回 ${sheetNear.title}`}
+            >
+              <span className="inquiry-sheet-label">{sheetNear.title}</span>
+            </button>
+          ) : (
+            <div className="inquiry-sheet s1" aria-hidden />
+          )}
+
+          <div
+            className="inquiry-card-wrap"
+            ref={cardWrapRef}
+            style={peelStyle}
+          >
+            {/* Card tools: centered above the card (not top-right — avoids history rail) */}
+            <div
+              className={`ic-card-tools-bar${chromeFade > 0.92 ? " is-faded" : ""}`}
+              style={
+                chromeFade > 0.02
+                  ? {
+                      opacity: Math.max(0, 1 - chromeFade * 1.15),
+                      pointerEvents: chromeFade > 0.92 ? "none" : undefined,
+                    }
+                  : undefined
+              }
+            >
+              <HoverIconTray label="卡片工具">
+                <button
+                  type="button"
+                  className="ic-round"
+                  data-tip="跳转卡片 Ctrl+K"
+                  aria-label="跳转卡片"
+                  onClick={() =>
+                    window.dispatchEvent(new CustomEvent("soit:open-palette"))
+                  }
+                >
+                  <IconJump />
+                </button>
+                <button
+                  type="button"
+                  className="ic-round"
+                  data-tip="图谱 Ctrl+\\"
+                  aria-label="打开图谱"
+                  onClick={() => setMode("map")}
+                >
+                  <IconMap />
+                </button>
+                <button
+                  type="button"
+                  className={`ic-round${focusMode ? " on" : ""}`}
+                  data-tip={focusMode ? "退出专注 Esc" : "专注模式"}
+                  aria-label={focusMode ? "退出专注模式" : "专注模式"}
+                  aria-pressed={focusMode}
+                  onClick={() => setFocusMode((v) => !v)}
+                >
+                  {focusMode ? <IconFocusExit /> : <IconFocus />}
+                </button>
+                <button
+                  type="button"
+                  className="ic-round"
+                  data-tip="从此卡片深挖"
+                  aria-label="从此卡片深挖"
+                  onClick={() => onDeepen(focus.title)}
+                >
+                  <IconDeepen />
+                </button>
+              </HoverIconTray>
+            </div>
             <article
               className={`inquiry-card${enterOn ? ` enter enter-${navKind}` : ""}`}
               aria-label="inquiry card body"
@@ -585,15 +771,12 @@ export default function InquiryCard() {
               }}
             >
               <CardHeader
+                ref={headRef}
                 crumbs={crumbs}
                 title={focus.title}
                 status={focus.status ?? null}
                 question={focus.question ?? null}
                 parent={parent}
-                vaultBound={Boolean(vaultPath)}
-                onPrecipitateConcept={onPrecipitateConcept}
-                onAppendResidue={onAppendResidue}
-                onDeepen={() => onDeepen(focus.title)}
                 onCrumb={(id) => {
                   setNavKind("back");
                   focusNode(id);
@@ -603,13 +786,18 @@ export default function InquiryCard() {
                   setNavKind("back");
                   returnToSource(inbound?.source ?? null);
                 }}
-                onOpenMap={() => setMode("map")}
-                onOpenPalette={() =>
-                  window.dispatchEvent(new CustomEvent("soit:open-palette"))
-                }
+                onDragSurfacePointerDown={onDragSurfacePointerDown}
+                onDragSurfacePointerMove={onDragSurfacePointerMove}
+                onDragSurfacePointerUp={onDragSurfacePointerUp}
+                onDragSurfacePointerCancel={onDragSurfacePointerCancel}
+                chromeFade={chromeFade}
               />
               <div className="ic-body">
-                <div className="ic-msgs" ref={msgsRef}>
+                <div
+                  className="ic-msgs"
+                  ref={msgsRef}
+                  onScroll={onMsgsScroll}
+                >
                   {turns.length === 0 ? (
                     <p className="inquiry-empty" style={{ padding: "12px 0" }}>
                       {focus.kind === "diverge"
@@ -642,7 +830,7 @@ export default function InquiryCard() {
                 </div>
               </div>
             </article>
-            {/* Outside card — flush right edge; does not squeeze card width */}
+            {/* In-flow right rail — open state shrinks the card */}
             <TurnHistoryRail
               turns={turns}
               activeTurnId={railActiveId}
@@ -658,8 +846,6 @@ export default function InquiryCard() {
         onDeepen={() => onDeepen(focus.title)}
         onDiverge={() => onDiverge(focus.title)}
       />
-
-      <CardAgentMenu />
 
       <Composer
         draft={draft}
@@ -700,14 +886,14 @@ export default function InquiryCard() {
           bar={selBar}
           onExplain={onSelectionExplain}
           onPreview={() => {
+            // Keep selection bar visible; open paper-styled direction chooser beside it.
             setChooser({
-              x: selBar.x,
+              x: selBar.x + 52,
               y: selBar.y,
               // Full selection for SourceSpan; card title still short in spawnMerge.
               label: selBar.text,
               turnId: selBar.turnId,
             });
-            setSelBar(null);
           }}
           onQuote={() => {
             setQuote(selBar.text);
@@ -721,6 +907,20 @@ export default function InquiryCard() {
         />
       ) : null}
 
+      {pipSession && pipMeta ? (
+        <CardPipWindow
+          session={pipSession}
+          title={pipMeta.title}
+          snippet={pipMeta.snippet}
+          kindLabel={pipMeta.kindLabel}
+          onExpand={onExpand}
+          onClose={onClose}
+          onDragTo={onPipDragTo}
+          onEntered={onPipEntered}
+          onExitDone={onExitDone}
+        />
+      ) : null}
+
       {chooser ? (
         <DirectionChooser
           x={chooser.x}
@@ -731,18 +931,22 @@ export default function InquiryCard() {
               ? { turnId: chooser.turnId, markId: chooser.markId }
               : undefined
           }
-          onDeepen={(label, span) =>
+          onDeepen={(label, span) => {
+            setSelBar(null);
+            setChooser(null);
             onDeepen(label, {
               turnId: span?.turnId ?? chooser.turnId,
               markId: span?.markId ?? chooser.markId,
-            })
-          }
-          onDiverge={(label, span) =>
+            });
+          }}
+          onDiverge={(label, span) => {
+            setSelBar(null);
+            setChooser(null);
             onDiverge(label, {
               turnId: span?.turnId ?? chooser.turnId,
               markId: span?.markId ?? chooser.markId,
-            })
-          }
+            });
+          }}
         />
       ) : null}
 

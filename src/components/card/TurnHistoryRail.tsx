@@ -15,9 +15,9 @@ type Props = {
 };
 
 /**
- * Card-external turn history (PEL-148).
- * Sits outside the card on the right edge — does not squeeze card layout.
- * Uses React Bits Line Sidebar for proximity-reactive labels + wheel scroll.
+ * Turn history rail (PEL-148).
+ * In-flow on the card’s right: expands beside the card and shrinks card width
+ * so the panel stays on-screen. React Bits Line Sidebar for labels + wheel.
  */
 export default function TurnHistoryRail({
   turns,
@@ -71,6 +71,7 @@ export default function TurnHistoryRail({
           markerLength={36}
           maxShift={14}
           proximityRadius={80}
+          ariaLabel="本卡历史轮次"
           onItemClick={(index) => {
             const t = turns[index];
             if (t) onSelect(t.id);

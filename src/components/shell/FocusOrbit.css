@@ -1,14 +1,24 @@
-/* Stacked Option Wheels under concentric hub — no plates, no tree chrome */
+/* Stable world graph + camera pan. Uniform large nodes. */
 
 .focus-orbit {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 4px;
   width: 100%;
   min-width: 0;
   background: transparent;
   font-family: var(--font);
   color: var(--ink);
+  outline: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
+.focus-orbit:focus,
+.focus-orbit:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .focus-orbit__empty {
@@ -16,125 +26,366 @@
   padding: 12px 2px;
   font-size: 12px;
   color: var(--ink-faint);
-  background: transparent;
+  align-self: flex-start;
 }
 
-/* —— Hub: center of concentric circles —— */
-.fo-hub-block {
+.fo-stage {
   position: relative;
+  flex: 0 0 auto;
+  max-width: 100%;
+  background: transparent;
+  overflow: hidden; /* viewport crop — camera moves the world inside */
+  user-select: none;
+  touch-action: none;
+  border-radius: 12px;
+}
+
+/* Global free camera (Obsidian-like) — full-bleed, no side “walls” */
+.focus-orbit--panzoom .fo-stage,
+.focus-orbit--panzoom .fo-stage--bleed {
+  cursor: grab;
+  border-radius: 0;
+  background: transparent;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  /* clip only at the true viewport edge of workspace-main */
+  overflow: hidden;
+}
+
+.focus-orbit--panzoom.is-panning .fo-stage {
+  cursor: grabbing;
+}
+
+.focus-orbit--panzoom .fo-world {
+  /* snappy free cam — no CSS lag while dragging */
+  transition: none;
+  /* will-change can promote a low-res layer; drop it in free-cam */
+  will-change: auto;
+}
+
+/* Vector rings stay sharp under CSS scale; boost contrast in global view */
+.focus-orbit--panzoom .fo-ring-stroke {
+  stroke: color-mix(in srgb, var(--ink) 28%, var(--line-strong));
+  stroke-width: 1.25;
+  opacity: 0.85;
+  vector-effect: non-scaling-stroke; /* keep ~1px crisp when world scales */
+}
+
+.focus-orbit--panzoom .fo-spoke--depth {
+  opacity: 0.45;
+  stroke-width: 1.75;
+  vector-effect: non-scaling-stroke;
+}
+
+.focus-orbit--panzoom .fo-spoke--depth.is-cone {
+  opacity: 0.85;
+}
+
+.focus-orbit--panzoom .fo-spoke--depth.is-dim {
+  opacity: 0.35;
+}
+
+.focus-orbit--panzoom .fo-spoke--depth.is-active {
+  opacity: 1;
+  stroke-width: 2.25;
+}
+
+/* Nodes inverse-scaled in TSX — keep edges hard, no soft opacity fog */
+.focus-orbit--panzoom .fo-node {
+  transition: none;
+}
+
+.focus-orbit--panzoom .fo-node.is-dim {
+  opacity: 0.72;
+}
+
+.focus-orbit--panzoom .fo-node__dot {
+  /* slightly larger + harder edge for large stage */
+  width: 22px;
+  height: 22px;
+  border-width: 2px;
+  background: var(--bg-card);
+}
+
+.focus-orbit--panzoom .fo-node__label {
+  max-width: 120px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  background: color-mix(in srgb, var(--bg-app) 94%, #fffdf8);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+.focus-orbit--panzoom .fo-node.is-focus .fo-node__label {
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.focus-orbit--panzoom .fo-svg--world {
+  shape-rendering: geometricPrecision;
+}
+
+.fo-cam-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 14px;
+  width: min(100%, 560px);
+  margin-top: 6px;
+}
+
+.fo-cam-actions {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  min-height: 88px;
-  padding: 8px 4px 4px 0;
-  background: transparent;
+  gap: 8px;
 }
 
-.fo-hub-block__rings {
+.fo-cam-btn {
+  margin: 0;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--line) 75%, transparent);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.fo-cam-btn:hover {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.fo-cam-scale {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+  min-width: 3em;
+}
+
+.fo-stage__mask {
   position: absolute;
-  left: 10px;
-  top: 50%;
-  width: 72px;
-  height: 72px;
-  transform: translateY(-50%);
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at 50% 50%,
+    transparent 42%,
+    color-mix(in srgb, var(--bg-app) 55%, transparent) 78%,
+    color-mix(in srgb, var(--bg-app) 92%, transparent) 100%
+  );
+}
+
+/* World layer — translated by camera; nodes keep fixed left/top */
+.fo-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  /* Camera pan via inline transform — nodes keep constant on-screen size */
+  transform-origin: 0 0;
+  transition: transform var(--motion-focus, 0.32s)
+    var(--ease-soft, cubic-bezier(0.32, 0.72, 0, 1));
+  /* Prefer auto; will-change layers often look softer when scaled */
+  will-change: auto;
+}
+
+.fo-svg--world {
+  position: absolute;
+  /* viewBox is centered on world origin; pin SVG center on fo-world origin */
+  left: -400px;
+  top: -400px;
+  overflow: visible;
   pointer-events: none;
 }
 
-.fo-ring {
+.fo-ring-stroke {
+  stroke: color-mix(in srgb, var(--line-strong) 42%, transparent);
+  stroke-width: 1;
+  opacity: 0.55;
+}
+
+/* Depth edges (parent → child) */
+.fo-spoke--depth {
+  stroke: color-mix(in srgb, var(--ink) 20%, var(--line-strong));
+  stroke-width: 1.5;
+  opacity: 0.35;
+  transition: opacity 0.28s ease, stroke 0.28s ease, stroke-width 0.28s ease;
+}
+
+.fo-spoke--depth.is-cone {
+  opacity: 0.7;
+}
+
+.fo-spoke--depth.is-dim {
+  opacity: 0.18;
+}
+
+.fo-spoke--depth.is-active {
+  stroke: color-mix(in srgb, var(--ink) 50%, var(--line-strong));
+  stroke-width: 2;
+  opacity: 0.9;
+}
+
+/* —— Uniform nodes (same size for all) —— */
+.fo-node {
+  position: absolute;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  outline: none !important;
+  color: inherit;
+  font: inherit;
+  overflow: visible;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.28s ease;
+}
+
+.fo-node:focus,
+.fo-node:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.fo-node.is-dim {
+  opacity: 0.28;
+  z-index: 1;
+}
+
+.fo-node.is-cone {
+  opacity: 1;
+}
+
+.fo-node__dot {
   position: absolute;
   left: 50%;
   top: 50%;
+  display: block;
+  /* All nodes same size — large discs */
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--line-strong) 45%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 92%, var(--bg-app));
+  border: 2.5px solid color-mix(in srgb, var(--ink) 30%, var(--line-strong));
+  box-sizing: border-box;
   transform: translate(-50%, -50%);
-  background: transparent;
+  /* fill driven by inline style — no bg transition (avoids stale paint) */
 }
 
-.fo-ring--a {
-  width: 36px;
-  height: 36px;
-  border-width: 1.5px;
-  border-color: color-mix(in srgb, var(--ink) 30%, var(--line-strong));
+.fo-node--diverge .fo-node__dot {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line-strong));
 }
 
-.fo-ring--b {
-  width: 56px;
-  height: 56px;
-  opacity: 0.65;
+.fo-node--root .fo-node__dot,
+.fo-node--hub .fo-node__dot {
+  border-color: color-mix(in srgb, var(--ink) 40%, var(--line-strong));
 }
 
-.fo-ring--c {
-  width: 76px;
-  height: 76px;
-  opacity: 0.4;
+.fo-node.is-focus {
+  z-index: 6;
 }
 
-.fo-hub-text {
-  position: relative;
-  z-index: 1;
-  margin: 0;
-  margin-left: 78px;
-  max-width: calc(100% - 82px);
-  padding: 0;
-  border: 0;
-  background: transparent !important;
-  box-shadow: none !important;
+/* Focus = fill change only, NOT larger scale */
+.fo-node.is-focus .fo-node__dot {
+  /* size never changes — fill via inline style in TSX */
+  transform: translate(-50%, -50%);
+}
+
+.fo-node__label {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 16px);
+  display: block;
+  width: max-content;
+  max-width: 96px;
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--bg-app) 90%, transparent);
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-weight: 450;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transform: translateX(-50%);
+  pointer-events: none;
+  transition: color 0.14s ease, font-weight 0.14s ease, opacity 0.28s ease;
+}
+
+.fo-node.is-dim .fo-node__label {
+  opacity: 0.5;
+}
+
+.fo-node.is-focus .fo-node__label {
   color: var(--ink);
-  font-size: 15px;
   font-weight: 650;
-  letter-spacing: -0.02em;
-  line-height: 1.25;
-  text-align: left;
-  cursor: pointer;
+  opacity: 1;
+}
+
+.fo-node:hover .fo-node__label {
+  color: var(--ink);
+}
+
+.fo-now {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  margin: 6px 0 0;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0 4px;
+}
+
+.fo-now__k {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--ink-faint);
+}
+
+.fo-now__v {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.fo-hub-text.is-focus {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.fo-hint {
+  margin: 0;
+  padding: 0 4px 2px;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--ink-faint) 80%, transparent);
+  text-align: center;
+  user-select: none;
 }
 
-.fo-hub-text:hover {
-  color: var(--accent);
-}
+@media (prefers-reduced-motion: reduce) {
+  .fo-world {
+    transition: none;
+  }
 
-.fo-hub-text:focus-visible {
-  outline: none;
-  text-decoration: underline;
-  text-decoration-color: var(--focus);
-}
-
-/* —— Each layer is a full Option Wheel (vertical drum) —— */
-.fo-layer {
-  position: relative;
-  width: 100%;
-  min-width: 0;
-  background: transparent;
-  /* slight vertical overlap = “stacked rings” reading */
-  margin-top: -6px;
-}
-
-.fo-layer--1 {
-  z-index: 2;
-}
-
-.fo-layer--2 {
-  z-index: 1;
-  margin-top: -28px;
-  opacity: 0.98;
-  /* outer ring reads as larger radius: more inset already in wheel props */
-  padding-left: 6px;
-}
-
-.fo-layer .option-wheel {
-  width: 100%;
-}
-
-/* Hard kill any button chrome */
-.focus-orbit button.option-wheel__item,
-.focus-orbit button.fo-hub-text {
-  background: transparent !important;
-  box-shadow: none !important;
+  .fo-node,
+  .fo-node__dot,
+  .fo-node__label,
+  .fo-spoke--depth {
+    transition: none;
+  }
 }

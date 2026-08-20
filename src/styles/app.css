@@ -485,6 +485,10 @@ body.soit-focus-mode .app-shell .workspace-main {
 /* Card | sash | Doc companion split (PEL-156 + materials-rail §2.6) */
 .workspace-split {
   --doc-fraction: 0.42;
+  --companion-w: 0px;
+  --companion-inner-w: 280px;
+  --companion-ms: 0.3s;
+  --companion-ease: cubic-bezier(0.22, 1, 0.36, 1);
   display: flex;
   height: 100%;
   min-width: 0;
@@ -493,14 +497,55 @@ body.soit-focus-mode .app-shell .workspace-main {
 }
 
 .workspace-split .center-stage {
-  flex: 1 1 calc((1 - var(--doc-fraction)) * 100%);
+  flex: 1 1 auto;
   min-width: 0;
+  transition: flex-basis var(--companion-ms) var(--companion-ease);
 }
 
-.workspace-split .doc-pane,
-.workspace-split .materials-pane {
-  flex: 1 1 calc(var(--doc-fraction) * 100%);
+/* Animated right slot — width driven by --companion-w (0 ↔ target px) */
+.workspace-split .companion-slot {
+  flex: 0 0 var(--companion-w);
+  width: var(--companion-w);
+  max-width: var(--companion-w);
   min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  opacity: 0;
+  background: var(--bg-panel, var(--bg-card));
+  transition:
+    flex-basis var(--companion-ms) var(--companion-ease),
+    width var(--companion-ms) var(--companion-ease),
+    max-width var(--companion-ms) var(--companion-ease),
+    opacity 0.22s ease;
+  will-change: width, max-width, flex-basis;
+}
+
+.workspace-split.is-companion-open .companion-slot {
+  opacity: 1;
+}
+
+.workspace-split .companion-slot__inner {
+  height: 100%;
+  width: var(--companion-inner-w);
+  min-width: var(--companion-inner-w);
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+  /* Slide with the slot rather than squash content */
+  transform: translateX(12px);
+  transition: transform var(--companion-ms) var(--companion-ease);
+}
+
+.workspace-split.is-companion-open .companion-slot__inner {
+  transform: translateX(0);
+}
+
+.workspace-split .companion-slot .doc-pane,
+.workspace-split .companion-slot .materials-pane {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
   border-inline-start: none;
 }
 
@@ -508,6 +553,11 @@ body.soit-focus-mode .app-shell .workspace-main {
 .workspace-split.is-splitting {
   user-select: none;
   cursor: col-resize;
+}
+
+.workspace-split.is-splitting .companion-slot,
+.workspace-split.is-splitting .companion-slot__inner {
+  transition: none;
 }
 
 .split-sash {
@@ -519,6 +569,18 @@ body.soit-focus-mode .app-shell .workspace-main {
   touch-action: none;
   background: transparent;
   outline: none;
+  opacity: 1;
+  transition:
+    opacity 0.18s ease,
+    flex-basis var(--companion-ms) var(--companion-ease);
+}
+
+.split-sash.is-collapsed {
+  flex-basis: 0;
+  width: 0;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .split-sash::before {
@@ -558,12 +620,40 @@ body.soit-focus-mode .app-shell .workspace-main {
   display: flex;
   flex-direction: column;
   padding: 0;
+  overflow: hidden;
+}
+
+.center-stage.companion-full .companion-full-slot {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(24px);
+  opacity: 0;
+  transition:
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.22s ease;
+}
+
+.center-stage.companion-full.is-companion-open .companion-full-slot {
+  transform: translateX(0);
+  opacity: 1;
 }
 
 .center-stage.companion-full .materials-pane,
 .center-stage.companion-full .doc-pane {
   flex: 1 1 auto;
   height: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-split .companion-slot,
+  .workspace-split .companion-slot__inner,
+  .workspace-split .split-sash,
+  .center-stage.companion-full .companion-full-slot {
+    transition: none !important;
+  }
 }
 
 /* Locus peek — page-margin annotation; collapsed until proximity/hover */

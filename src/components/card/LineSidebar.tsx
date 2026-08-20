@@ -31,6 +31,13 @@ export interface LineSidebarProps {
   activeIndex?: number | null;
   onItemClick?: (index: number, label: string) => void;
   className?: string;
+  /** Accessible name (default: 导航) */
+  ariaLabel?: string;
+  /**
+   * Optional per-index opacity (0–1). Used by path window fade.
+   * When omitted, all items are fully opaque (proximity still applies).
+   */
+  itemFade?: (index: number) => number;
 }
 
 const FALLOFF_CURVES: Record<Falloff, (p: number) => number> = {
@@ -75,6 +82,8 @@ export default function LineSidebar({
   activeIndex: activeIndexProp,
   onItemClick,
   className = "",
+  ariaLabel = "导航",
+  itemFade,
 }: LineSidebarProps) {
   const listRef = useRef<HTMLUListElement>(null);
   const itemRefs = useRef<(HTMLLIElement | null)[]>([]);
@@ -210,7 +219,7 @@ export default function LineSidebar({
           "--smoothing": `${smoothing}ms`,
         } as CSSProperties
       }
-      aria-label="历史轮次"
+      aria-label={ariaLabel}
     >
       <ul
         ref={listRef}
@@ -227,6 +236,14 @@ export default function LineSidebar({
             }}
             className="line-sidebar__item"
             aria-current={activeIndex === index ? "true" : undefined}
+            style={
+              itemFade
+                ? ({
+                    opacity: itemFade(index),
+                    ["--item-fade" as string]: String(itemFade(index)),
+                  } as CSSProperties)
+                : undefined
+            }
             onClick={() => handleClick(index, label)}
           >
             {showMarker && (

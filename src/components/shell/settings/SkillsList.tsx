@@ -70,30 +70,41 @@ export default function SkillsList({ onNeedVault }: Props) {
 
   return (
     <section className="settings-skills" aria-label="技能">
-      <p className="skills-panel-hint">
-        SKILL.md 文件即配置 · 启停写入本库 · 无全局
-      </p>
+      <header className="settings-section-intro">
+        <h3 className="settings-section-title">技能</h3>
+        <p className="settings-section-desc">
+          SKILL.md 即配置。启停只影响本库，没有技能市场。
+        </p>
+      </header>
 
       {!vaultPath ? (
-        <div className="skills-panel-empty">
-          <p>请先绑定本库后再管理技能</p>
-          <button type="button" className="map-btn primary" onClick={goBindVault}>
-            绑定本库
+        <div className="settings-empty-block">
+          <p>请先绑定本库，才能管理该库下的技能。</p>
+          <button
+            type="button"
+            className="settings-btn primary"
+            onClick={goBindVault}
+          >
+            去绑定本库
           </button>
         </div>
       ) : loading && skills.length === 0 ? (
-        <p className="skills-panel-empty">加载中…</p>
+        <div className="settings-empty-block">
+          <p>加载中…</p>
+        </div>
       ) : skills.length === 0 ? (
-        <p className="skills-panel-empty">本库暂无技能</p>
+        <div className="settings-empty-block">
+          <p>本库暂无技能。可在 vault/.soit/skills/ 放入 SKILL.md。</p>
+        </div>
       ) : (
         <ul className="skills-list">
           {skills.map((s) => (
             <li key={s.id} className="skills-row">
               <div className="skills-meta">
                 <span className="skills-name">{s.name || s.id}</span>
-                {s.description && (
+                {s.description ? (
                   <span className="skills-desc">{s.description}</span>
-                )}
+                ) : null}
                 <span className="skills-id">{s.id}</span>
               </div>
               <button
@@ -112,11 +123,11 @@ export default function SkillsList({ onNeedVault }: Props) {
         </ul>
       )}
 
-      {error && (
+      {error ? (
         <p className="skills-panel-error" role="alert">
           {error}
         </p>
-      )}
+      ) : null}
     </section>
   );
 }

@@ -6,13 +6,20 @@ import CompanionPane from "./CompanionPane";
 import EmptyWorkspace from "./EmptyWorkspace";
 import LeftRail from "./LeftRail";
 import OrbitStage from "./OrbitStage";
-import WorkspaceSplit from "./SplitSash";
+import WorkspaceSplit, { COMPANION_ANIM_MS } from "./SplitSash";
 import SettingsPanel, { type SettingsSection } from "./SettingsPanel";
 import { useWorkspace } from "../../state/workspaceStore";
 import "./settings/settings.css";
 
 /** Card exit duration before orbit mounts alone on the paper bg (ms). */
 const CARD_EXIT_MS = 320;
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)
+  );
+}
 
 function isTypingTarget(t: EventTarget | null): boolean {
   if (!(t instanceof HTMLElement)) return false;
@@ -96,10 +103,42 @@ export default function AppShell() {
   const docOpen = isDocSurfaceOpen(docSession.status);
   const docLayout = docSession.layout;
   const isPeek = docOpen && docLayout === "peek" && !materialsOpen;
-  /** Shared companion slot: materials list OR preview (never a third column). */
-  const companionOpen =
+  /** Store wants companion visible (list or preview). */
+  const companionTarget =
     (materialsOpen || docOpen) && !isPeek && workspaceMode === "focus";
-  const useSplit = companionOpen && !showEmpty;
+  /**
+   * Mount lags close so width can animate out.
+   * `companionExpanded` drives CSS open class (true after rAF on open).
+   */
+  const [companionMounted, setCompanionMounted] = useState(false);
+  const [companionExpanded, setCompanionExpanded] = useState(false);
+
+  useEffect(() => {
+    if (companionTarget) {
+      setCompanionMounted(true);
+      const reduced = prefersReducedMotion();
+      if (reduced) {
+        setCompanionExpanded(true);
+        return;
+      }
+      let raf2 = 0;
+      const raf1 = window.requestAnimationFrame(() => {
+        raf2 = window.requestAnimationFrame(() => setCompanionExpanded(true));
+      });
+      return () => {
+        window.cancelAnimationFrame(raf1);
+        window.cancelAnimationFrame(raf2);
+      };
+    }
+    // Close: collapse first, then unmount after anim.
+    setCompanionExpanded(false);
+    if (!companionMounted) return;
+    const ms = prefersReducedMotion() ? 0 : COMPANION_ANIM_MS;
+    const t = window.setTimeout(() => setCompanionMounted(false), ms);
+    return () => window.clearTimeout(t);
+  }, [companionTarget, companionMounted]);
+
+  const useSplit = companionMounted && !showEmpty;
 
   const closePalette = useCallback(() => setPaletteOpen(false), []);
   const closeOpenDoc = useCallback(() => setOpenDocOpen(false), []);
@@ -327,10 +366,15 @@ export default function AppShell() {
   const renderFocusMain = () => {
     // Empty + companion → full-width list/preview; empty alone → EmptyWorkspace
     if (showEmpty) {
-      if (companionOpen) {
+      if (companionMounted) {
         return (
-          <main className="center-stage companion-full" aria-label="资料">
-            <CompanionPane />
+          <main
+            className={`center-stage companion-full${companionExpanded ? " is-companion-open" : ""}`}
+            aria-label="资料"
+          >
+            <div className="companion-full-slot">
+              <CompanionPane />
+            </div>
           </main>
         );
       }
@@ -374,13 +418,14 @@ export default function AppShell() {
       );
     }
 
-    // Card | sash | companion (list XOR preview in one slot)
+    // Card | sash | companion (list XOR preview in one slot) — anim open/close
     if (useSplit) {
       return (
         <WorkspaceSplit
           layout={docLayout === "doc-wide" ? "doc-wide" : "split"}
           card={card}
           doc={<CompanionPane />}
+          expanded={companionExpanded}
         />
       );
     }
@@ -390,7 +435,7 @@ export default function AppShell() {
 
   return (
     <div
-      className={`app-shell${railCollapsed ? " rail-collapsed" : ""}${workspaceMode === "map" ? " mode-map" : " mode-focus"}${companionOpen ? " companion-open" : ""}`}
+      className={`app-shell${railCollapsed ? " rail-collapsed" : ""}${workspaceMode === "map" ? " mode-map" : " mode-focus"}${companionExpanded ? " companion-open" : ""}`}
     >
       <LeftRail
         collapsed={railCollapsed}
@@ -413,7 +458,7 @@ export default function AppShell() {
         ⚙
       </button>
       {/* Right-edge hover triangle → open shared companion (list/preview) */}
-      {!companionOpen && workspaceMode === "focus" ? (
+      {!companionMounted && workspaceMode === "focus" ? (
         <div className="edge-affordance" aria-hidden={false}>
           <button
             type="button"

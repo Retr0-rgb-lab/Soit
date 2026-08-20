@@ -186,11 +186,7 @@ export default function CommandPalette({ open, onClose }: Props) {
             <li className="cmd-palette-empty">没有匹配的卡片</li>
           ) : (
             rows.map((row, i) => (
-              <li
-                key={`${row.kind}-${row.id}`}
-                role="option"
-                aria-selected={i === active}
-              >
+              <li key={`${row.kind}-${row.id}`} role="option" aria-selected={i === active}>
                 <button
                   type="button"
                   data-idx={i}

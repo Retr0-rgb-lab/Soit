@@ -103,11 +103,11 @@ describe("applyAppearanceToDocument", () => {
     expect(root.dataset.theme).toBe("ink");
     expect(root.dataset.font).toBe("mono");
     expect(root.dataset.fontSize).toBe("lg");
-    // jsdom may serialize hex as rgb(); accept either form of ink #1c1916
+    // jsdom may serialize hex as rgb(); ink #161310
     expect(root.style.backgroundColor.replace(/\s/g, "").toLowerCase()).toMatch(
-      /^(#1c1916|rgb\(28,25,22\))$/,
+      /^(#161310|rgb\(22,19,16\))$/,
     );
-    expect(THEME_CRITICAL_BG.ink).toBe("#1c1916");
+    expect(THEME_CRITICAL_BG.ink).toBe("#161310");
   });
 
   it("invalid prefs apply as defaults", () => {
@@ -120,9 +120,9 @@ describe("applyAppearanceToDocument", () => {
     expect(root.dataset.theme).toBe("paper");
     expect(root.dataset.font).toBe("system");
     expect(root.dataset.fontSize).toBe("md");
-    // paper #f3ebe0
+    // paper #efe4d4
     expect(root.style.backgroundColor.replace(/\s/g, "").toLowerCase()).toMatch(
-      /^(#f3ebe0|rgb\(243,235,224\))$/,
+      /^(#efe4d4|rgb\(239,228,212\))$/,
     );
   });
 });

@@ -41,6 +41,11 @@ export type OptionWheelProps = {
   className?: string;
   /** Extra meta per item (kind glyph etc.) — rendered before label, no chrome */
   prefixes?: string[];
+  /**
+   * When false, arrow keys / wheel are not handled here (parent owns orbit state machine).
+   * Click + drag still change selection within this wheel.
+   */
+  captureInput?: boolean;
 };
 
 /**
@@ -69,6 +74,7 @@ export default function OptionWheel({
   draggable = true,
   className = "",
   prefixes,
+  captureInput = true,
 }: OptionWheelProps) {
   const n = items.length;
   const [internal, setInternal] = useState(
@@ -91,12 +97,13 @@ export default function OptionWheel({
   indexRef.current = selected;
 
   const commit = useCallback(
-    (idx: number) => {
+    (idx: number, opts?: { forceNotify?: boolean }) => {
       const i = loop
         ? ((idx % n) + n) % n
         : Math.max(0, Math.min(n - 1, idx));
+      const changed = i !== indexRef.current;
       if (selectedProp === undefined) setInternal(i);
-      if (i !== indexRef.current) {
+      if (changed || opts?.forceNotify) {
         onChange?.(i, items[i]!);
       }
       indexRef.current = i;
@@ -205,7 +212,7 @@ export default function OptionWheel({
   };
 
   const onWheel = (e: ReactWheelEvent) => {
-    if (n <= 1) return;
+    if (!captureInput || n <= 1) return;
     e.preventDefault();
     e.stopPropagation();
     const d = e.deltaY !== 0 ? e.deltaY : e.deltaX;
@@ -254,26 +261,30 @@ export default function OptionWheel({
           "--ow-active": activeColor,
         } as CSSProperties
       }
-      onWheel={onWheel}
+      onWheel={captureInput ? onWheel : undefined}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
       role="listbox"
       aria-label="选项轮"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "ArrowDown" || e.key === "ArrowRight") {
-          e.preventDefault();
-          nudge(1);
-        } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
-          e.preventDefault();
-          nudge(-1);
-        } else if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onChange?.(selected, items[selected]!);
-        }
-      }}
+      tabIndex={captureInput ? 0 : -1}
+      onKeyDown={
+        captureInput
+          ? (e) => {
+              if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+                e.preventDefault();
+                nudge(1);
+              } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+                e.preventDefault();
+                nudge(-1);
+              } else if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onChange?.(selected, items[selected]!);
+              }
+            }
+          : undefined
+      }
     >
       <div className="option-wheel__viewport">
         {items.map((label, i) => (
@@ -287,7 +298,8 @@ export default function OptionWheel({
             }}
             className="option-wheel__item"
             onClick={() => {
-              commit(i);
+              // forceNotify: parent may map wheel items to other cards (not "selected = focus")
+              commit(i, { forceNotify: true });
               startLoop();
             }}
           >
