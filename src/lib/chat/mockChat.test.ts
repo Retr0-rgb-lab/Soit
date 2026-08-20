@@ -16,6 +16,18 @@ describe("MockChat", () => {
     expect(result.marks?.some((m) => m.term === "函子")).toBe(true);
   });
 
+  it("aborts when signal fires during delay", async () => {
+    const port = createMockChat();
+    const controller = new AbortController();
+    const pending = port.complete({
+      cardId: "c1",
+      messages: [{ role: "user", content: "abort me" }],
+      signal: controller.signal,
+    });
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  });
+
   it("applyMarksHtml wraps terms as mark spans", async () => {
     const port = createMockChat();
     const result = await port.complete({

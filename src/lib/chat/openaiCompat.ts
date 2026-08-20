@@ -37,6 +37,7 @@ export class OpenAICompatChat implements ChatPort {
         messages,
         temperature: 0.7,
       }),
+      signal: input.signal,
     });
 
     if (!res.ok) {

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { demoSnapshot } from "../lib/demoSeed";
 import { layoutGraph } from "../lib/graphLayout";
+import type { ChatCompleteInput, ChatCompleteResult, ChatPort } from "../lib/chat";
 import type { Turn, WorkspaceSnapshot } from "../types";
 import { useWorkspace, useWorkspaceStore } from "./workspaceStore";
 
@@ -13,6 +14,11 @@ const hostMocks = vi.hoisted(() => ({
   getEnabledSkillsText: vi.fn(async () => ""),
 }));
 
+const chatPortMocks = vi.hoisted(() => ({
+  /** When set, resolvePort returns this port instead of real MockChat. */
+  override: null as ChatPort | null,
+}));
+
 vi.mock("../lib/host", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/host")>();
   return {
@@ -23,6 +29,15 @@ vi.mock("../lib/host", async (importOriginal) => {
     deleteTurn: hostMocks.deleteTurn,
     updateCard: hostMocks.updateCard,
     getEnabledSkillsText: hostMocks.getEnabledSkillsText,
+  };
+});
+
+vi.mock("../lib/chat", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/chat")>();
+  return {
+    ...actual,
+    resolvePort: async () =>
+      chatPortMocks.override ?? (await actual.resolvePort()),
   };
 });
 
@@ -43,9 +58,44 @@ function universeSnap(partial?: Partial<WorkspaceSnapshot>): WorkspaceSnapshot {
   };
 }
 
+/** Delayed port for cancel races — honors AbortSignal. */
+function delayedPort(
+  result: ChatCompleteResult,
+  delayMs = 200,
+): ChatPort {
+  return {
+    async complete(input: ChatCompleteInput): Promise<ChatCompleteResult> {
+      const signal = input.signal;
+      if (signal?.aborted) {
+        throw new DOMException("The operation was aborted.", "AbortError");
+      }
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          signal?.removeEventListener("abort", onAbort);
+          resolve();
+        }, delayMs);
+        const onAbort = () => {
+          clearTimeout(timer);
+          reject(new DOMException("The operation was aborted.", "AbortError"));
+        };
+        if (signal) {
+          if (signal.aborted) {
+            clearTimeout(timer);
+            reject(new DOMException("The operation was aborted.", "AbortError"));
+            return;
+          }
+          signal.addEventListener("abort", onAbort, { once: true });
+        }
+      });
+      return result;
+    },
+  };
+}
+
 describe("workspaceStore", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    chatPortMocks.override = null;
     hostMocks.getEnabledSkillsText.mockResolvedValue("");
     hostMocks.updateCard.mockResolvedValue({ ok: true as const });
     hostMocks.updateTurn.mockResolvedValue({ ok: true as const });
@@ -178,6 +228,46 @@ describe("workspaceStore", () => {
       demoSnapshot().nodes.length,
     );
     expect(hostMocks.appendTurn).not.toHaveBeenCalled();
+    expect(useWorkspaceStore.getState().inquiryInflight).toBeNull();
+  });
+
+  it("cancelInflight prevents late complete write", async () => {
+    chatPortMocks.override = delayedPort(
+      { text: "should not land", marks: [{ term: "函子" }] },
+      300,
+    );
+    const card = useWorkspaceStore.getState().focusId;
+    const before = useWorkspaceStore.getState().turnsByCardId[card]!.length;
+    const pending = useWorkspaceStore.getState().appendUserMessage("cancel me");
+    // Wait until inflight is registered, then cancel.
+    await vi.waitFor(() => {
+      expect(useWorkspaceStore.getState().inquiryInflight).not.toBeNull();
+    });
+    const turnId = useWorkspaceStore.getState().inquiryInflight!.turnId;
+    useWorkspaceStore.getState().cancelInflight();
+    expect(useWorkspaceStore.getState().inquiryInflight).toBeNull();
+    await pending;
+    const turn = useWorkspaceStore
+      .getState()
+      .turnsByCardId[card]!.find((t) => t.id === turnId)!;
+    expect(turn.aiHtml).toBe("");
+    expect(turn.aiHtml).not.toContain("should not land");
+    expect(useWorkspaceStore.getState().turnsByCardId[card]!.length).toBe(
+      before + 1,
+    );
+  });
+
+  it("empty model text becomes 非空 placeholder html", async () => {
+    chatPortMocks.override = {
+      async complete() {
+        return { text: "   ", marks: undefined };
+      },
+    };
+    const card = useWorkspaceStore.getState().focusId;
+    await useWorkspaceStore.getState().appendUserMessage("empty please");
+    const last = useWorkspaceStore.getState().turnsByCardId[card]!.at(-1)!;
+    expect(last.aiHtml.length).toBeGreaterThan(0);
+    expect(last.aiHtml).toContain("模型返回为空");
   });
 
   it("focusNode clears unread on target", () => {
@@ -251,6 +341,7 @@ describe("workspaceStore", () => {
 describe("workspaceStore universe write-through", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    chatPortMocks.override = null;
     hostMocks.getEnabledSkillsText.mockResolvedValue("");
     hostMocks.updateCard.mockResolvedValue({ ok: true as const });
     hostMocks.updateTurn.mockResolvedValue({ ok: true as const });

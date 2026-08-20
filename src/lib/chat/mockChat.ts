@@ -20,6 +20,10 @@ const GLOSSARY: ChatMark[] = [
   },
 ];
 
+/** Short abort-pollable delay when signal is present (Spec §2.1). */
+const MOCK_ABORT_BUDGET_MS = 80;
+const MOCK_ABORT_STEP_MS = 40;
+
 function pickMarks(userText: string, scope: unknown): ChatMark[] {
   const hay = userText + " " + JSON.stringify(scope ?? {});
   const hit = GLOSSARY.filter((m) => hay.includes(m.term));
@@ -42,12 +46,57 @@ function scopeHint(scope: unknown): string {
   return parts.length ? `（深挖范围：${parts.join(" · ")}）` : "";
 }
 
+function abortError(): DOMException {
+  return new DOMException("The operation was aborted.", "AbortError");
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw abortError();
+}
+
+/** Sleep in short steps so AbortSignal can cancel mid-wait. */
+async function abortableDelay(
+  totalMs: number,
+  signal?: AbortSignal,
+): Promise<void> {
+  throwIfAborted(signal);
+  let left = totalMs;
+  while (left > 0) {
+    const step = Math.min(MOCK_ABORT_STEP_MS, left);
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        signal?.removeEventListener("abort", onAbort);
+        resolve();
+      }, step);
+      const onAbort = () => {
+        clearTimeout(timer);
+        reject(abortError());
+      };
+      if (signal) {
+        if (signal.aborted) {
+          clearTimeout(timer);
+          reject(abortError());
+          return;
+        }
+        signal.addEventListener("abort", onAbort, { once: true });
+      }
+    });
+    left -= step;
+  }
+}
+
 /**
  * Local MockChat — no network. Returns text + structured marks.
  * Marks are applied to HTML by the store via applyMarksHtml / completeResultToHtml.
  */
 export class MockChat implements ChatPort {
   async complete(input: ChatCompleteInput): Promise<ChatCompleteResult> {
+    // When a signal is provided, poll a short delay so cancelInflight can win races.
+    if (input.signal) {
+      await abortableDelay(MOCK_ABORT_BUDGET_MS, input.signal);
+    }
+    throwIfAborted(input.signal);
+
     const lastUser = [...input.messages]
       .reverse()
       .find((m) => m.role === "user");

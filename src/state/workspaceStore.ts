@@ -42,6 +42,14 @@ export interface SpawnInquiryInput {
   fromCardId?: string;
 }
 
+/** In-flight Inquiry complete (Spec §2.1) — gen is the sole race token. */
+export interface InquiryInflight {
+  cardId: string;
+  turnId: string;
+  gen: string;
+  controller: AbortController;
+}
+
 export interface WorkspaceState {
   nodes: InquiryNode[];
   turnsByCardId: Record<string, Turn[]>;
@@ -67,6 +75,8 @@ export interface WorkspaceState {
    * Stale `loadSnapshot(snap, epoch)` is ignored when epoch !== bootEpoch.
    */
   bootEpoch: number;
+  /** Active Inquiry complete; null when idle. */
+  inquiryInflight: InquiryInflight | null;
 
   /** Bump epoch for an async App / openUniverse load pipeline; returns new epoch. */
   beginBootLoad: () => number;
@@ -96,6 +106,8 @@ export interface WorkspaceState {
   toggleTurnCollapsed: (turnId: string, cardId?: string) => Promise<void>;
   /** Fire-and-forget OK; returns when assistant turn is filled via ChatPort. */
   appendUserMessage: (text: string, quote?: string) => Promise<void>;
+  /** Abort in-flight Inquiry complete; late results must not write. */
+  cancelInflight: () => void;
 }
 
 function resolveRootId(
@@ -135,6 +147,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     reentryDismissed: true,
     highlightSpan: null,
     bootEpoch: 0,
+    inquiryInflight: null,
 
     beginBootLoad: () => {
       const next = get().bootEpoch + 1;
@@ -146,6 +159,15 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
 
     loadSnapshot: (snap, epoch) => {
       if (epoch !== undefined && epoch !== get().bootEpoch) return;
+      // Drop in-flight complete so stale writes cannot land after reload.
+      const prevInflight = get().inquiryInflight;
+      if (prevInflight) {
+        try {
+          prevInflight.controller.abort();
+        } catch {
+          /* ignore */
+        }
+      }
       resetIdSeq();
       const prev = get();
       const prevFocus = prev.focusId;
@@ -171,6 +193,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
           prevFocus && prevFocus !== snap.focusId ? prevFocus : snap.focusId,
         reentryDismissed: keepMap ? true : false,
         highlightSpan: null,
+        inquiryInflight: null,
       });
     },
 
@@ -309,6 +332,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     deleteTurn: chat.deleteTurn,
     toggleTurnCollapsed: chat.toggleTurnCollapsed,
     appendUserMessage: chat.appendUserMessage,
+    cancelInflight: chat.cancelInflight,
   };
 });
 

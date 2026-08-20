@@ -17,6 +17,8 @@ export interface ChatCompleteInput {
   messages: ChatMessage[];
   /** deepen scope or other card context; opaque to the port */
   scope?: unknown;
+  /** Optional abort — ports must honor when provided (Spec §2.1). */
+  signal?: AbortSignal;
 }
 
 export interface ChatCompleteResult {

@@ -1,9 +1,6 @@
-import {
-  completeResultToHtml,
-  resolvePort,
-} from "../lib/chat";
 import { touchSession } from "../lib/liveSet";
 import type { Turn } from "../types";
+import { runCompletion } from "./runCompletion";
 import {
   isUniverseSource,
   messagesFromTurns,
@@ -13,14 +10,9 @@ import {
   scopeForCard,
   type StoreGet,
   type StoreSet,
-  withSkillsSystem,
 } from "./turnHelpers";
 import { mergeHostSnapshot } from "./spawnMerge";
-import type { WorkspaceState } from "./workspaceStore";
-
-function escapeErr(msg: string): string {
-  return msg.replace(/</g, "&lt;");
-}
+import type { InquiryInflight, WorkspaceState } from "./workspaceStore";
 
 function applyTurnLocal(
   set: StoreSet,
@@ -49,14 +41,59 @@ function replaceCardTurns(
   }));
 }
 
+/** Abort any prior inquiry complete and register a new inflight gen. */
+function beginInflight(
+  set: StoreSet,
+  get: StoreGet,
+  cardId: string,
+  turnId: string,
+  gen: string,
+): AbortSignal {
+  const prev = get().inquiryInflight;
+  if (prev) {
+    try {
+      prev.controller.abort();
+    } catch {
+      /* ignore */
+    }
+  }
+  const controller = new AbortController();
+  const inflight: InquiryInflight = { cardId, turnId, gen, controller };
+  set({ inquiryInflight: inflight });
+  return controller.signal;
+}
+
+/** Clear inflight only if this gen still owns it. */
+function clearInflightIfGen(set: StoreSet, get: StoreGet, gen: string): void {
+  const cur = get().inquiryInflight;
+  if (cur?.gen === gen) {
+    set({ inquiryInflight: null });
+  }
+}
+
 export function createChatActions(
   set: StoreSet,
   get: StoreGet,
 ): Pick<
   WorkspaceState,
-  "regenerateTurn" | "deleteTurn" | "toggleTurnCollapsed" | "appendUserMessage"
+  | "regenerateTurn"
+  | "deleteTurn"
+  | "toggleTurnCollapsed"
+  | "appendUserMessage"
+  | "cancelInflight"
 > {
   return {
+    cancelInflight: () => {
+      const cur = get().inquiryInflight;
+      if (!cur) return;
+      try {
+        cur.controller.abort();
+      } catch {
+        /* ignore */
+      }
+      set({ inquiryInflight: null });
+    },
+
     regenerateTurn: async (turnId, cardIdArg) => {
       const s0 = get();
       const resolved = resolveTurnCard(s0, turnId, cardIdArg);
@@ -77,73 +114,27 @@ export function createChatActions(
       }
 
       const gen = nextId("g");
+      const signal = beginInflight(set, get, cardId, turnId, gen);
       patchTurnAi(set, cardId, turnId, {
-        think: `重生中…#${gen}`,
+        think: "重生中…",
         thinkOpen: false,
       });
 
-      const stillCurrent = () => {
-        const cur = get().turnsByCardId[cardId]?.find((t) => t.id === turnId);
-        return Boolean(cur?.think?.includes(`#${gen}`));
-      };
-
       try {
-        const port = await resolvePort();
         const scope = scopeForCard(get(), cardId);
-        const withSkills = await withSkillsSystem(messages);
-        const result = await port.complete({
+        await runCompletion({
+          get,
+          set,
           cardId,
-          messages: withSkills,
+          turnId,
+          messages,
           scope,
+          gen,
+          signal,
+          errorLabel: "重生",
         });
-        // Drop stale completions after reload / delete / newer regenerate.
-        if (!stillCurrent()) return;
-        // Mutate turn only — never spawn nodes on regenerate.
-        const aiHtml = completeResultToHtml(result);
-        const think = result.marks?.length
-          ? `marks: ${result.marks.map((m) => m.term).join(", ")}`
-          : "";
-
-        if (isUniverseSource(get().source)) {
-          try {
-            const { updateTurn } = await import("../lib/host");
-            const res = await updateTurn({
-              cardId,
-              turnId,
-              aiHtml,
-              think,
-            });
-            if (!stillCurrent()) return;
-            if (res.snapshot) {
-              mergeHostSnapshot(get, set, res.snapshot, get().focusId);
-              return;
-            }
-          } catch (err) {
-            console.error("[soit] update_turn after regenerate failed", err);
-            if (!stillCurrent()) return;
-            const msg = err instanceof Error ? err.message : String(err);
-            patchTurnAi(set, cardId, turnId, {
-              aiHtml: `<p><em>重生写入失败：${escapeErr(msg)}</em></p>`,
-              think: "",
-            });
-            return;
-          }
-        }
-
-        patchTurnAi(set, cardId, turnId, { aiHtml, think });
-      } catch (err) {
-        if (!stillCurrent()) return;
-        const msg = err instanceof Error ? err.message : String(err);
-        const aiHtml = `<p><em>重生失败：${escapeErr(msg)}</em></p>`;
-        if (isUniverseSource(get().source)) {
-          try {
-            const { updateTurn } = await import("../lib/host");
-            await updateTurn({ cardId, turnId, aiHtml, think: "" });
-          } catch (hostErr) {
-            console.error("[soit] update_turn error state failed", hostErr);
-          }
-        }
-        patchTurnAi(set, cardId, turnId, { aiHtml, think: "" });
+      } finally {
+        clearInflightIfGen(set, get, gen);
       }
     },
 
@@ -152,6 +143,12 @@ export function createChatActions(
       const resolved = resolveTurnCard(s0, turnId, cardIdArg);
       if (!resolved) return;
       const { cardId } = resolved;
+
+      // Cancel if this turn is mid-complete.
+      const inflight = s0.inquiryInflight;
+      if (inflight?.cardId === cardId && inflight.turnId === turnId) {
+        get().cancelInflight();
+      }
 
       if (isUniverseSource(s0.source)) {
         try {
@@ -221,22 +218,23 @@ export function createChatActions(
       const s0 = get();
       const focusId = s0.focusId;
       if (!focusId || !text.trim()) return;
+      // Composer lock: one inquiry complete at a time (Spec §2.1).
+      if (s0.inquiryInflight) return;
+
       const body = quote ? `> ${quote}\n\n${text}` : text;
       const title = text.slice(0, 16) || "新消息";
       const gen = nextId("g");
-
-      let turnId: string;
-      let cardId = focusId;
+      const cardId = focusId;
 
       if (isUniverseSource(s0.source)) {
         try {
-          const { appendTurn, updateTurn } = await import("../lib/host");
+          const { appendTurn } = await import("../lib/host");
           const res = await appendTurn({
             cardId: focusId,
             title,
             user: body,
           });
-          turnId = res.turn.id;
+          const turnId = res.turn.id;
           if (res.snapshot) {
             mergeHostSnapshot(get, set, res.snapshot, focusId);
           } else {
@@ -245,23 +243,19 @@ export function createChatActions(
               title: res.turn.title || title,
               collapsed: res.turn.collapsed ?? false,
               user: res.turn.user || body,
-              think: `生成中…#${gen}`,
+              think: "生成中…",
               thinkOpen: false,
               aiHtml: res.turn.aiHtml ?? "",
             };
             applyTurnLocal(set, focusId, turn);
           }
-          // Ensure generating marker even after full snapshot merge.
+          // UI generating marker (not race token).
           patchTurnAi(set, focusId, turnId, {
-            think: `生成中…#${gen}`,
+            think: "生成中…",
             thinkOpen: false,
           });
 
-          const stillCurrent = () => {
-            const cur = get().turnsByCardId[focusId]?.find((t) => t.id === turnId);
-            return Boolean(cur?.think?.includes(`#${gen}`));
-          };
-
+          const signal = beginInflight(set, get, focusId, turnId, gen);
           try {
             const s1 = get();
             const turns = s1.turnsByCardId[focusId] ?? [];
@@ -270,56 +264,19 @@ export function createChatActions(
               includeAssistantAtUntil: false,
             });
             const scope = scopeForCard(s1, focusId);
-            const port = await resolvePort();
-            const withSkills = await withSkillsSystem(messages);
-            const result = await port.complete({
+            await runCompletion({
+              get,
+              set,
               cardId: focusId,
-              messages: withSkills,
+              turnId,
+              messages,
               scope,
+              gen,
+              signal,
+              errorLabel: "回复",
             });
-            if (!stillCurrent()) return;
-            const aiHtml = completeResultToHtml(result);
-            const think = result.marks?.length
-              ? `marks: ${result.marks.map((m) => m.term).join(", ")}`
-              : "";
-            try {
-              const up = await updateTurn({
-                cardId: focusId,
-                turnId,
-                aiHtml,
-                think,
-              });
-              if (!stillCurrent()) return;
-              if (up.snapshot) {
-                mergeHostSnapshot(get, set, up.snapshot, get().focusId);
-                return;
-              }
-            } catch (err) {
-              console.error("[soit] update_turn after append failed", err);
-              if (!stillCurrent()) return;
-              const msg = err instanceof Error ? err.message : String(err);
-              patchTurnAi(set, focusId, turnId, {
-                aiHtml: `<p><em>回复写入失败：${escapeErr(msg)}</em></p>`,
-                think: "",
-              });
-              return;
-            }
-            patchTurnAi(set, focusId, turnId, { aiHtml, think });
-          } catch (err) {
-            if (!stillCurrent()) return;
-            const msg = err instanceof Error ? err.message : String(err);
-            const aiHtml = `<p><em>回复失败：${escapeErr(msg)}</em></p>`;
-            try {
-              await updateTurn({
-                cardId: focusId,
-                turnId,
-                aiHtml,
-                think: "",
-              });
-            } catch (hostErr) {
-              console.error("[soit] update_turn error state failed", hostErr);
-            }
-            patchTurnAi(set, focusId, turnId, { aiHtml, think: "" });
+          } finally {
+            clearInflightIfGen(set, get, gen);
           }
         } catch (err) {
           // append_turn failed — do not pretend success / no ghost turn
@@ -329,53 +286,40 @@ export function createChatActions(
       }
 
       // Demo / memory path
-      turnId = nextId("t");
+      const turnId = nextId("t");
       const turn: Turn = {
         id: turnId,
         title,
         collapsed: false,
         user: body,
-        think: `生成中…#${gen}`,
+        think: "生成中…",
         thinkOpen: false,
         aiHtml: "",
       };
       applyTurnLocal(set, cardId, turn);
 
-      const s1 = get();
-      const turns = s1.turnsByCardId[cardId] ?? [];
-      const messages = messagesFromTurns(turns, {
-        untilIndex: turns.length,
-        includeAssistantAtUntil: false,
-      });
-      const scope = scopeForCard(s1, cardId);
-
-      const stillCurrent = () => {
-        const cur = get().turnsByCardId[cardId]?.find((t) => t.id === turnId);
-        return Boolean(cur?.think?.includes(`#${gen}`));
-      };
-
+      const signal = beginInflight(set, get, cardId, turnId, gen);
       try {
-        const port = await resolvePort();
-        const withSkills = await withSkillsSystem(messages);
-        const result = await port.complete({
+        const s1 = get();
+        const turns = s1.turnsByCardId[cardId] ?? [];
+        const messages = messagesFromTurns(turns, {
+          untilIndex: turns.length,
+          includeAssistantAtUntil: false,
+        });
+        const scope = scopeForCard(s1, cardId);
+        await runCompletion({
+          get,
+          set,
           cardId,
-          messages: withSkills,
+          turnId,
+          messages,
           scope,
+          gen,
+          signal,
+          errorLabel: "回复",
         });
-        if (!stillCurrent()) return;
-        patchTurnAi(set, cardId, turnId, {
-          aiHtml: completeResultToHtml(result),
-          think: result.marks?.length
-            ? `marks: ${result.marks.map((m) => m.term).join(", ")}`
-            : "",
-        });
-      } catch (err) {
-        if (!stillCurrent()) return;
-        const msg = err instanceof Error ? err.message : String(err);
-        patchTurnAi(set, cardId, turnId, {
-          aiHtml: `<p><em>回复失败：${escapeErr(msg)}</em></p>`,
-          think: "",
-        });
+      } finally {
+        clearInflightIfGen(set, get, gen);
       }
     },
   };
