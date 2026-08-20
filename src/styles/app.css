@@ -1105,51 +1105,7 @@ button:focus-visible,
   margin-left: auto;
 }
 
-/* FocusOrbit host stub (full arc styles may land from pel-149-02) */
-.focus-orbit {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  padding: 4px 2px 2px;
-  border-top: 1px dashed color-mix(in srgb, var(--line) 70%, transparent);
-}
 
-.focus-orbit-center,
-.focus-orbit-item {
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  text-align: left;
-  border: 1px solid transparent;
-  background: transparent;
-  border-radius: 6px;
-  padding: 5px 8px;
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--ink-soft);
-}
-
-.focus-orbit-center {
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--ink);
-  background: color-mix(in srgb, var(--accent-soft) 45%, transparent);
-}
-
-.focus-orbit-center.on,
-.focus-orbit-item.on {
-  background: var(--accent-soft);
-  border-color: var(--line-strong);
-  color: var(--ink);
-}
-
-.focus-orbit-center:hover,
-.focus-orbit-item:hover {
-  background: var(--bg-muted);
-}
 
 .focus-orbit-ring {
   list-style: none;

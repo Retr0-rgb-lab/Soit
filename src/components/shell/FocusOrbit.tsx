@@ -1,10 +1,8 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
-  useRef,
+  useId,
   useState,
-  type CSSProperties,
   type KeyboardEvent,
   type WheelEvent,
 } from "react";
@@ -14,6 +12,8 @@ import "./FocusOrbit.css";
 export type FocusOrbitProps = {
   model: OrbitModel;
   onSelect: (id: string) => void;
+  /** Optional unpin for center when it is a live root */
+  onUnpinCenter?: (id: string) => void;
   className?: string;
 };
 
@@ -51,110 +51,91 @@ function usePrefersReducedMotion(): boolean {
   return reduced;
 }
 
-type RingVisualProps = {
+type WheelListProps = {
   items: OrbitItem[];
   activeIndex: number;
   focusId: string;
+  label: string;
   ring: 1 | 2;
-  curve: number;
-  spacing: number;
+  reduced: boolean;
   onActivate: (index: number) => void;
   onCommit: (id: string) => void;
 };
 
-function RingArc({
+/** Vertical Option-Wheel style list (full rail width). */
+function WheelList({
   items,
   activeIndex,
   focusId,
+  label,
   ring,
-  curve,
-  spacing,
+  reduced,
   onActivate,
   onCommit,
-}: RingVisualProps) {
+}: WheelListProps) {
+  const listId = useId();
   if (!items.length) return null;
 
-  const mid = (items.length - 1) / 2;
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+      e.preventDefault();
+      const next = clampIndex(activeIndex + 1, items.length);
+      onActivate(next);
+      onCommit(items[next]!.id);
+    } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      const next = clampIndex(activeIndex - 1, items.length);
+      onActivate(next);
+      onCommit(items[next]!.id);
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      const cur = items[activeIndex];
+      if (cur) onCommit(cur.id);
+    }
+  };
+
+  const onWheel = (e: WheelEvent<HTMLDivElement>) => {
+    if (Math.abs(e.deltaY) < 0.5 && Math.abs(e.deltaX) < 0.5) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
+    const next = clampIndex(activeIndex + (delta > 0 ? 1 : -1), items.length);
+    if (next === activeIndex) return;
+    onActivate(next);
+    onCommit(items[next]!.id);
+  };
 
   return (
     <div
-      className={`focus-orbit__ring focus-orbit__ring--${ring}`}
+      className={`focus-orbit__wheel focus-orbit__wheel--${ring}${reduced ? " is-flat" : ""}`}
       role="listbox"
-      aria-label={ring === 1 ? "内环" : "外环"}
+      aria-label={label}
       aria-activedescendant={
-        items[activeIndex] ? `fo-r${ring}-${items[activeIndex]!.id}` : undefined
+        items[activeIndex] ? `${listId}-${items[activeIndex]!.id}` : undefined
       }
       tabIndex={0}
-      onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
-        if (!items.length) return;
-        if (e.key === "ArrowDown" || e.key === "ArrowRight") {
-          e.preventDefault();
-          const next = clampIndex(activeIndex + 1, items.length);
-          onActivate(next);
-          onCommit(items[next]!.id);
-        } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
-          e.preventDefault();
-          const next = clampIndex(activeIndex - 1, items.length);
-          onActivate(next);
-          onCommit(items[next]!.id);
-        } else if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          const cur = items[activeIndex];
-          if (cur) onCommit(cur.id);
-        } else if (e.key === "Home") {
-          e.preventDefault();
-          onActivate(0);
-          onCommit(items[0]!.id);
-        } else if (e.key === "End") {
-          e.preventDefault();
-          const last = items.length - 1;
-          onActivate(last);
-          onCommit(items[last]!.id);
-        }
-      }}
-      onWheel={(e: WheelEvent<HTMLDivElement>) => {
-        if (!items.length) return;
-        if (Math.abs(e.deltaY) < 0.5 && Math.abs(e.deltaX) < 0.5) return;
-        e.preventDefault();
-        e.stopPropagation();
-        const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
-        const step = delta > 0 ? 1 : -1;
-        const next = clampIndex(activeIndex + step, items.length);
-        if (next === activeIndex) return;
-        onActivate(next);
-        onCommit(items[next]!.id);
-      }}
+      onKeyDown={onKeyDown}
+      onWheel={onWheel}
     >
       {items.map((item, i) => {
         const dist = i - activeIndex;
         const abs = Math.abs(dist);
-        // Option Wheel falloff: active sharp; neighbors fade/blur/scale
-        const t = Math.min(abs / 3, 1);
-        const opacity = ring === 1 ? 1 - t * 0.72 : 0.55 - t * 0.35;
-        const scale =
-          ring === 1
-            ? 1.08 - t * 0.22
-            : 0.92 - t * 0.12;
-        const blur = t * (ring === 1 ? 2.2 : 2.8);
-        // Side arc: bulge toward rail interior (left of labels / right of column)
-        const arcX =
-          curve * (1 - Math.pow((i - mid) / Math.max(mid, 0.5), 2)) -
-          abs * (ring === 1 ? 1.5 : 2.5);
-        const y = dist * spacing;
-
-        const style = {
-          top: "50%",
-          transform: `translate3d(${Math.max(arcX, 0)}px, calc(-50% + ${y}px), 0) scale(${scale})`,
-          opacity: Math.max(opacity, 0.12),
-          filter: blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : "none",
-          zIndex: 20 - abs,
-          fontWeight: abs === 0 ? 600 : 400,
-        } as CSSProperties;
+        const t = Math.min(abs / 2.5, 1);
+        // Option Wheel: slight offset + fade; keep blur mild so labels stay readable
+        const style = reduced
+          ? undefined
+          : {
+              opacity: Math.max(1 - t * (ring === 1 ? 0.42 : 0.38), 0.42),
+              transform: `translate3d(${t * (ring === 1 ? 8 : 6)}px, 0, 0) scale(${1.02 - t * 0.08})`,
+              filter:
+                abs === 0 ? "none" : `blur(${(t * (ring === 1 ? 0.9 : 0.7)).toFixed(2)}px)`,
+              zIndex: 10 - abs,
+            };
 
         return (
           <button
             key={item.id}
-            id={`fo-r${ring}-${item.id}`}
+            id={`${listId}-${item.id}`}
             type="button"
             role="option"
             aria-selected={i === activeIndex}
@@ -188,45 +169,47 @@ function RingArc({
 }
 
 /**
- * Side-arc multi-ring focus selector (Option Wheel–inspired).
- * Center = root chip; ring 1 = children of root; ring 2 = children of focus when deeper.
+ * Focus orbit — vertical multi-ring (Option Wheel–inspired) for the left rail.
+ * Full-width center chip + stacked wheels (no side-by-side squeeze).
  */
 export default function FocusOrbit({
   model,
   onSelect,
+  onUnpinCenter,
   className = "",
 }: FocusOrbitProps) {
   const reduced = usePrefersReducedMotion();
   const ring1 = model.rings[1] ?? [];
   const ring2 = model.rings[2] ?? [];
 
-  const [active1, setActive1] = useState(() =>
-    indexOfId(ring1, model.focusId),
-  );
-  const [active2, setActive2] = useState(() =>
-    indexOfId(ring2, model.focusId),
+  const pickActive = useCallback(
+    (items: OrbitItem[], ring: 1 | 2) => {
+      if (!items.length) return 0;
+      if (items.some((it) => it.id === model.focusId)) {
+        return indexOfId(items, model.focusId);
+      }
+      // Ring 1: highlight the branch that contains focus (parent of outer items)
+      if (ring === 1 && (model.rings[2] ?? []).length) {
+        const outerParent = model.rings[2]![0]?.parentId;
+        if (outerParent && items.some((it) => it.id === outerParent)) {
+          return indexOfId(items, outerParent);
+        }
+      }
+      return 0;
+    },
+    [model.focusId, model.rings],
   );
 
-  // Keep active indices aligned when model/focus changes
-  useEffect(() => {
-    if (!ring1.length) {
-      setActive1(0);
-      return;
-    }
-    const inRing = ring1.some((it) => it.id === model.focusId);
-    if (inRing) setActive1(indexOfId(ring1, model.focusId));
-    else setActive1((i) => clampIndex(i, ring1.length));
-  }, [model.focusId, ring1]);
+  const [active1, setActive1] = useState(() => pickActive(ring1, 1));
+  const [active2, setActive2] = useState(() => pickActive(ring2, 2));
 
   useEffect(() => {
-    if (!ring2.length) {
-      setActive2(0);
-      return;
-    }
-    const inRing = ring2.some((it) => it.id === model.focusId);
-    if (inRing) setActive2(indexOfId(ring2, model.focusId));
-    else setActive2((i) => clampIndex(i, ring2.length));
-  }, [model.focusId, ring2]);
+    setActive1(pickActive(ring1, 1));
+  }, [ring1, pickActive, model.focusId]);
+
+  useEffect(() => {
+    setActive2(pickActive(ring2, 2));
+  }, [ring2, pickActive, model.focusId]);
 
   const commit = useCallback(
     (id: string) => {
@@ -235,24 +218,11 @@ export default function FocusOrbit({
     [onSelect],
   );
 
-  const fallbackItems = useMemo(() => {
-    const out: { group: string; item: OrbitItem }[] = [];
-    if (model.center) {
-      out.push({ group: "根", item: model.center });
-    }
-    for (const it of ring1) out.push({ group: "内环", item: it });
-    for (const it of ring2) out.push({ group: "外环", item: it });
-    return out;
-  }, [model.center, ring1, ring2]);
-
-  const rootId = model.center?.id ?? model.rootId;
-  const stageRef = useRef<HTMLDivElement>(null);
+  const centerTitle = model.center?.title ?? "—";
 
   if (!model.center && !ring1.length && !ring2.length) {
     return (
-      <div
-        className={`focus-orbit${className ? ` ${className}` : ""}${reduced ? " is-reduced" : ""}`}
-      >
+      <div className={`focus-orbit${className ? ` ${className}` : ""}`}>
         <p className="focus-orbit__empty">无探究</p>
       </div>
     );
@@ -263,8 +233,8 @@ export default function FocusOrbit({
       className={`focus-orbit${className ? ` ${className}` : ""}${reduced ? " is-reduced" : ""}`}
       data-focus={model.focusId || undefined}
     >
-      <div className="focus-orbit__stage" ref={stageRef}>
-        {model.center ? (
+      {model.center ? (
+        <div className="focus-orbit__center-row">
           <button
             type="button"
             className={[
@@ -273,81 +243,59 @@ export default function FocusOrbit({
             ]
               .filter(Boolean)
               .join(" ")}
-            aria-label="根探究"
-            title={model.center.title}
+            aria-label={`根探究 ${centerTitle}`}
+            title={centerTitle}
             onClick={() => commit(model.center!.id)}
-            onDoubleClick={() => rootId && commit(rootId)}
           >
-            {model.center.title}
+            <span className="focus-orbit__center-glyph" aria-hidden>
+              ●
+            </span>
+            <span className="focus-orbit__center-label">{centerTitle}</span>
           </button>
-        ) : (
-          <span className="focus-orbit__center" aria-hidden="true">
-            —
-          </span>
-        )}
-
-        <div className="focus-orbit__rings">
-          <RingArc
-            items={ring1}
-            activeIndex={clampIndex(active1, ring1.length)}
-            focusId={model.focusId}
-            ring={1}
-            curve={16}
-            spacing={28}
-            onActivate={setActive1}
-            onCommit={commit}
-          />
-          {ring2.length > 0 ? (
-            <RingArc
-              items={ring2}
-              activeIndex={clampIndex(active2, ring2.length)}
-              focusId={model.focusId}
-              ring={2}
-              curve={10}
-              spacing={22}
-              onActivate={setActive2}
-              onCommit={commit}
-            />
+          {onUnpinCenter ? (
+            <button
+              type="button"
+              className="focus-orbit__unpin"
+              title="移出活线（注意力，不改探究状态）"
+              aria-label={`移出活线 ${centerTitle}`}
+              onClick={() => onUnpinCenter(model.center!.id)}
+            >
+              ×
+            </button>
           ) : null}
         </div>
-      </div>
+      ) : null}
 
-      {/* Keyboard / reduced-motion fallback list */}
-      <ul className="focus-orbit__fallback" aria-label="探究轨道列表">
-        {fallbackItems.map(({ group, item }, idx) => {
-          const prevGroup =
-            idx > 0 ? fallbackItems[idx - 1]!.group : null;
-          return (
-            <li key={`${group}-${item.id}`}>
-              {group !== prevGroup ? (
-                <div className="focus-orbit__fallback-group" aria-hidden="true">
-                  {group}
-                </div>
-              ) : null}
-              <button
-                type="button"
-                className={[
-                  "focus-orbit__fallback-btn",
-                  item.id === model.focusId ? "is-focus" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                data-kind={item.kind}
-                title={item.title}
-                onClick={() => commit(item.id)}
-              >
-                <span className="focus-orbit__glyph" aria-hidden="true">
-                  {kindGlyph(item.kind)}
-                </span>
-                <span className="focus-orbit__label">{item.title}</span>
-                {item.unread ? (
-                  <span className="focus-orbit__unread" aria-label="未读" />
-                ) : null}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+      {ring1.length > 0 ? (
+        <WheelList
+          items={ring1}
+          activeIndex={clampIndex(active1, ring1.length)}
+          focusId={model.focusId}
+          label="内环 · 根下分支"
+          ring={1}
+          reduced={reduced}
+          onActivate={setActive1}
+          onCommit={commit}
+        />
+      ) : (
+        <p className="focus-orbit__empty subtle">根下尚无分支</p>
+      )}
+
+      {ring2.length > 0 ? (
+        <>
+          <div className="focus-orbit__ring-sep" aria-hidden />
+          <WheelList
+            items={ring2}
+            activeIndex={clampIndex(active2, ring2.length)}
+            focusId={model.focusId}
+            label="外环 · 当前层"
+            ring={2}
+            reduced={reduced}
+            onActivate={setActive2}
+            onCommit={commit}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

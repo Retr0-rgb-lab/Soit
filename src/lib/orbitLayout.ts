@@ -15,7 +15,11 @@ export interface OrbitItem {
 
 export interface OrbitModel {
   center: OrbitItem | null;
-  /** rings[0] unused or empty; rings[1] = children of center; rings[2] = children of focus if deeper */
+  /**
+   * rings[0] unused;
+   * rings[1] = children of center (root);
+   * rings[2] = local neighborhood under the active branch (children of focus, or siblings when deeper).
+   */
   rings: OrbitItem[][];
   focusId: string;
   rootId: string | null;
@@ -58,7 +62,13 @@ export function childrenOf(nodes: InquiryNode[], parentId: string): InquiryNode[
     });
 }
 
-/** Build orbit centered on live/root of focus; outer ring follows focus when focus ≠ root. */
+/**
+ * Build orbit centered on root of focus.
+ * - Ring 1: children of root
+ * - Ring 2: when focus is deeper than root:
+ *   - if focus is a direct child of root → children of focus
+ *   - else → siblings of focus (children of focus.parent), so the current card stays on the outer wheel
+ */
 export function buildOrbitModel(
   nodes: InquiryNode[],
   focusId: string,
@@ -70,6 +80,7 @@ export function buildOrbitModel(
   const root = rootOf(nodes, focusId);
   const center = root ? toItem(root, 0) : null;
   const rootId = root?.id ?? null;
+  const byId = new Map(nodes.map((n) => [n.id, n]));
 
   const rings: OrbitItem[][] = Array.from({ length: maxRing + 1 }, () => []);
 
@@ -81,12 +92,21 @@ export function buildOrbitModel(
     .slice(0, ringCap)
     .map((n) => toItem(n, 1));
 
-  if (maxRing >= 2 && focusId !== root.id) {
-    const byId = new Map(nodes.map((n) => [n.id, n]));
-    if (byId.has(focusId)) {
-      rings[2] = childrenOf(nodes, focusId)
-        .slice(0, ringCap)
-        .map((n) => toItem(n, 2));
+  if (maxRing >= 2 && focusId && focusId !== root.id) {
+    const focus = byId.get(focusId);
+    if (focus) {
+      const parentId = focus.parentId;
+      if (parentId === root.id) {
+        // Focus sits on ring 1 → outer ring = its children
+        rings[2] = childrenOf(nodes, focus.id)
+          .slice(0, ringCap)
+          .map((n) => toItem(n, 2));
+      } else if (parentId) {
+        // Deeper → outer ring = siblings under parent (includes focus)
+        rings[2] = childrenOf(nodes, parentId)
+          .slice(0, ringCap)
+          .map((n) => toItem(n, 2));
+      }
     }
   }
 

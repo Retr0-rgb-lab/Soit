@@ -79,16 +79,16 @@ describe("buildOrbitModel", () => {
     expect(model.rings[2]).toEqual([]);
   });
 
-  it("uses children of focus on outer ring when focus is deeper than root", () => {
+  it("outer ring: children of focus when on ring1; siblings when deeper", () => {
     const snap = demoSnapshot();
-    // c1 → c2 → c3; focus c3 → ring1 = kids of c1, ring2 = kids of c3 (none)
+    // c1 → c2 → c3; focus c3 → ring1 kids of c1; ring2 = siblings under c2
     const atC3 = buildOrbitModel(snap.nodes, "c3");
     expect(atC3.center?.id).toBe("c1");
     expect(atC3.rootId).toBe("c1");
     expect(atC3.rings[1].map((i) => i.id)).toEqual(["c2"]);
-    expect(atC3.rings[2]).toEqual([]);
+    expect(atC3.rings[2].map((i) => i.id)).toEqual(["c3", "c4", "c5"]);
 
-    // focus c2 → outer ring = children of c2 (deepen c3, then diverge c4/c5)
+    // focus c2 → outer ring = children of c2
     const atC2 = buildOrbitModel(snap.nodes, "c2");
     expect(atC2.center?.id).toBe("c1");
     expect(atC2.rings[1].map((i) => i.id)).toEqual(["c2"]);

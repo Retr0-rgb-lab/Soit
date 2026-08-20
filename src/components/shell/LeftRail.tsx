@@ -301,47 +301,90 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
                   {live.length === 0 ? (
                     <p className="shell-placeholder">打开卡片会自动进入活线</p>
                   ) : (
-                    <ul className="node-list">
-                      {live.map((n) => {
-                        const debt = debtByRoot.get(n.id) ?? 0;
-                        return (
-                          <li key={n.id} className="rail-live-row">
-                            <button
-                              type="button"
-                              className={`rail-item${n.id === focusId ? " on" : ""}`}
-                              onClick={() => open(n.id)}
-                              title={n.title}
-                            >
-                              <span className="node-kind" aria-hidden>
-                                {kindGlyph(n.kind)}
-                              </span>
-                              {n.title}
-                            </button>
-                            {debt > 0 && (
-                              <span
-                                className="rail-debt-badge"
-                                title={`${debt} 未读`}
-                                aria-label={`${debt} 未读`}
+                    <>
+                      {/* Multi-root switcher only — single live root is the orbit center */}
+                      {live.length > 1 && (
+                        <ul className="node-list rail-live-roots">
+                          {live.map((n) => {
+                            const debt = debtByRoot.get(n.id) ?? 0;
+                            const isOrbitRoot =
+                              orbitModel?.rootId === n.id ||
+                              (!orbitModel && n.id === liveIds[0]);
+                            return (
+                              <li key={n.id} className="rail-live-row">
+                                <button
+                                  type="button"
+                                  className={`rail-item${isOrbitRoot ? " on" : ""}`}
+                                  onClick={() => open(n.id)}
+                                  title={n.title}
+                                >
+                                  <span className="node-kind" aria-hidden>
+                                    {kindGlyph(n.kind)}
+                                  </span>
+                                  {n.title}
+                                </button>
+                                {debt > 0 && (
+                                  <span
+                                    className="rail-debt-badge"
+                                    title={`${debt} 未读`}
+                                    aria-label={`${debt} 未读`}
+                                  >
+                                    {debt}
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  className="rail-mini"
+                                  title="移出活线（注意力，不改探究状态）"
+                                  aria-label={`移出活线 ${n.title}`}
+                                  onClick={() => unpinLive(n.id)}
+                                >
+                                  ×
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                      {orbitModel?.center ? (
+                        <FocusOrbit
+                          model={orbitModel}
+                          onSelect={open}
+                          onUnpinCenter={
+                            live.some((n) => n.id === orbitModel.center?.id)
+                              ? (id) => unpinLive(id)
+                              : undefined
+                          }
+                        />
+                      ) : (
+                        <ul className="node-list">
+                          {live.map((n) => (
+                            <li key={n.id} className="rail-live-row">
+                              <button
+                                type="button"
+                                className={`rail-item${n.id === focusId ? " on" : ""}`}
+                                onClick={() => open(n.id)}
+                                title={n.title}
                               >
-                                {debt}
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              className="rail-mini"
-                              title="移出活线（注意力，不改探究状态）"
-                              aria-label={`移出活线 ${n.title}`}
-                              onClick={() => unpinLive(n.id)}
-                            >
-                              ×
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                  {orbitModel?.center && (
-                    <FocusOrbit model={orbitModel} onSelect={open} />
+                                <span className="node-kind" aria-hidden>
+                                  {kindGlyph(n.kind)}
+                                </span>
+                                {n.title}
+                              </button>
+                              <button
+                                type="button"
+                                className="rail-mini"
+                                title="移出活线（注意力，不改探究状态）"
+                                aria-label={`移出活线 ${n.title}`}
+                                onClick={() => unpinLive(n.id)}
+                              >
+                                ×
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
