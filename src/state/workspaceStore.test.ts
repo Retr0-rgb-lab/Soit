@@ -590,6 +590,106 @@ describe("workspaceStore runtime handoff + brief", () => {
   });
 });
 
+describe("workspaceStore docSession (PEL-156 D3)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    chatPortMocks.override = null;
+    useWorkspaceStore.getState().setWorkspaceMode("focus");
+    useWorkspaceStore.getState().loadSnapshot(demoSnapshot());
+    useWorkspaceStore.getState().setWorkspaceMode("focus");
+  });
+
+  it("openDoc loads demo/welcome.md via browser mock without Tauri", async () => {
+    const focus = useWorkspaceStore.getState().focusId;
+    await useWorkspaceStore.getState().openDoc("demo/welcome.md");
+    const doc = useWorkspaceStore.getState().docSession;
+    expect(doc.status).toBe("ready");
+    expect(doc.ref?.pathRel).toBe("demo/welcome.md");
+    expect(doc.ref?.kind).toBe("md");
+    expect(doc.textContent).toContain("陪读");
+    expect(doc.boundCardId).toBe(focus);
+    expect(doc.error).toBeNull();
+  });
+
+  it("openDoc on unknown path yields universe_closed error", async () => {
+    await useWorkspaceStore.getState().openDoc("notes/missing.md");
+    const doc = useWorkspaceStore.getState().docSession;
+    expect(doc.status).toBe("error");
+    expect(doc.error).toBe("universe_closed");
+    expect(doc.textContent).toBeNull();
+  });
+
+  it("setWorkspaceMode map force_closes docSession", async () => {
+    await useWorkspaceStore.getState().openDoc("demo/welcome.md");
+    expect(useWorkspaceStore.getState().docSession.status).toBe("ready");
+    const epochBefore = useWorkspaceStore.getState().docSession.epoch;
+    useWorkspaceStore.getState().setWorkspaceMode("map");
+    const doc = useWorkspaceStore.getState().docSession;
+    expect(useWorkspaceStore.getState().workspaceMode).toBe("map");
+    expect(doc.status).toBe("closed");
+    expect(doc.ref).toBeNull();
+    expect(doc.textContent).toBeNull();
+    expect(doc.epoch).toBeGreaterThan(epochBefore);
+  });
+
+  it("toggleMapMode into map force_closes docSession", async () => {
+    // loadSnapshot may keep prior map for demo — pin focus first.
+    useWorkspaceStore.getState().setWorkspaceMode("focus");
+    await useWorkspaceStore.getState().openDoc("demo/welcome.md");
+    expect(useWorkspaceStore.getState().docSession.status).toBe("ready");
+    useWorkspaceStore.getState().toggleMapMode();
+    expect(useWorkspaceStore.getState().workspaceMode).toBe("map");
+    expect(useWorkspaceStore.getState().docSession.status).toBe("closed");
+    // back to focus does not reopen
+    useWorkspaceStore.getState().toggleMapMode();
+    expect(useWorkspaceStore.getState().workspaceMode).toBe("focus");
+    expect(useWorkspaceStore.getState().docSession.status).toBe("closed");
+  });
+
+  it("loadSnapshot always force_closes docSession", async () => {
+    await useWorkspaceStore.getState().openDoc("demo/welcome.md");
+    expect(useWorkspaceStore.getState().docSession.status).toBe("ready");
+    const epochBefore = useWorkspaceStore.getState().docSession.epoch;
+    useWorkspaceStore.getState().loadSnapshot(demoSnapshot());
+    const doc = useWorkspaceStore.getState().docSession;
+    expect(doc.status).toBe("closed");
+    expect(doc.ref).toBeNull();
+    expect(doc.textContent).toBeNull();
+    expect(doc.requestPath).toBeNull();
+    expect(doc.epoch).toBeGreaterThan(epochBefore);
+  });
+
+  it("focusNode rebinds boundCardId when tied to previous focus", async () => {
+    const s0 = useWorkspaceStore.getState();
+    const from = s0.focusId;
+    await s0.openDoc("demo/welcome.md");
+    expect(useWorkspaceStore.getState().docSession.boundCardId).toBe(from);
+    useWorkspaceStore.getState().focusNode("c2");
+    const doc = useWorkspaceStore.getState().docSession;
+    expect(doc.status).toBe("ready");
+    expect(doc.boundCardId).toBe("c2");
+    expect(doc.ref?.pathRel).toBe("demo/welcome.md");
+  });
+
+  it("setDocLayout updates layout when ready", async () => {
+    await useWorkspaceStore.getState().openDoc("demo/welcome.md");
+    useWorkspaceStore.getState().setDocLayout("doc-wide");
+    expect(useWorkspaceStore.getState().docSession.layout).toBe("doc-wide");
+  });
+
+  it("retryDoc reloads after error", async () => {
+    await useWorkspaceStore.getState().openDoc("notes/nope.md");
+    expect(useWorkspaceStore.getState().docSession.status).toBe("error");
+    // Swap requestPath via a successful open path: force error then open welcome fails?
+    // retry keeps requestPath — still nope → still error
+    await useWorkspaceStore.getState().retryDoc();
+    expect(useWorkspaceStore.getState().docSession.status).toBe("error");
+    expect(useWorkspaceStore.getState().docSession.requestPath).toBe(
+      "notes/nope.md",
+    );
+  });
+});
+
 describe("layoutGraph", () => {
   it("places demo nodes inside viewBox 0..200 x 0..300", () => {
     const laid = layoutGraph(demoSnapshot().nodes);

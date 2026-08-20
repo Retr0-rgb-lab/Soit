@@ -1,6 +1,13 @@
 import { create } from "zustand";
 import type { CardBrief } from "../lib/cardBrief";
 import {
+  initialDocSession,
+  reduceDocSession,
+  type DocLayout,
+  type DocRef,
+  type DocSessionState,
+} from "../lib/docSession";
+import {
   LIVE_MAX,
   pinLiveId,
   unpinLiveId,
@@ -13,6 +20,7 @@ import type {
   InquiryNode,
   SourceSpan,
   Turn,
+  VaultDocKind,
   WorkspaceSnapshot,
 } from "../types";
 import { createChatActions } from "./chatActions";
@@ -96,6 +104,8 @@ export interface WorkspaceState {
   runtimes: RuntimeInfo[];
   /** Active external handoff; null when idle. */
   runtimeRun: RuntimeRun | null;
+  /** Read-only doc companion session (PEL-156); not persisted. */
+  docSession: DocSessionState;
 
   /** Bump epoch for an async App / openUniverse load pipeline; returns new epoch. */
   beginBootLoad: () => number;
@@ -105,6 +115,12 @@ export interface WorkspaceState {
   setWorkspaceMode: (mode: WorkspaceMode) => void;
   setMapScopeMode: (mode: MapScopeMode) => void;
   toggleMapMode: () => void;
+  /** Open vault doc companion (async resolve/read). */
+  openDoc: (path: string, boundCardId?: string | null) => Promise<void>;
+  closeDoc: () => void;
+  setDocLayout: (layout: DocLayout) => void;
+  rebindDoc: (boundCardId: string | null) => void;
+  retryDoc: () => Promise<void>;
   pinLive: (id: string) => void;
   unpinLive: (id: string) => void;
   /** Mark all unread in thread (by root) as read */
@@ -160,6 +176,79 @@ function resolveRootId(
   return rootId;
 }
 
+/** Finish open/retry load after reduce → loading (epoch already bumped). */
+async function finishDocLoad(
+  get: () => WorkspaceState,
+  set: (partial: Partial<WorkspaceState>) => void,
+  path: string,
+  epoch: number,
+): Promise<void> {
+  try {
+    const { resolveVaultDoc, readVaultText } = await import("../lib/host");
+    const resolved = await resolveVaultDoc(path);
+    if (get().docSession.epoch !== epoch) return;
+    if (!resolved.ok || !resolved.pathRel || !resolved.kind) {
+      set({
+        docSession: reduceDocSession(get().docSession, {
+          type: "load_err",
+          epoch,
+          error: resolved.error ?? "resolve failed",
+        }),
+      });
+      return;
+    }
+    const kind = resolved.kind as VaultDocKind;
+    const ref: DocRef = {
+      pathRel: resolved.pathRel,
+      displayName: resolved.displayName ?? resolved.pathRel.split("/").pop() ?? resolved.pathRel,
+      kind,
+      size: resolved.size,
+    };
+    if (kind === "md" || kind === "text") {
+      const read = await readVaultText(resolved.pathRel);
+      if (get().docSession.epoch !== epoch) return;
+      if (!read.ok) {
+        set({
+          docSession: reduceDocSession(get().docSession, {
+            type: "load_err",
+            epoch,
+            error: read.error ?? "read failed",
+          }),
+        });
+        return;
+      }
+      set({
+        docSession: reduceDocSession(get().docSession, {
+          type: "load_ok",
+          epoch,
+          ref,
+          textContent: read.text ?? null,
+        }),
+      });
+      return;
+    }
+    // pdf | unsupported — ready without text body (guide UI in D4).
+    set({
+      docSession: reduceDocSession(get().docSession, {
+        type: "load_ok",
+        epoch,
+        ref,
+        textContent: null,
+      }),
+    });
+  } catch (err) {
+    if (get().docSession.epoch !== epoch) return;
+    const message = err instanceof Error ? err.message : String(err);
+    set({
+      docSession: reduceDocSession(get().docSession, {
+        type: "load_err",
+        epoch,
+        error: message || "load failed",
+      }),
+    });
+  }
+}
+
 export const useWorkspace = create<WorkspaceState>((set, get) => {
   const chat = createChatActions(set as StoreSet, get as StoreGet);
   const runtime = createRuntimeActions(set as StoreSet, get as StoreGet);
@@ -184,6 +273,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     runtimePrefs: null,
     runtimes: [],
     runtimeRun: null,
+    docSession: initialDocSession(),
 
     beginBootLoad: () => {
       const next = get().bootEpoch + 1;
@@ -238,6 +328,8 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
         highlightSpan: null,
         inquiryInflight: null,
         runtimeRun: null,
+        // Always drop doc companion (unbind / boot / host merge).
+        docSession: reduceDocSession(prev.docSession, { type: "force_close" }),
       });
     },
 
@@ -246,20 +338,99 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       if (!s0.nodes.some((n) => n.id === id)) return;
       const target = s0.nodes.find((n) => n.id === id);
       const wasUnread = Boolean(target?.unread);
-      set(afterFocus(s0, id));
+      const prevFocus = s0.focusId;
+      const focused = afterFocus(s0, id);
+      // Keep doc session; rebind when unbound or still tied to previous focus.
+      let docSession = s0.docSession;
+      if (
+        docSession.status === "ready" &&
+        (docSession.boundCardId === null || docSession.boundCardId === prevFocus)
+      ) {
+        docSession = reduceDocSession(docSession, {
+          type: "rebind",
+          boundCardId: id,
+        });
+      }
+      set({ ...focused, docSession });
       if (wasUnread && isUniverseSource(s0.source)) {
         hostClearUnread([id]);
       }
     },
 
-    setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
+    setWorkspaceMode: (mode) =>
+      set((s) => {
+        if (mode === "map") {
+          return {
+            workspaceMode: mode,
+            docSession: reduceDocSession(s.docSession, { type: "force_close" }),
+          };
+        }
+        return { workspaceMode: mode };
+      }),
 
     setMapScopeMode: (mode) => set({ mapScopeMode: mode }),
 
     toggleMapMode: () =>
-      set((s) => ({
-        workspaceMode: s.workspaceMode === "map" ? "focus" : "map",
-      })),
+      set((s) => {
+        const next: WorkspaceMode =
+          s.workspaceMode === "map" ? "focus" : "map";
+        if (next === "map") {
+          return {
+            workspaceMode: next,
+            docSession: reduceDocSession(s.docSession, { type: "force_close" }),
+          };
+        }
+        return { workspaceMode: next };
+      }),
+
+    openDoc: async (path, boundCardId) => {
+      const bound =
+        boundCardId !== undefined ? boundCardId : get().focusId || null;
+      set({
+        docSession: reduceDocSession(get().docSession, {
+          type: "open",
+          path,
+          boundCardId: bound,
+        }),
+      });
+      const epoch = get().docSession.epoch;
+      await finishDocLoad(get, set, path, epoch);
+    },
+
+    closeDoc: () => {
+      set({
+        docSession: reduceDocSession(get().docSession, { type: "close" }),
+      });
+    },
+
+    setDocLayout: (layout) => {
+      set({
+        docSession: reduceDocSession(get().docSession, {
+          type: "set_layout",
+          layout,
+        }),
+      });
+    },
+
+    rebindDoc: (boundCardId) => {
+      set({
+        docSession: reduceDocSession(get().docSession, {
+          type: "rebind",
+          boundCardId,
+        }),
+      });
+    },
+
+    retryDoc: async () => {
+      const before = get().docSession;
+      if (before.status !== "error" || !before.requestPath) return;
+      const path = before.requestPath;
+      set({
+        docSession: reduceDocSession(before, { type: "retry" }),
+      });
+      const epoch = get().docSession.epoch;
+      await finishDocLoad(get, set, path, epoch);
+    },
 
     pinLive: (id) => {
       const s = get();

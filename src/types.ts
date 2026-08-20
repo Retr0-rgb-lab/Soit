@@ -181,3 +181,24 @@ export interface UpdateCardArgs {
   next?: string | null;
   unread?: boolean;
 }
+
+/** Host `resolve_vault_doc` kind (PEL-156). */
+export type VaultDocKind = "md" | "text" | "pdf" | "unsupported";
+
+/** Host `resolve_vault_doc` result (camelCase JSON). */
+export interface ResolveVaultDocResult {
+  ok: boolean;
+  pathRel?: string;
+  pathAbs?: string;
+  kind?: VaultDocKind;
+  displayName?: string;
+  size?: number;
+  error?: string;
+}
+
+/** Host `read_vault_text` result (camelCase JSON). */
+export interface ReadVaultTextResult {
+  ok: boolean;
+  text?: string;
+  error?: string;
+}

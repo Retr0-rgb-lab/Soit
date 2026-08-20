@@ -8,11 +8,14 @@ import type {
   HostMutationResult,
   OpenUniverseResult,
   PrecipitateConceptResult,
+  ReadVaultTextResult,
+  ResolveVaultDocResult,
   SelectVaultResult,
   SkillInfo,
   SpawnInquiryHostArgs,
   UpdateCardArgs,
   UpdateTurnArgs,
+  VaultDocKind,
   WorkspaceSnapshot,
 } from "../types";
 import {
@@ -41,9 +44,93 @@ import {
 let browserHandoffCancel = false;
 let browserHandoffActive = false;
 
+/** Browser mock vault docs (PEL-156) — no Tauri / no real vault. */
+const MOCK_WELCOME_MD = `# 欢迎
+
+这是 Soit 陪读演示文档（浏览器 mock）。
+
+你可以在专注模式下并排阅读材料，划词后引用、解释或深挖发散。
+`;
+
+const MOCK_DEMO_MD: Record<string, string> = {
+  "demo/welcome.md": MOCK_WELCOME_MD,
+};
+
 function hasTauri(): boolean {
   if (typeof window === "undefined") return false;
   return "__TAURI_INTERNALS__" in window || "__TAURI__" in window;
+}
+
+function normalizeMockDocPath(path: string): string {
+  return path
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/^\.\/+/, "")
+    .replace(/^\/+/, "");
+}
+
+function mockProbeKind(pathRel: string): VaultDocKind {
+  const base = pathRel.split("/").pop() ?? pathRel;
+  const dot = base.lastIndexOf(".");
+  const ext = dot >= 0 ? base.slice(dot + 1).toLowerCase() : "";
+  if (ext === "md" || ext === "markdown") return "md";
+  if (ext === "pdf") return "pdf";
+  if (
+    ext === "txt" ||
+    ext === "text" ||
+    ext === "csv" ||
+    ext === "json" ||
+    ext === "yaml" ||
+    ext === "yml" ||
+    ext === "toml" ||
+    ext === "rs" ||
+    ext === "ts" ||
+    ext === "tsx" ||
+    ext === "js"
+  ) {
+    return "text";
+  }
+  return "unsupported";
+}
+
+function mockResolveVaultDoc(path: string): ResolveVaultDocResult {
+  const pathRel = normalizeMockDocPath(path);
+  if (!pathRel) {
+    return { ok: false, error: "path is empty" };
+  }
+  // Fixture map + any demo/*.md for npm run dev split pane.
+  const mapped = MOCK_DEMO_MD[pathRel];
+  const isDemoMd =
+    mapped != null ||
+    (pathRel.startsWith("demo/") && pathRel.toLowerCase().endsWith(".md"));
+  if (!isDemoMd) {
+    // Browser has no bound vault — match Host unbound error style.
+    return { ok: false, error: "universe_closed" };
+  }
+  const text = mapped ?? MOCK_WELCOME_MD;
+  const kind = mockProbeKind(pathRel);
+  const displayName = pathRel.split("/").pop() ?? pathRel;
+  const size = new TextEncoder().encode(text).length;
+  return {
+    ok: true,
+    pathRel,
+    pathAbs: `/mock-vault/${pathRel}`,
+    kind,
+    displayName,
+    size,
+  };
+}
+
+function mockReadVaultText(pathRelIn: string): ReadVaultTextResult {
+  const pathRel = normalizeMockDocPath(pathRelIn);
+  const mapped = MOCK_DEMO_MD[pathRel];
+  const isDemoMd =
+    mapped != null ||
+    (pathRel.startsWith("demo/") && pathRel.toLowerCase().endsWith(".md"));
+  if (!isDemoMd) {
+    return { ok: false, error: "universe_closed" };
+  }
+  return { ok: true, text: mapped ?? MOCK_WELCOME_MD };
 }
 
 export async function getBootstrapState(): Promise<BootstrapState> {
@@ -388,6 +475,38 @@ export async function cancelRuntimeHandoff(): Promise<CancelHandoffResult> {
   }
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<CancelHandoffResult>("cancel_runtime_handoff");
+}
+
+/**
+ * Resolve a vault-local document path (md/text/pdf/unsupported).
+ * Requires open universe on Host; browser mock serves demo/*.md fixtures.
+ */
+export async function resolveVaultDoc(
+  path: string,
+): Promise<ResolveVaultDocResult> {
+  if (!hasTauri()) {
+    return mockResolveVaultDoc(path);
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<ResolveVaultDocResult>("resolve_vault_doc", { path });
+}
+
+/**
+ * Read UTF-8 text under vault path sandbox. No truncation on oversize — error.
+ * Browser mock: demo/welcome.md and demo/*.md fixtures only.
+ */
+export async function readVaultText(
+  pathRel: string,
+  maxBytes?: number,
+): Promise<ReadVaultTextResult> {
+  if (!hasTauri()) {
+    return mockReadVaultText(pathRel);
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<ReadVaultTextResult>("read_vault_text", {
+    pathRel,
+    maxBytes: maxBytes ?? null,
+  });
 }
 
 async function browserMockHandoff(
