@@ -10,6 +10,7 @@ Project-wide: root `AGENTS.md`. IPC types mirrored in `../src/types.ts` and `../
 |------|------|
 | `src/lib.rs` | App state, commands, `run()`, command-level tests |
 | `src/universe/` | SQLite open/migrate/snapshot/mutations (`mod`, `dto`, `ids`, `schema`, `snapshot`, `mutations`) |
+| `src/doc/` | Vault doc resolve + UTF-8 text read (PEL-156 path sandbox; no PDF bytes) |
 | `src/obsidian/` | `concepts/` precipitate + `inquiry/` residue (no full transcripts) |
 | `src/skills.rs` | SKILL.md index, seed, enable/disable, inject text (soft cap 32768) |
 | `src/chat_config.rs` | BYOK JSON under app config dir (not universe.db) |
@@ -46,14 +47,12 @@ Project-wide: root `AGENTS.md`. IPC types mirrored in `../src/types.ts` and `../
 | `get_runtime_prefs` / `set_runtime_prefs` | `soit-runtime.json` in app config — **not** universe.db; default `enableSpawn: false`, `defaultRuntimeId: "mock"` |
 | `start_runtime_handoff` | P0 **mock only** (~800ms); non-mock → Err when `enableSpawn` false or CLI not implemented; optional `brief.md` under `vault/.soit/runs/<runId>/` |
 | `cancel_runtime_handoff` | Cancel in-flight mock handoff (`{ ok }`) |
+| `resolve_vault_doc` | PEL-156: `{ path }` → `{ ok, pathRel, pathAbs, kind, displayName, size, error? }`; kind `md\|text\|pdf\|unsupported`; requires open universe |
+| `read_vault_text` | PEL-156: `{ pathRel, maxBytes? }` → `{ ok, text?, error? }`; default max **1_500_000** bytes; oversize / non-UTF-8 → error (no silent truncate) |
 | `select_vault` | Thin wrapper → `open_universe` (compat) |
 | `ping` | Health `"pong"` |
-| `list_runtimes` | *(planned dual-track)* detect mock + optional CLIs; no process spawn on list |
-| `get_runtime_preferences` / `set_runtime_preferences` | *(planned)* `soit-runtime.json` in app config — **not** universe.db |
-| `start_runtime_handoff` | *(planned)* stage brief under `vault/.soit/runs/<runId>/`; mock path required for acceptance |
-| `get_runtime_run` / `cancel_runtime_run` | *(planned)* poll/cancel handoff; runs sandbox ≠ card source |
 
-Runtime commands are foreshadowed by dual-track spec v1.1 (`docs/superpowers/specs/2026-08-20-agent-dual-track-spec.md`); handlers may not exist yet — add permission + capability when implementing.
+Doc companion FE contract: `docs/superpowers/specs/2026-08-20-doc-companion-viewer-spec.md` v1.1. Permissions: `allow-resolve-vault-doc` / `allow-read-vault-text` in `permissions/bootstrap.toml` + `capabilities/default.json`.
 
 ## Load matrix
 
@@ -74,6 +73,7 @@ Runtime commands are foreshadowed by dual-track spec v1.1 (`docs/superpowers/spe
 - Deepen seed `ai_html` / user text: HTML-escape selection label before store.
 - `open_universe`: reject relative paths; store canonical vault path; schema_version > app → Err.
 - Runtime: `enableSpawn` Host-enforced default false; handoff cwd/files only under `vault/.soit/runs/<runId>/` (canonicalize prefix); reject `run_id` with `..` or path seps; at most one concurrent handoff.
+- **Vault docs (PEL-156):** `dunce::canonicalize` + `starts_with(vault_canon)`; reject path escape and reads under `vault/.soit/**`; `pathRel` output uses `/`; pdf resolve returns kind+size only (no bulk bytes / base64 in P0); commands no-op error when universe closed (`universe_closed`).
 - Production source files ≤800 LOC (`universe/` split enforces this).
 - Run `cargo test` / `cargo check` from this directory.
 
@@ -87,3 +87,4 @@ Runtime commands are foreshadowed by dual-track spec v1.1 (`docs/superpowers/spe
 - Add `tauri-plugin-shell` or expose free-form argv/shell to the frontend.
 - Treat external agent session dirs as card ids or universe source.
 - Spawn real CLI in P0 (mock handoff only; P1 adapter later).
+- Serve PDF via `data:` / `blob:` or register free-form fs scope outside the vault sandbox.
