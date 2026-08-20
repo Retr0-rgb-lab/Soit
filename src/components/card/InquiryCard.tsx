@@ -14,6 +14,7 @@ import "../overlays/overlays.css";
 import CardHeader from "./CardHeader";
 import Composer from "./Composer";
 import EdgeActions from "./EdgeActions";
+import TurnHistoryRail from "./TurnHistoryRail";
 import TurnItem from "./TurnItem";
 import "./card.css";
 
@@ -82,7 +83,12 @@ export default function InquiryCard() {
     turnId?: string;
     markId?: string;
   } | null>(null);
+  const [spawnError, setSpawnError] = useState<string | null>(null);
+  /** PEL-148: which turn the history rail treats as current / jumped-to */
+  const [activeTurnId, setActiveTurnId] = useState<string | null>(null);
+  const [railPinned, setRailPinned] = useState(false);
   const prevFocusRef = useRef(focusId);
+  const msgsRef = useRef<HTMLDivElement | null>(null);
 
   // Clear ephemeral UI + one-shot enter motion when focus card changes
   useEffect(() => {
@@ -91,6 +97,9 @@ export default function InquiryCard() {
     setFloat(null);
     setSelBar(null);
     setChooser(null);
+    setSpawnError(null);
+    setActiveTurnId(null);
+    setRailPinned(false);
     if (!focusId) return;
 
     const prev = prevFocusRef.current;
@@ -118,14 +127,17 @@ export default function InquiryCard() {
   useEffect(() => {
     if (!highlightSpan || !focusId) return;
 
+    let cancelled = false;
     const span = highlightSpan;
     // Expand collapsed target turn if needed
     const turn = (turnsByCardId[focusId] ?? []).find((t) => t.id === span.turnId);
     if (turn?.collapsed) {
-      toggleTurnCollapsed(turn.id);
+      toggleTurnCollapsed(turn.id, focusId);
     }
 
+    let innerTimer = 0;
     const timer = window.setTimeout(() => {
+      if (cancelled) return;
       const root =
         document.querySelector(`[data-turn="${CSS.escape(span.turnId)}"]`) ??
         document.querySelector(`[data-turn-id="${CSS.escape(span.turnId)}"]`);
@@ -155,14 +167,59 @@ export default function InquiryCard() {
       target.classList.add("mark-highlight");
       target.scrollIntoView({ block: "center", behavior: "smooth" });
 
-      window.setTimeout(() => {
+      innerTimer = window.setTimeout(() => {
+        if (cancelled) return;
         target.classList.remove("mark-highlight");
         clearHighlight();
       }, HIGHLIGHT_MS);
     }, 40);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      if (innerTimer) window.clearTimeout(innerTimer);
+    };
   }, [highlightSpan, focusId, turnsByCardId, toggleTurnCollapsed, clearHighlight]);
+
+  // Escape dismisses card overlays (chooser → selection → term float)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (chooser) {
+        e.preventDefault();
+        e.stopPropagation();
+        setChooser(null);
+        return;
+      }
+      if (selBar) {
+        e.preventDefault();
+        e.stopPropagation();
+        setSelBar(null);
+        return;
+      }
+      if (float) {
+        e.preventDefault();
+        e.stopPropagation();
+        setFloat(null);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [chooser, selBar, float]);
+
+  // Enter animation: clear enterOn even when prefers-reduced-motion skips animationend
+  useEffect(() => {
+    if (!enterOn) return;
+    const reduced =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const ms = reduced ? 50 : 520;
+    const t = window.setTimeout(() => {
+      setEnterOn(false);
+      setNavKind("jump");
+    }, ms);
+    return () => window.clearTimeout(t);
+  }, [enterOn, focusId]);
 
   const sourceLabel = focus?.title || "概念";
 
@@ -173,6 +230,7 @@ export default function InquiryCard() {
       extra?: { turnId?: string; markId?: string },
     ) => {
       setNavKind(kind);
+      setSpawnError(null);
       const text = (label || sourceLabel).slice(0, 48);
       const turns = focusId ? (turnsByCardId[focusId] ?? []) : [];
       const turnId =
@@ -182,7 +240,14 @@ export default function InquiryCard() {
         text,
         markId: extra?.markId,
       };
-      void spawnInquiry({ kind, source, actor: "user" });
+      void spawnInquiry({ kind, source, actor: "user" }).then((id) => {
+        if (!id) {
+          setNavKind("jump");
+          setSpawnError(
+            kind === "deepen" ? "深挖失败，请重试" : "发散失败，请重试",
+          );
+        }
+      });
       setFloat(null);
       setSelBar(null);
       setChooser(null);
@@ -316,6 +381,47 @@ export default function InquiryCard() {
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
+  const highlightTurnId = highlightSpan?.turnId;
+
+  // Prefer explicit rail selection; else first expanded turn; else last turn.
+  const railActiveId = useMemo(() => {
+    if (activeTurnId && turns.some((t) => t.id === activeTurnId)) {
+      return activeTurnId;
+    }
+    if (highlightTurnId && turns.some((t) => t.id === highlightTurnId)) {
+      return highlightTurnId;
+    }
+    const open = turns.find((t) => !t.collapsed);
+    if (open) return open.id;
+    return turns.length ? turns[turns.length - 1]!.id : null;
+  }, [activeTurnId, highlightTurnId, turns]);
+
+  const scrollToTurn = useCallback((turnId: string) => {
+    const root = msgsRef.current;
+    if (!root) return;
+    const el = root.querySelector(`[data-turn="${CSS.escape(turnId)}"]`);
+    if (el instanceof HTMLElement) {
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, []);
+
+  const onSelectHistoryTurn = useCallback(
+    (turnId: string) => {
+      if (!focusId) return;
+      setActiveTurnId(turnId);
+      setRailPinned(true);
+      const turn = turns.find((t) => t.id === turnId);
+      if (turn?.collapsed) {
+        toggleTurnCollapsed(turnId, focusId);
+      }
+      // Wait a frame so expand layout settles before scroll.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => scrollToTurn(turnId));
+      });
+    },
+    [focusId, turns, toggleTurnCollapsed, scrollToTurn],
+  );
+
   if (!focus) {
     return (
       <div className="inquiry-root">
@@ -326,8 +432,6 @@ export default function InquiryCard() {
       </div>
     );
   }
-
-  const highlightTurnId = highlightSpan?.turnId;
 
   return (
     <div className="inquiry-root">
@@ -371,8 +475,14 @@ export default function InquiryCard() {
                   window.dispatchEvent(new CustomEvent("soit:open-palette"))
                 }
               />
-              <div className="ic-body">
-                <div className="ic-msgs">
+              <div
+                className={`ic-body${railPinned ? " rail-open" : ""}`}
+                onMouseLeave={() => {
+                  // Keep expanded while pinned after a selection; clear pin on leave.
+                  setRailPinned(false);
+                }}
+              >
+                <div className="ic-msgs" ref={msgsRef}>
                   {turns.length === 0 ? (
                     <p className="inquiry-empty" style={{ padding: "12px 0" }}>
                       {focus.kind === "diverge"
@@ -385,21 +495,29 @@ export default function InquiryCard() {
                         key={t.id}
                         turn={t}
                         forceExpand={highlightTurnId === t.id}
-                        onToggleCollapsed={() => toggleTurnCollapsed(t.id)}
+                        railTarget={railActiveId === t.id}
+                        onToggleCollapsed={() =>
+                          toggleTurnCollapsed(t.id, focusId)
+                        }
                         onDeepen={(label, turnId) =>
                           onDeepen(label, { turnId })
                         }
                         onDiverge={(label, turnId) =>
                           onDiverge(label, { turnId })
                         }
-                        onRegenerate={() => regenerateTurn(t.id)}
-                        onDelete={() => deleteTurn(t.id)}
+                        onRegenerate={() => regenerateTurn(t.id, focusId)}
+                        onDelete={() => deleteTurn(t.id, focusId)}
                         onMarkClick={onMarkClick}
                         onAiMouseUp={onAiMouseUp}
                       />
                     ))
                   )}
                 </div>
+                <TurnHistoryRail
+                  turns={turns}
+                  activeTurnId={railActiveId}
+                  onSelect={onSelectHistoryTurn}
+                />
               </div>
             </article>
           </div>
@@ -418,6 +536,11 @@ export default function InquiryCard() {
         onClearQuote={() => setQuote("")}
         onSend={onSend}
       />
+      {spawnError ? (
+        <p className="ic-spawn-error" role="alert">
+          {spawnError}
+        </p>
+      ) : null}
 
       {float ? (
         <TermFloat

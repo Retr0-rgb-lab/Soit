@@ -436,16 +436,141 @@
   position: relative;
   flex: 1;
   min-height: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22px;
+  transition: grid-template-columns 0.32s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+/* Hover right edge or focus rail → expand history titles (PEL-148 / Explore). */
+.ic-body:hover,
+.ic-body.rail-open,
+.ic-body:focus-within {
+  grid-template-columns: minmax(0, 1fr) 156px;
 }
 
 .ic-msgs {
-  flex: 1;
   min-width: 0;
   overflow: auto;
-  padding: 2px 18px 20px 22px;
+  padding: 2px 12px 20px 22px;
   scrollbar-width: thin;
   scrollbar-color: rgb(90 80 65 / 28%) transparent;
+}
+
+/* --- Turn history rail (card-internal, not workspace graph) --- */
+.ic-turn-rail {
+  overflow: hidden;
+  min-width: 0;
+  border-left: 1px solid rgb(90 80 65 / 8%);
+  background: linear-gradient(90deg, transparent, rgb(255 252 246 / 45%));
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 10px 0;
+}
+
+.ic-turn-rail-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+
+.ic-turn-rail-item {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: right;
+  padding: 8px 10px;
+  color: var(--ink-soft, #6b645c);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.35;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    padding 0.25s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.ic-turn-rail-item:hover {
+  color: var(--ink);
+  background: rgb(255 252 246 / 55%);
+}
+
+.ic-turn-rail-item:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--focus, #8a7a5c) 55%, transparent);
+  outline-offset: -2px;
+}
+
+.ic-turn-rail-item.on {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.ic-turn-rail-hint {
+  display: block;
+  font-size: 10px;
+  opacity: 0.55;
+  margin-bottom: 2px;
+  transition: opacity 0.2s;
+}
+
+.ic-turn-rail-title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Collapsed rail: dots only */
+.ic-body:not(:hover):not(.rail-open):not(:focus-within) .ic-turn-rail-item {
+  font-size: 0;
+  line-height: 0;
+  padding: 12px 0;
+  text-align: center;
+}
+
+.ic-body:not(:hover):not(.rail-open):not(:focus-within) .ic-turn-rail-hint,
+.ic-body:not(:hover):not(.rail-open):not(:focus-within) .ic-turn-rail-title {
+  opacity: 0;
+  height: 0;
+  margin: 0;
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
+  clip: rect(0 0 0 0);
+}
+
+.ic-body:not(:hover):not(.rail-open):not(:focus-within) .ic-turn-rail-item::after {
+  content: "";
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #b7aea2;
+  margin: 0 auto;
+  transition:
+    transform 0.18s,
+    background 0.18s;
+}
+
+.ic-body:not(:hover):not(.rail-open):not(:focus-within) .ic-turn-rail-item.on::after {
+  background: var(--ink);
+  transform: scale(1.2);
+}
+
+.ic-turn.rail-target {
+  border-color: rgb(90 80 65 / 22%);
+  background: rgb(255 252 246 / 78%);
+  box-shadow: 0 0 0 1px rgb(90 80 65 / 8%);
 }
 
 .ic-turn {
@@ -731,6 +856,16 @@ body.has-selbar .ic-turn-bar {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  z-index: 8;
+}
+
+.ic-spawn-error {
+  width: min(820px, 100%);
+  margin: -4px auto 0;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--danger);
   z-index: 8;
 }
 

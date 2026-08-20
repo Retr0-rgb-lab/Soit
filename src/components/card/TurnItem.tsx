@@ -25,6 +25,8 @@ interface Props {
   onAiMouseUp: (e: React.MouseEvent, turnId: string) => void;
   /** When true, force-expand so highlight target is visible. */
   forceExpand?: boolean;
+  /** History rail selection — soft visual target. */
+  railTarget?: boolean;
 }
 
 export default function TurnItem({
@@ -37,6 +39,7 @@ export default function TurnItem({
   onMarkClick,
   onAiMouseUp,
   forceExpand,
+  railTarget,
 }: Props) {
   const [bookOn, setBookOn] = useState(false);
   const [thinkOpen, setThinkOpen] = useState(turn.thinkOpen);
@@ -64,7 +67,7 @@ export default function TurnItem({
 
   return (
     <div
-      className={`ic-turn${collapsed ? " collapsed" : ""}`}
+      className={`ic-turn${collapsed ? " collapsed" : ""}${railTarget ? " rail-target" : ""}`}
       data-turn={turn.id}
       onClick={onCollapsedClick}
       role={collapsed ? "button" : undefined}
@@ -111,8 +114,8 @@ export default function TurnItem({
           <button
             type="button"
             className="ic-round"
-            data-tip={bookOn ? "取消收藏本轮" : "收藏本轮"}
-            aria-label={bookOn ? "取消收藏本轮" : "收藏本轮"}
+            data-tip={bookOn ? "取消钉住本轮（仅本会话）" : "钉住本轮（仅本会话）"}
+            aria-label={bookOn ? "取消钉住本轮" : "钉住本轮"}
             onClick={() => setBookOn((v) => !v)}
           >
             <IconBookmark />
