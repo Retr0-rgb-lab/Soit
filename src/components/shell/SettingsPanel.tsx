@@ -8,9 +8,16 @@ import {
   type LazyExoticComponent,
 } from "react";
 import AboutSection from "./settings/AboutSection";
+import AppearanceSection from "./settings/AppearanceSection";
 import "./settings/settings.css";
 
-export type SettingsSection = "space" | "model" | "runtime" | "skills" | "about";
+export type SettingsSection =
+  | "space"
+  | "appearance"
+  | "model"
+  | "runtime"
+  | "skills"
+  | "about";
 
 type Props = {
   open: boolean;
@@ -21,6 +28,7 @@ type Props = {
 
 const NAV: { id: SettingsSection; label: string; hint: string }[] = [
   { id: "space", label: "空间", hint: "本库 · Obsidian" },
+  { id: "appearance", label: "外观", hint: "主题 · 字体" },
   { id: "model", label: "模型", hint: "BYOK 密钥" },
   { id: "runtime", label: "运行时", hint: "本机 Agent" },
   { id: "skills", label: "技能", hint: "本库启停" },
@@ -130,6 +138,7 @@ export default function SettingsPanel({
 
   const body = useMemo(() => {
     if (section === "about") return <AboutSection />;
+    if (section === "appearance") return <AppearanceSection />;
     if (section === "space")
       return <OptionalSection section="space" Comp={lazySpace} />;
     if (section === "model")

@@ -20,6 +20,7 @@ function isTypingTarget(t: EventTarget | null): boolean {
 function parseSettingsSection(raw: unknown): SettingsSection | null {
   if (
     raw === "space" ||
+    raw === "appearance" ||
     raw === "model" ||
     raw === "runtime" ||
     raw === "skills" ||
