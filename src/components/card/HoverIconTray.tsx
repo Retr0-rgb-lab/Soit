@@ -15,7 +15,8 @@ export type HoverIconTrayProps = {
 
 /**
  * React Bits Dock–inspired tray (CSS slide, no motion lib).
- * Collapsed: ⋯ trigger. Hover / focus-within / click → icons expand (centered above card).
+ * Collapsed: ⋯ trigger. Hover / focus-within / click → icons expand.
+ * Host (`.ic-card-tools-bl`) is bottom-left; hidden until card hover.
  */
 export default function HoverIconTray({
   label = "卡片工具",

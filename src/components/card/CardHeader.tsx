@@ -11,6 +11,7 @@ import {
   ELLIPSIS_CRUMB_ID,
 } from "../../lib/treeNav";
 import type { InquiryNode } from "../../types";
+
 interface Crumb {
   id: string;
   title: string;
@@ -43,19 +44,19 @@ interface Props {
 
 const CardHeader = forwardRef<HTMLDivElement, Props>(function CardHeader(
   {
-  crumbs,
-  title,
-  status,
-  question,
-  onCrumb,
-  onReturnToSource,
-  onDragSurfacePointerDown,
-  onDragSurfacePointerMove,
-  onDragSurfacePointerUp,
-  onDragSurfacePointerCancel,
-  parent,
-  chromeFade = 0,
-},
+    crumbs,
+    title,
+    status,
+    question,
+    onCrumb,
+    onReturnToSource,
+    onDragSurfacePointerDown,
+    onDragSurfacePointerMove,
+    onDragSurfacePointerUp,
+    onDragSurfacePointerCancel,
+    parent,
+    chromeFade = 0,
+  },
   ref,
 ) {
   const [crumbsExpanded, setCrumbsExpanded] = useState(false);
@@ -86,94 +87,94 @@ const CardHeader = forwardRef<HTMLDivElement, Props>(function CardHeader(
           pointerEvents: faded ? "none" : fade.pointerEvents,
         }}
       >
-      <div
-        className={`titles${dragEnabled ? " ic-drag-surface" : ""}`}
-        onPointerDown={onDragSurfacePointerDown}
-        onPointerMove={onDragSurfacePointerMove}
-        onPointerUp={onDragSurfacePointerUp}
-        onPointerCancel={onDragSurfacePointerCancel}
-        title={
-          dragEnabled
-            ? "拖标题：甩开切换 · 按住片刻在拖动处打开小窗"
-            : undefined
-        }
-      >
-        <nav className="ic-crumbs" aria-label="探究路径">
-          {visible.length === 0 ? (
-            <span className="ic-crumb muted">Soit</span>
-          ) : (
-            visible.map((c, i) => {
-              const last = i === visible.length - 1;
-              return (
-                <span key={`${c.id}-${i}`} className="ic-crumb-wrap">
-                  {i > 0 && (
-                    <span className="ic-crumb-sep" aria-hidden>
-                      /
-                    </span>
-                  )}
-                  {c.id === ELLIPSIS_CRUMB_ID ? (
-                    <button
-                      type="button"
-                      className="ic-crumb link"
-                      aria-label="展开完整路径"
-                      onClick={() => setCrumbsExpanded(true)}
-                    >
-                      …
-                    </button>
-                  ) : last ? (
-                    <span className="ic-crumb current" aria-current="page">
-                      {c.title}
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="ic-crumb link"
-                      onClick={() => onCrumb(c.id)}
-                    >
-                      {c.title}
-                    </button>
-                  )}
+        <div
+          className={`titles${dragEnabled ? " ic-drag-surface" : ""}`}
+          onPointerDown={onDragSurfacePointerDown}
+          onPointerMove={onDragSurfacePointerMove}
+          onPointerUp={onDragSurfacePointerUp}
+          onPointerCancel={onDragSurfacePointerCancel}
+          title={
+            dragEnabled
+              ? "拖标题：甩开切换 · 按住片刻在拖动处打开小窗"
+              : undefined
+          }
+        >
+          <nav className="ic-crumbs" aria-label="探究路径">
+            {visible.length === 0 ? (
+              <span className="ic-crumb muted">Soit</span>
+            ) : (
+              visible.map((c, i) => {
+                const last = i === visible.length - 1;
+                return (
+                  <span key={`${c.id}-${i}`} className="ic-crumb-wrap">
+                    {i > 0 && (
+                      <span className="ic-crumb-sep" aria-hidden>
+                        /
+                      </span>
+                    )}
+                    {c.id === ELLIPSIS_CRUMB_ID ? (
+                      <button
+                        type="button"
+                        className="ic-crumb link"
+                        aria-label="展开完整路径"
+                        onClick={() => setCrumbsExpanded(true)}
+                      >
+                        …
+                      </button>
+                    ) : last ? (
+                      <span className="ic-crumb current" aria-current="page">
+                        {c.title}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="ic-crumb link"
+                        onClick={() => onCrumb(c.id)}
+                      >
+                        {c.title}
+                      </button>
+                    )}
+                  </span>
+                );
+              })
+            )}
+            {crumbsExpanded && crumbs.length > 4 && (
+              <button
+                type="button"
+                className="ic-crumb link"
+                style={{ marginLeft: 8 }}
+                onClick={() => setCrumbsExpanded(false)}
+              >
+                收起
+              </button>
+            )}
+          </nav>
+          <h1>{title}</h1>
+          {(status || question) && (
+            <div className="ic-meta">
+              {status ? (
+                <span className="ic-status" data-status={status}>
+                  {status}
                 </span>
-              );
-            })
+              ) : null}
+              {question ? <p className="ic-question">{question}</p> : null}
+            </div>
           )}
-          {crumbsExpanded && crumbs.length > 4 && (
-            <button
-              type="button"
-              className="ic-crumb link"
-              style={{ marginLeft: 8 }}
-              onClick={() => setCrumbsExpanded(false)}
-            >
-              收起
-            </button>
+          {parent && (
+            <p className="ic-source-chip">
+              <span className="ic-source-label">来自</span>
+              <button
+                type="button"
+                className="ic-source-link"
+                onClick={() =>
+                  onReturnToSource ? onReturnToSource() : onCrumb(parent.id)
+                }
+              >
+                {parent.title}
+              </button>
+            </p>
           )}
-        </nav>
-        <h1>{title}</h1>
-        {(status || question) && (
-          <div className="ic-meta">
-            {status ? (
-              <span className="ic-status" data-status={status}>
-                {status}
-              </span>
-            ) : null}
-            {question ? <p className="ic-question">{question}</p> : null}
-          </div>
-        )}
-        {parent && (
-          <p className="ic-source-chip">
-            <span className="ic-source-label">来自</span>
-            <button
-              type="button"
-              className="ic-source-link"
-              onClick={() =>
-                onReturnToSource ? onReturnToSource() : onCrumb(parent.id)
-              }
-            >
-              {parent.title}
-            </button>
-          </p>
-        )}
-      </div>
+        </div>
       </div>
     </div>
   );

@@ -53,7 +53,7 @@ Doc companion (PEL-156): `docs/superpowers/specs/2026-08-20-doc-companion-viewer
   - 子 Tab：**供应商**（凭证+端点）· **可用模型**（目录 + 对话选用）
   - 删供应商 → 级联删其下模型；若删到 active → `activeModelId=null`（回 Mock）
   - 编辑供应商 API Key 留空 → 保留旧密钥；列表永不展示密钥明文
-  - Base URL 须 http(s)；保存后 `soit:chat-config-changed`；Composer chip：`Mock · 本地` / `在线 · {label|modelId}`
+  - Base URL 须 http(s)；保存后 `soit:chat-config-changed`；Composer 模型：工具栏 Cpu 图标，点击弹出切换（本地预览 + 管理模型…）；输入从 textarea 左缘起
   - 投影：`getChatConfig` = active → 旧扁平 `ChatConfig`（Port 兼容）；密钥仅 app config / localStorage，**不进** universe.db
   - Spec: `docs/superpowers/specs/2026-08-20-model-providers-spec.md`
 - **运行时** → external coding-agent detect/prefs/`enableSpawn`

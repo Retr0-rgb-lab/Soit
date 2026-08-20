@@ -9,6 +9,7 @@ import BranchUp from "reicon-react/icons/BranchUp";
 import Send from "reicon-react/icons/Send";
 import AngleDown from "reicon-react/icons/AngleDown";
 import AngleRight from "reicon-react/icons/AngleRight";
+import Cpu from "reicon-react/icons/Cpu";
 
 type IconProps = SVGProps<SVGSVGElement>;
 
@@ -214,4 +215,9 @@ export function IconAt(p: IconProps) {
       <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8" />
     </svg>
   );
+}
+
+/** Composer model picker */
+export function IconModel(p: IconProps = {}) {
+  return reicon(Cpu, p);
 }

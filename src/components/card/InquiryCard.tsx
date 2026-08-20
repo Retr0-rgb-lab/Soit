@@ -705,60 +705,6 @@ export default function InquiryCard() {
             ref={cardWrapRef}
             style={peelStyle}
           >
-            {/* Card tools: centered above the card (not top-right — avoids history rail) */}
-            <div
-              className={`ic-card-tools-bar${chromeFade > 0.92 ? " is-faded" : ""}`}
-              style={
-                chromeFade > 0.02
-                  ? {
-                      opacity: Math.max(0, 1 - chromeFade * 1.15),
-                      pointerEvents: chromeFade > 0.92 ? "none" : undefined,
-                    }
-                  : undefined
-              }
-            >
-              <HoverIconTray label="卡片工具">
-                <button
-                  type="button"
-                  className="ic-round"
-                  data-tip="跳转卡片 Ctrl+K"
-                  aria-label="跳转卡片"
-                  onClick={() =>
-                    window.dispatchEvent(new CustomEvent("soit:open-palette"))
-                  }
-                >
-                  <IconJump />
-                </button>
-                <button
-                  type="button"
-                  className="ic-round"
-                  data-tip="图谱 Ctrl+\\"
-                  aria-label="打开图谱"
-                  onClick={() => setMode("map")}
-                >
-                  <IconMap />
-                </button>
-                <button
-                  type="button"
-                  className={`ic-round${focusMode ? " on" : ""}`}
-                  data-tip={focusMode ? "退出专注 Esc" : "专注模式"}
-                  aria-label={focusMode ? "退出专注模式" : "专注模式"}
-                  aria-pressed={focusMode}
-                  onClick={() => setFocusMode((v) => !v)}
-                >
-                  {focusMode ? <IconFocusExit /> : <IconFocus />}
-                </button>
-                <button
-                  type="button"
-                  className="ic-round"
-                  data-tip="从此卡片深挖"
-                  aria-label="从此卡片深挖"
-                  onClick={() => onDeepen(focus.title)}
-                >
-                  <IconDeepen />
-                </button>
-              </HoverIconTray>
-            </div>
             <article
               className={`inquiry-card${enterOn ? ` enter enter-${navKind}` : ""}`}
               aria-label="inquiry card body"
@@ -828,6 +774,50 @@ export default function InquiryCard() {
                     ))
                   )}
                 </div>
+              </div>
+              {/* Bottom-left tools: hidden until card hover (same layer as card) */}
+              <div className="ic-card-tools-bl">
+                <HoverIconTray label="卡片工具">
+                  <button
+                    type="button"
+                    className="ic-round"
+                    data-tip="跳转卡片 Ctrl+K"
+                    aria-label="跳转卡片"
+                    onClick={() =>
+                      window.dispatchEvent(new CustomEvent("soit:open-palette"))
+                    }
+                  >
+                    <IconJump />
+                  </button>
+                  <button
+                    type="button"
+                    className="ic-round"
+                    data-tip="图谱 Ctrl+\\"
+                    aria-label="打开图谱"
+                    onClick={() => setMode("map")}
+                  >
+                    <IconMap />
+                  </button>
+                  <button
+                    type="button"
+                    className={`ic-round${focusMode ? " on" : ""}`}
+                    data-tip={focusMode ? "退出专注 Esc" : "专注模式"}
+                    aria-label={focusMode ? "退出专注模式" : "专注模式"}
+                    aria-pressed={focusMode}
+                    onClick={() => setFocusMode((v) => !v)}
+                  >
+                    {focusMode ? <IconFocusExit /> : <IconFocus />}
+                  </button>
+                  <button
+                    type="button"
+                    className="ic-round"
+                    data-tip="从此卡片深挖"
+                    aria-label="从此卡片深挖"
+                    onClick={() => onDeepen(focus.title)}
+                  >
+                    <IconDeepen />
+                  </button>
+                </HoverIconTray>
               </div>
             </article>
             {/* In-flow right rail — open state shrinks the card */}

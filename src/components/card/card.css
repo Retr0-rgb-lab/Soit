@@ -164,8 +164,8 @@
   flex-direction: row;
   align-items: stretch;
   z-index: 2;
-  /* visible: tools bar sits half above the card top edge */
-  overflow: visible;
+  /* History rail is in-flow: open state shrinks the card */
+  overflow: hidden;
   transition: transform 0.22s var(--ease-soft);
   will-change: transform;
   min-width: 0;
@@ -514,7 +514,7 @@
   align-items: flex-start;
   justify-content: flex-start;
   gap: 12px;
-  pointer-events: auto; /* titles stay clickable while visible */
+  pointer-events: auto;
   transition:
     opacity 0.3s ease-in-out,
     transform 0.3s ease-in-out,
@@ -656,48 +656,50 @@
 }
 
 /*
- * Card tools bar — centered above the card (not top-right; avoids history rail).
+ * Card tools — bottom-left, same layer as card body.
+ * Default faded out; show only when hovering / focusing the card
+ * (or tray pinned open so click targets stay reachable).
  */
-.ic-card-tools-bar {
+.ic-card-tools-bl {
   position: absolute;
-  top: 0;
-  left: 50%;
-  z-index: 8;
-  transform: translate(-50%, -50%);
+  left: 12px;
+  bottom: 12px;
+  z-index: 6;
   display: flex;
-  justify-content: center;
-  pointer-events: none;
-  transition: opacity 0.3s ease-in-out;
-}
-
-.ic-card-tools-bar > * {
-  pointer-events: auto;
-}
-
-.ic-card-tools-bar.is-faded {
+  align-items: center;
   opacity: 0;
+  transform: translateY(4px);
   pointer-events: none;
+  transition:
+    opacity 0.22s var(--ease-soft, ease),
+    transform 0.22s var(--ease-soft, ease),
+    visibility 0.22s ease;
   visibility: hidden;
+}
+
+.inquiry-card:hover .ic-card-tools-bl,
+.inquiry-card:focus-within .ic-card-tools-bl,
+.ic-card-tools-bl:focus-within,
+.ic-card-tools-bl:has(.ic-icon-tray.is-open) {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  visibility: visible;
 }
 
 /*
  * Hover icon tray (React Bits Dock–inspired, CSS-only slide).
- * Collapsed: ⋯ centered. Open → icons expand outward; trigger hides.
+ * Collapsed: ⋯. Open → icons expand; trigger hides.
  */
 .ic-icon-tray {
   position: relative;
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0;
-  padding: 6px 10px;
+  padding: 0;
   margin: 0;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
-  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
-  box-shadow: var(--e1);
-  backdrop-filter: blur(10px);
 }
 
 .ic-icon-tray-trigger {
@@ -720,7 +722,7 @@
   gap: 6px;
   max-width: 0;
   opacity: 0;
-  transform: translateY(6px) scale(0.96);
+  transform: translateX(-8px);
   overflow: hidden;
   pointer-events: none;
   transition:
@@ -732,7 +734,7 @@
 .ic-icon-tray-rail > .ic-round {
   flex: 0 0 auto;
   opacity: 0;
-  transform: translateY(4px);
+  transform: translateX(-6px);
   transition:
     opacity var(--motion-fade, 0.16s) var(--ease-soft),
     transform var(--motion-pop, 0.28s) var(--ease-out),
@@ -843,6 +845,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .ic-card-tools-bl,
   .ic-icon-tray-rail,
   .ic-icon-tray-rail > .ic-round,
   .ic-icon-tray-trigger,
@@ -1494,6 +1497,129 @@ body.has-selbar .ic-turn-bar {
 .ic-dock:focus-within {
   border-color: color-mix(in srgb, var(--line-strong) 70%, var(--focus) 30%);
   box-shadow: var(--e2), 0 0 0 3px color-mix(in srgb, var(--accent-soft) 45%, transparent);
+}
+
+/* Model picker — toolbar icon only; text starts at textarea left edge */
+.ic-model-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.ic-tool-btn.ic-model-btn.is-live {
+  color: var(--accent);
+}
+
+.ic-tool-btn.ic-model-btn.is-live.on,
+.ic-tool-btn.ic-model-btn.is-live:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-soft) 55%, transparent);
+  color: var(--accent);
+}
+
+.ic-model-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 24;
+  width: min(260px, 72vw);
+  max-height: min(320px, 50vh);
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  border-radius: 14px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg-card);
+  box-shadow: var(--e3, var(--e2));
+  color: var(--ink);
+}
+
+.ic-model-menu-head {
+  margin: 0 4px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.ic-model-menu-empty {
+  margin: 4px 6px 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.ic-model-option-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  max-height: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ic-model-option {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  margin: 0 0 2px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ic-model-option:hover:not(:disabled) {
+  background: var(--bg-muted);
+}
+
+.ic-model-option.is-active {
+  background: color-mix(in srgb, var(--accent-soft) 50%, transparent);
+}
+
+.ic-model-option:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.ic-model-option-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.ic-model-option-sub {
+  font-size: 11px;
+  color: var(--ink-faint);
+  line-height: 1.3;
+}
+
+.ic-model-manage {
+  margin-top: 6px;
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 8px 8px;
+  padding: 9px 10px 4px;
+  background: transparent;
+  color: var(--accent, var(--ink-soft));
+  font: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ic-model-manage:hover {
+  color: var(--ink);
 }
 
 .ic-dock .fields {

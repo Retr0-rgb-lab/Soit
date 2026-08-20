@@ -21,16 +21,29 @@ import {
 import {
   activeModelLabel,
   DEFAULT_CHAT_CONFIG,
+  emptyModelSettings,
   portKindFromConfig,
   resolveChatConfig,
   stripHtml,
   type ChatConfig,
+  type ModelEntry,
+  type ModelSettings,
 } from "../../lib/chat";
-import { getChatConfig, getModelSettings } from "../../lib/host";
+import {
+  getChatConfig,
+  getModelSettings,
+  setModelSettings,
+} from "../../lib/host";
 import { rankPaletteNodes } from "../../lib/paletteRank";
 import { kindGlyph } from "../../lib/treeNav";
 import { useWorkspace } from "../../state/workspaceStore";
-import { IconAttach, IconAt, IconDoc, IconSend, IconX } from "./icons";
+import {
+  IconAttach,
+  IconAt,
+  IconModel,
+  IconSend,
+  IconX,
+} from "./icons";
 
 /** Astryx Typeahead maxMenuItems / TypeaheadLimitedResults density. */
 const MENTION_MENU_CAP = 6;
@@ -48,25 +61,22 @@ interface Props {
 function nextAttId(): string {
   return `a_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 }
-function truncateChip(text: string, max = 18): string {
-  const t = text.trim();
-  if (!t) return "model";
-  return t.length > max ? `${t.slice(0, max - 2)}…` : t;
+
+function modelEntryLabel(m: ModelEntry): string {
+  return (m.label && m.label.trim()) || m.modelId;
 }
 
-/** Mock · 本地 | 在线 · {label|modelId} */
-function chipLabel(cfg: ChatConfig, displayName: string | null): string {
-  if (portKindFromConfig(cfg) === "mock") return "Mock · 本地";
-  const name = displayName?.trim() || cfg.model.trim() || "model";
-  return `在线 · ${truncateChip(name)}`;
-}
-
-function chipTip(cfg: ChatConfig, displayName: string | null): string {
-  if (portKindFromConfig(cfg) === "mock") {
-    return "未配置 API Key · 使用 MockChat（点击设置 BYOK）";
+function modelTriggerTip(
+  cfg: ChatConfig,
+  displayName: string | null,
+  catalogCount: number,
+): string {
+  if (portKindFromConfig(cfg) === "openai") {
+    const name = displayName?.trim() || cfg.model || "模型";
+    return `${name} · 点击切换`;
   }
-  const name = displayName?.trim() || cfg.model || "model";
-  return `${cfg.baseUrl || "endpoint"} · ${name}（点击改配置）`;
+  if (catalogCount === 0) return "添加并选择对话模型";
+  return "尚未选用模型 · 点击切换（当前本地预览）";
 }
 
 export default function Composer({
@@ -80,8 +90,14 @@ export default function Composer({
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const modelMenuRef = useRef<HTMLDivElement>(null);
   const [cfg, setCfg] = useState<ChatConfig>({ ...DEFAULT_CHAT_CONFIG });
   const [modelDisplay, setModelDisplay] = useState<string | null>(null);
+  const [modelSettings, setModelSettingsState] = useState<ModelSettings>(
+    emptyModelSettings(),
+  );
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const [modelSwitching, setModelSwitching] = useState(false);
 
   const nodes = useWorkspace((s) => s.nodes);
   const focusId = useWorkspace((s) => s.focusId);
@@ -115,16 +131,22 @@ export default function Composer({
     attachments.length > 0;
 
   const kind = portKindFromConfig(cfg);
+  const enabledModels = useMemo(
+    () => modelSettings.models.filter((m) => m.enabled),
+    [modelSettings.models],
+  );
 
   const reloadConfig = useCallback(async () => {
     try {
       const settings = await getModelSettings();
+      setModelSettingsState(settings);
       setModelDisplay(activeModelLabel(settings));
       setCfg(resolveChatConfig(settings));
     } catch {
       const c = await getChatConfig();
       setCfg(c);
       setModelDisplay(c.model.trim() || null);
+      setModelSettingsState(emptyModelSettings());
     }
   }, []);
 
@@ -141,6 +163,40 @@ export default function Composer({
       window.removeEventListener("soit:chat-config-changed", onChanged);
   }, [reloadConfig]);
 
+  const applyActiveModel = useCallback(
+    async (activeModelId: string | null) => {
+      if (modelSwitching) return;
+      if (modelSettings.activeModelId === activeModelId) {
+        setModelMenuOpen(false);
+        return;
+      }
+      setModelSwitching(true);
+      try {
+        const next = { ...modelSettings, activeModelId };
+        await setModelSettings(next);
+        setModelSettingsState(next);
+        setModelDisplay(activeModelLabel(next));
+        setCfg(resolveChatConfig(next));
+        window.dispatchEvent(new CustomEvent("soit:chat-config-changed"));
+        setModelMenuOpen(false);
+      } catch {
+        await reloadConfig();
+      } finally {
+        setModelSwitching(false);
+      }
+    },
+    [modelSettings, modelSwitching, reloadConfig],
+  );
+
+  const openModelSettings = useCallback(() => {
+    setModelMenuOpen(false);
+    window.dispatchEvent(
+      new CustomEvent("soit:open-settings", {
+        detail: { section: "model" },
+      }),
+    );
+  }, []);
+
   useEffect(() => {
     const el = taRef.current;
     if (!el) return;
@@ -153,6 +209,7 @@ export default function Composer({
     setCardRefs([]);
     setAttachments([]);
     setPickerOpen(false);
+    setModelMenuOpen(false);
     setMentionSpan(null);
     setAttachError(null);
   }, [focusId]);
@@ -450,29 +507,42 @@ export default function Composer({
     return () => document.removeEventListener("mousedown", onDoc);
   }, [pickerOpen, closePicker]);
 
+  // Click outside model menu
+  useEffect(() => {
+    if (!modelMenuOpen) return;
+    const onDoc = (ev: MouseEvent) => {
+      const t = ev.target as Node;
+      if (modelMenuRef.current?.contains(t)) return;
+      setModelMenuOpen(false);
+    };
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape") {
+        ev.preventDefault();
+        setModelMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [modelMenuOpen]);
+
   const stopTip = inquiryInflight
     ? "停止生成"
     : runtimeBusy
       ? "停止本地 Agent"
       : "停止";
 
+  const providerLabel = (providerId: string) =>
+    modelSettings.providers.find((p) => p.id === providerId)?.name ?? "供应商";
+
   return (
     <div className="ic-dock-wrap">
-      <div className={`ic-dock${pickerOpen ? " picker-open" : ""}`}>
-        <button
-          type="button"
-          className={`model${kind === "mock" ? " is-mock" : " is-byok"}`}
-          data-tip={chipTip(cfg, modelDisplay)}
-          onClick={() => {
-            window.dispatchEvent(
-              new CustomEvent("soit:open-settings", {
-                detail: { section: "model" },
-              }),
-            );
-          }}
-        >
-          {chipLabel(cfg, modelDisplay)}
-        </button>
+      <div
+        className={`ic-dock${pickerOpen || modelMenuOpen ? " picker-open" : ""}`}
+      >
         <div className="fields">
           {quote ? (
             <div className="ic-quote-chip on">
@@ -556,6 +626,93 @@ export default function Composer({
 
           <div className="ic-dock-toolbar">
             <div className="ic-dock-tools">
+              <div className="ic-model-wrap" ref={modelMenuRef}>
+                <button
+                  type="button"
+                  className={`ic-tool-btn ic-model-btn${kind === "mock" ? " is-idle" : " is-live"}${modelMenuOpen ? " on" : ""}`}
+                  data-tip={modelTriggerTip(
+                    cfg,
+                    modelDisplay,
+                    enabledModels.length,
+                  )}
+                  aria-label={
+                    kind === "openai" && modelDisplay
+                      ? `对话模型：${modelDisplay}`
+                      : "选择对话模型"
+                  }
+                  aria-haspopup="listbox"
+                  aria-expanded={modelMenuOpen}
+                  disabled={modelSwitching}
+                  onClick={() => {
+                    setPickerOpen(false);
+                    setModelMenuOpen((v) => !v);
+                  }}
+                >
+                  <IconModel />
+                </button>
+
+                {modelMenuOpen ? (
+                  <div
+                    className="ic-model-menu"
+                    role="listbox"
+                    aria-label="对话模型"
+                  >
+                    <p className="ic-model-menu-head">对话模型</p>
+                    <button
+                      type="button"
+                      role="option"
+                      className={`ic-model-option${kind === "mock" ? " is-active" : ""}`}
+                      aria-selected={kind === "mock"}
+                      disabled={modelSwitching}
+                      onClick={() => void applyActiveModel(null)}
+                    >
+                      <span className="ic-model-option-title">本地预览</span>
+                      <span className="ic-model-option-sub">
+                        无密钥 · 占位回复（不调模型）
+                      </span>
+                    </button>
+                    {enabledModels.length === 0 ? (
+                      <p className="ic-model-menu-empty">
+                        还没有可用模型。先在设置里添加供应商与模型。
+                      </p>
+                    ) : (
+                      <ul className="ic-model-option-list">
+                        {enabledModels.map((m) => {
+                          const active = modelSettings.activeModelId === m.id;
+                          const title = modelEntryLabel(m);
+                          return (
+                            <li key={m.id}>
+                              <button
+                                type="button"
+                                role="option"
+                                className={`ic-model-option${active ? " is-active" : ""}`}
+                                aria-selected={active}
+                                disabled={modelSwitching}
+                                onClick={() => void applyActiveModel(m.id)}
+                              >
+                                <span className="ic-model-option-title">
+                                  {title}
+                                </span>
+                                <span className="ic-model-option-sub">
+                                  {providerLabel(m.providerId)}
+                                  {m.label?.trim() ? ` · ${m.modelId}` : ""}
+                                </span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                    <button
+                      type="button"
+                      className="ic-model-manage"
+                      onClick={openModelSettings}
+                    >
+                      管理模型…
+                    </button>
+                  </div>
+                ) : null}
+              </div>
               <button
                 type="button"
                 className="ic-tool-btn"
@@ -565,18 +722,6 @@ export default function Composer({
                 onClick={() => fileRef.current?.click()}
               >
                 <IconAttach />
-              </button>
-              <button
-                type="button"
-                className="ic-tool-btn"
-                data-tip="打开文档"
-                aria-label="打开文档"
-                disabled={inputLocked}
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent("soit:open-doc"));
-                }}
-              >
-                <IconDoc />
               </button>
               <button
                 type="button"
