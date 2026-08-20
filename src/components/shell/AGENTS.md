@@ -9,9 +9,10 @@ Doc companion (PEL-156): `docs/superpowers/specs/2026-08-20-doc-companion-viewer
 
 | File | Role |
 |------|------|
-| `AppShell.tsx` | Shell; rail collapse (`Ctrl+B`); **chrome-stack** (gear + materials toggle); center matrix (card / DocPane / Orbit); Esc order |
-| `MaterialsRail.tsx` | Right dock: vault `materials/` list + ≤2MB import; click → `selectMaterial` → `openDoc` |
-| `SplitSash.tsx` | `WorkspaceSplit`: Card \| sash \| DocPane; owns `--doc-fraction` + persist (`lib/splitRatio`) |
+| `AppShell.tsx` | Shell; rail collapse (`Ctrl+B`); **chrome-stack** (gear + materials toggle); center matrix (card / companion / Orbit); Esc order |
+| `CompanionPane.tsx` | **One** right slot: materials list **or** DocPane preview (never both as two columns) |
+| `MaterialsRail.tsx` | List body only (`MaterialsList`); embedded in CompanionPane |
+| `SplitSash.tsx` | `WorkspaceSplit`: Card \| sash \| CompanionPane; owns `--doc-fraction` + persist (`lib/splitRatio`) |
 | `LeftRail.tsx` | Orbit (top) + PathLineNav (bottom) + hide toggle |
 | `FocusOrbit.tsx` | Stable world orbit + camera pan (orbitNav) |
 | `PathLineNav.tsx` | Line Sidebar: hub→focus radial path only; 7-row window; hide |
@@ -63,18 +64,17 @@ Doc companion (PEL-156): `docs/superpowers/specs/2026-08-20-doc-companion-viewer
 
 `AppShell.renderFocusMain` owns mount points. Doc session state lives in `workspaceStore.docSession` — shell only reads status/layout and calls `closeDoc`.
 
-| workspaceMode | showEmpty | doc surface | 中栏 |
-|---------------|-----------|-------------|------|
-| map | * | * (force-closed) | **Orbit only** — never mount Doc with Orbit |
+| workspaceMode | showEmpty | companion | 中栏 |
+|---------------|-----------|-----------|------|
+| map | * | force-closed | **Orbit only** |
 | focus | no | closed | InquiryCard full width |
-| focus | no | open + split/doc-wide | `.workspace-split`：Card \| **sash** \| DocPane (`--doc-fraction`; `is-doc-wide` display 0.68) |
-| focus | no | open + peek | Card full width + DocPane fixed overlay (**no** sash) |
+| focus | no | open (list **or** preview) | `.workspace-split`：Card \| sash \| **CompanionPane** |
 | focus | yes | closed | EmptyWorkspace |
-| focus | yes | open + not peek | DocPane full width (`boundCardId` may be null; **no** sash) |
-| focus | yes | open + peek | EmptyWorkspace + DocPane overlay |
+| focus | yes | open | CompanionPane full width |
 
-- Open entry: Composer tool / CommandPalette → `soit:open-doc` → `OpenDocPopover`; **MaterialsRail** click → `selectMaterial` (map → focus first) → `openDoc`. No `window.prompt`; no file picker as main path (import input is materials-only).
-- Doc UI details: `components/doc/AGENTS.md`. Spec: `docs/superpowers/specs/2026-08-20-materials-rail-spec.md` §2.4–2.6.
+- Companion `view=list` → materials browser; `view=preview` → DocPane in **same** slot. **Never** third dock column.
+- Materials toggle / file click / path popover all feed CompanionPane.
+- Doc UI: `components/doc/AGENTS.md`. FSM: `知识库/docs/materials-rail-fsm.md`.
 
 ### SplitRatio law (`SplitSash` / `lib/splitRatio`)
 
@@ -86,16 +86,17 @@ Doc companion (PEL-156): `docs/superpowers/specs/2026-08-20-doc-companion-viewer
 ### Materials chrome
 
 - `chrome-stack` (gear + materials toggle) fixed top-right; **focus mode hides whole stack**.
-- MaterialsRail 260px right dock; `soit:toggle-materials` / `soit:open-materials`. Ctrl+, / Ctrl+K do **not** force-close rail.
+- Toggle opens companion list in split slot (not a separate dock). `soit:toggle-materials` / `soit:open-materials`.
 - Lazy `list_vault_materials` on open — never bootstrap.
+- Close companion → also ends DocSession (one surface).
 
 ### Esc order (`AppShell` keydown)
 
 1. settings → close  
 2. command palette → close  
 3. open-doc popover → close  
-4. materials rail open → `closeMaterialsRail()` (does **not** close Doc)  
-5. doc surface open (any layout, incl. peek) → `closeDoc()`  
+4. materials companion open → `closeMaterialsRail()` (closes list **and** preview)  
+5. doc-only surface (path open without materials) → `closeDoc()`  
 6. map → `setMode("focus")`  
 
 Card-local overlays (selbar / chooser / term float / pip) handle their own Esc inside the card tree before shell logic matters.
