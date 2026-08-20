@@ -4,18 +4,30 @@ import {
   IconX,
 } from "../card/icons";
 
+export type TermFloatStatus = "loading" | "ready" | "error";
+
 export interface TermFloatState {
+  /** Display title (mark = term; selection may truncate). */
   term: string;
+  /** Full text for explain / spawn SourceSpan / quote — not truncated title. */
+  span: string;
   body: string;
+  status: TermFloatStatus;
+  error?: string;
   x: number;
   y: number;
+  source: "mark" | "selection";
+  turnId?: string;
+  markId?: string;
 }
 
 interface Props {
   float: TermFloatState;
   onClose: () => void;
-  onDeepen: (term: string) => void;
-  onDiverge: (term: string) => void;
+  onRetry: () => void;
+  /** Parent already holds float.span for SourceSpan.text. */
+  onDeepen: () => void;
+  onDiverge: () => void;
 }
 
 function clamp(n: number, a: number, b: number) {
@@ -25,6 +37,7 @@ function clamp(n: number, a: number, b: number) {
 export default function TermFloat({
   float,
   onClose,
+  onRetry,
   onDeepen,
   onDiverge,
 }: Props) {
@@ -41,7 +54,7 @@ export default function TermFloat({
             className="ic-round"
             data-tip="深挖"
             aria-label="深挖"
-            onClick={() => onDeepen(float.term)}
+            onClick={onDeepen}
           >
             <IconDeepen />
           </button>
@@ -50,7 +63,7 @@ export default function TermFloat({
             className="ic-round"
             data-tip="发散"
             aria-label="发散"
-            onClick={() => onDiverge(float.term)}
+            onClick={onDiverge}
           >
             <IconDiverge />
           </button>
@@ -66,8 +79,22 @@ export default function TermFloat({
         </div>
       </div>
       <div className="ic-float-body">
-        <p>{float.body}</p>
-        <p className="ic-muted">Soit：浮层可解释；长卡只认深挖 / 发散。重来在轮次条。</p>
+        {float.status === "loading" ? (
+          <p className="ic-float-status" role="status" aria-live="polite">
+            <span className="ic-float-spinner" aria-hidden />
+            解释中…
+          </p>
+        ) : null}
+        {float.status === "error" ? (
+          <div className="ic-float-error" role="alert">
+            <p>{float.error || "解释失败"}</p>
+            <button type="button" className="ic-float-retry" onClick={onRetry}>
+              重试
+            </button>
+          </div>
+        ) : null}
+        {float.status === "ready" ? <p className="ic-float-explain">{float.body}</p> : null}
+        <p className="ic-muted">短解释不建卡；要继续探究再选深挖 / 发散。</p>
       </div>
     </div>
   );

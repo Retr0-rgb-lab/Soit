@@ -74,9 +74,61 @@
   margin-bottom: 0;
 }
 
+.ic-float-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 0.75em;
+  color: var(--ink-soft);
+}
+
+.ic-float-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgb(90 80 65 / 18%);
+  border-top-color: var(--ink-soft);
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: ic-float-spin 0.7s linear infinite;
+}
+
+.ic-float-error {
+  margin: 0 0 0.75em;
+}
+
+.ic-float-error p {
+  margin: 0 0 0.5em;
+  color: var(--ink-soft);
+}
+
+.ic-float-retry {
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ic-float-retry:hover {
+  background: rgb(90 80 65 / 8%);
+}
+
+.ic-float-explain {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .ic-muted {
   color: var(--ink-faint);
   font-size: 12px;
+}
+
+@keyframes ic-float-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .ic-selbar {
@@ -152,6 +204,12 @@
     transition: none !important;
     opacity: 1;
     transform: none;
+  }
+
+  .ic-float-spinner {
+    animation: none !important;
+    border-top-color: rgb(90 80 65 / 18%);
+    opacity: 0.7;
   }
 
   .ic-tip:not(.on) {
