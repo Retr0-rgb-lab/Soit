@@ -22,10 +22,7 @@ import type {
   VaultDocKind,
   WorkspaceSnapshot,
 } from "../types";
-import {
-  normalizeChatConfig,
-  readChatConfigFromLocalStorage,
-} from "./chat/config";
+import { normalizeChatConfig } from "./chat/config";
 import {
   normalizeModelSettings,
   readModelSettingsFromLocalStorage,
