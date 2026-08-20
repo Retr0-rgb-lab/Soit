@@ -5,10 +5,11 @@
 
 ## 人话
 
-用户点右上角设置底下的 **资料** 按钮 → 右侧展开一条 **资料轨**，列出当前 vault 里 `materials/` 下的文件（和 Obsidian 看同一文件夹）。  
-点某个文件 → 走已有 **DocSession** 打开只读预览（卡 | 文档分栏）。  
-预览宽度可用 **中间拖条** 调。  
-导入 = 把本地文件 **复制进** `vault/materials/`，不是塞进 `.soit/` 或数据库。
+用户点右上角设置底下的 **资料** 按钮 → 中栏右侧 **同一块陪读面** 打开，先显示 `materials/` 文件列表（和 Obsidian 同目录）。  
+点某个文件 → **还是这一块面**，切成只读预览（不是再往右长一列）。  
+预览顶栏可「列表」返回；关按钮关掉整块陪读面。  
+预览宽度 = 卡 | 陪读面 之间的拖条。  
+导入 = 复制进 `vault/materials/`。
 
 ## 不变式
 
@@ -107,29 +108,23 @@ v1 列表：**单层或浅递归（≤2 层）文件**；目录可显示但点�
 **与 DocSession 关系（关键）**
 
 ```text
-MaterialsRail.select(path)
-        │
-        ▼
-  DocSession.open(path)     ← 已有 FSM，不在此重写
-        │
-        ▼
-  AppShell: focus + doc ready → workspace-split (Card | DocPane)
-        │
-        └─ 可拖 SplitRatio 调宽度
+CompanionPane (单一右槽)
+  view=list     → MaterialsList
+  view=preview  → DocPane（同一槽，互斥）
 
-Rail open + Doc closed  →  仅右侧资料轨 + 中栏卡/empty（无 DocPane）
-Rail closed + Doc ready →  仅分栏预览（与 PEL-156 现状一致）
-Rail open + Doc ready  →  中栏分栏 + 右侧资料轨（三栏：卡 | 预览 | 列表）
+Materials.select(path)
+  → view=preview + DocSession.open(path)
+  → workspace-split: Card | CompanionPane
+
+返回列表 → view=list + closeDoc（仍占右槽）
+关闭陪读 → open=false + closeDoc → 卡全宽
 ```
 
-v1 布局优先级：
+**禁止三栏：** 不得同时挂 MaterialsList 与 DocPane 为两列。
 
 ```text
-[ LeftRail |  workspace-main (card and/or DocPane)  | MaterialsRail? | gear stack ]
+[ LeftRail | workspace-main: Card | sash | CompanionPane | gear stack ]
 ```
-
-- 资料轨宽度固定约 240–280px（可后置可拖）。  
-- **预览拖宽** = Card 与 DocPane **之间**的分隔条，不是资料轨边缘。
 
 ---
 

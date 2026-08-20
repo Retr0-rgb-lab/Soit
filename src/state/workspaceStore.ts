@@ -134,12 +134,15 @@ export interface WorkspaceState {
   setDocCursor: (cursor: DocSessionState["cursor"]) => void;
   rebindDoc: (boundCardId: string | null) => void;
   retryDoc: () => Promise<void>;
-  /** Materials rail: toggle open/closed; open lazy-lists. */
+  /** Companion pane (list|preview shared slot): toggle open/closed. */
   toggleMaterialsRail: () => void;
   openMaterialsRail: () => void;
+  /** Close companion pane + doc preview (one surface). */
   closeMaterialsRail: () => void;
+  /** Back from preview to materials list in the same pane. */
+  showMaterialsList: () => void;
   refreshMaterials: () => Promise<void>;
-  /** map→focus then openDoc (SPE §2.3). */
+  /** map→focus then openDoc + companion view=preview. */
   selectMaterial: (pathRel: string) => Promise<void>;
   /** Import base64 files ≤2MB; refresh; openDoc first success. */
   importMaterials: (
@@ -540,7 +543,11 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
 
     openMaterialsRail: () => {
       const prev = get().materialsRail;
+      // Already open: show list in the same companion slot (not a second column).
       if (prev.open) {
+        set({
+          materialsRail: { ...prev, view: "list", error: null },
+        });
         void get().refreshMaterials();
         return;
       }
@@ -548,6 +555,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
         materialsRail: {
           ...prev,
           open: true,
+          view: "list",
           listStatus: "loading",
           error: null,
           listEpoch: prev.listEpoch + 1,
@@ -557,18 +565,55 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     },
 
     closeMaterialsRail: () => {
-      // Close rail only — do not clear DocSession (SPE §2.3).
+      // One surface: closing companion also ends preview.
+      const docStatus = get().docSession.status;
+      if (
+        docStatus === "loading" ||
+        docStatus === "ready" ||
+        docStatus === "error" ||
+        docStatus === "closing"
+      ) {
+        get().closeDoc();
+      }
       set((s) => ({
         materialsRail: {
           ...s.materialsRail,
           open: false,
+          view: "list",
           importBusy: false,
         },
       }));
     },
 
+    showMaterialsList: () => {
+      const prev = get().materialsRail;
+      set({
+        materialsRail: {
+          ...prev,
+          open: true,
+          view: "list",
+        },
+      });
+      // Drop preview body so the same pane shows the list only.
+      const docStatus = get().docSession.status;
+      if (
+        docStatus === "loading" ||
+        docStatus === "ready" ||
+        docStatus === "error" ||
+        docStatus === "closing"
+      ) {
+        get().closeDoc();
+      }
+      if (prev.listStatus === "idle" || prev.entries.length === 0) {
+        void get().refreshMaterials();
+      }
+    },
+
     refreshMaterials: async () => {
       const rail = get().materialsRail;
+      if (!rail.open && rail.view !== "list") {
+        // Allow refresh only when companion is relevant.
+      }
       if (!rail.open) return;
       set({
         materialsRail: {
@@ -587,6 +632,8 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       set((s) => ({
         materialsRail: {
           ...s.materialsRail,
+          open: true,
+          view: "preview",
           selectedPathRel: path,
         },
       }));

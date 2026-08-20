@@ -7,8 +7,14 @@ import type { MaterialsEntry } from "../types";
 
 export type MaterialsListStatus = "idle" | "loading" | "ready" | "error";
 
+/** Within the shared companion pane (list ↔ preview, one surface). */
+export type MaterialsCompanionView = "list" | "preview";
+
 export type MaterialsRailState = {
+  /** Companion pane open (shares slot with DocPane — not a third column). */
   open: boolean;
+  /** list = materials browser; preview = DocSession body in same pane. */
+  view: MaterialsCompanionView;
   listStatus: MaterialsListStatus;
   entries: MaterialsEntry[];
   error: string | null;
@@ -20,6 +26,7 @@ export type MaterialsRailState = {
 export function initialMaterialsRail(): MaterialsRailState {
   return {
     open: false,
+    view: "list",
     listStatus: "idle",
     entries: [],
     error: null,
@@ -30,8 +37,8 @@ export function initialMaterialsRail(): MaterialsRailState {
 }
 
 /**
- * map / loadSnapshot — close rail; bump epoch so late list/import landings drop.
- * Does not clear DocSession (doc has its own force_close).
+ * map / loadSnapshot — close companion; bump epoch so late list/import landings drop.
+ * DocSession still force_closed separately by store.
  */
 export function forceCloseMaterialsRail(
   state: MaterialsRailState,
@@ -39,9 +46,15 @@ export function forceCloseMaterialsRail(
   return {
     ...state,
     open: false,
+    view: "list",
     listStatus: "idle",
     error: null,
     importBusy: false,
     listEpoch: state.listEpoch + 1,
   };
+}
+
+/** Right pane shows materials list (not a second dock). */
+export function isCompanionListView(state: MaterialsRailState): boolean {
+  return state.open && state.view === "list";
 }

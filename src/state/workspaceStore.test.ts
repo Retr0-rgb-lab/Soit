@@ -768,26 +768,26 @@ describe("workspaceStore materialsRail (M3)", () => {
     expect(rail.error).toBeNull();
   });
 
-  it("toggleMaterialsRail opens then closes without clearing doc", async () => {
+  it("toggleMaterialsRail closes companion and ends preview (one surface)", async () => {
     await useWorkspaceStore.getState().openDoc("demo/welcome.md");
     expect(useWorkspaceStore.getState().docSession.status).toBe("ready");
 
     useWorkspaceStore.getState().toggleMaterialsRail();
     await vi.waitFor(() => {
       expect(useWorkspaceStore.getState().materialsRail.open).toBe(true);
+      expect(useWorkspaceStore.getState().materialsRail.view).toBe("list");
       expect(useWorkspaceStore.getState().materialsRail.listStatus).toBe(
         "ready",
       );
     });
     useWorkspaceStore.getState().toggleMaterialsRail();
     expect(useWorkspaceStore.getState().materialsRail.open).toBe(false);
-    expect(useWorkspaceStore.getState().docSession.status).toBe("ready");
-    expect(useWorkspaceStore.getState().docSession.ref?.pathRel).toBe(
-      "demo/welcome.md",
-    );
+    // Shared pane: closing materials also closes doc preview.
+    const docStatus = useWorkspaceStore.getState().docSession.status;
+    expect(docStatus === "closing" || docStatus === "closed").toBe(true);
   });
 
-  it("selectMaterial map→focus then openDoc", async () => {
+  it("selectMaterial map→focus then openDoc as preview view", async () => {
     useWorkspaceStore.getState().setWorkspaceMode("map");
     // Re-open rail while already on map (force_close only on enter map).
     useWorkspaceStore.getState().openMaterialsRail();
@@ -801,6 +801,8 @@ describe("workspaceStore materialsRail (M3)", () => {
     await useWorkspaceStore.getState().selectMaterial("demo/welcome.md");
     const s = useWorkspaceStore.getState();
     expect(s.workspaceMode).toBe("focus");
+    expect(s.materialsRail.open).toBe(true);
+    expect(s.materialsRail.view).toBe("preview");
     expect(s.materialsRail.selectedPathRel).toBe("demo/welcome.md");
     expect(s.docSession.status).toBe("ready");
     expect(s.docSession.ref?.pathRel).toBe("demo/welcome.md");

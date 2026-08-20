@@ -28,10 +28,16 @@ function dispatchComposerQuote(quote: string) {
 /**
  * Read-only doc companion chrome + body (PEL-156).
  * Owns selection → SelectionBar / quote / spawn (D5); does not share card sel state.
+ * When opened from materials, `onBackToList` returns to the **same** companion slot.
  */
-export default function DocPane() {
+export default function DocPane({
+  onBackToList,
+}: {
+  onBackToList?: () => void;
+} = {}) {
   const docSession = useWorkspace((s) => s.docSession);
   const closeDoc = useWorkspace((s) => s.closeDoc);
+  const closeMaterialsRail = useWorkspace((s) => s.closeMaterialsRail);
   const setDocLayout = useWorkspace((s) => s.setDocLayout);
   const retryDoc = useWorkspace((s) => s.retryDoc);
   const confirmDocClosed = useWorkspace((s) => s.confirmDocClosed);
@@ -330,6 +336,17 @@ export default function DocPane() {
           ) : null}
         </div>
         <div className="doc-pane__actions">
+          {onBackToList ? (
+            <button
+              type="button"
+              className="doc-pane__btn"
+              data-tip="返回资料列表"
+              aria-label="返回资料列表"
+              onClick={onBackToList}
+            >
+              列表
+            </button>
+          ) : null}
           {!isPeek ? (
             <button
               type="button"
@@ -346,8 +363,12 @@ export default function DocPane() {
             type="button"
             className="doc-pane__btn is-close"
             aria-label="关闭文档"
-            data-tip="关闭文档"
-            onClick={() => closeDoc()}
+            data-tip="关闭"
+            onClick={() => {
+              // Materials-owned companion: close whole surface; else doc only.
+              if (onBackToList) closeMaterialsRail();
+              else closeDoc();
+            }}
           >
             ×
           </button>

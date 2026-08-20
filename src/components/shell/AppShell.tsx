@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import InquiryCard from "../card/InquiryCard";
-import DocPane from "../doc/DocPane";
 import OpenDocPopover from "../doc/OpenDocPopover";
 import CommandPalette from "./CommandPalette";
+import CompanionPane from "./CompanionPane";
 import EmptyWorkspace from "./EmptyWorkspace";
 import LeftRail from "./LeftRail";
-import LocusPeek from "./LocusPeek";
-import MapStage from "./MapStage";
-import MaterialsRail from "./MaterialsRail";
+import OrbitStage from "./OrbitStage";
 import WorkspaceSplit from "./SplitSash";
 import SettingsPanel, { type SettingsSection } from "./SettingsPanel";
 import { useWorkspace } from "../../state/workspaceStore";
 import "./settings/settings.css";
+
+/** Card exit duration before orbit mounts alone on the paper bg (ms). */
+const CARD_EXIT_MS = 320;
 
 function isTypingTarget(t: EventTarget | null): boolean {
   if (!(t instanceof HTMLElement)) return false;
@@ -51,6 +52,14 @@ export default function AppShell() {
   const [settingsSection, setSettingsSection] =
     useState<SettingsSection>("space");
   const [openDocOpen, setOpenDocOpen] = useState(false);
+  /**
+   * Global orbit surface ownership (AGENTS hard rule):
+   * - cardExiting: card alone fades down on paper bg (orbit not mounted yet)
+   * - orbitLive: card unmounted; orbit is the only main surface on paper bg
+   * Never mount orbit while the card is still in the tree under it.
+   */
+  const [cardExiting, setCardExiting] = useState(false);
+  const [orbitLive, setOrbitLive] = useState(false);
 
   const toggleRail = useCallback(() => {
     setRailCollapsed((v) => !v);
@@ -86,12 +95,40 @@ export default function AppShell() {
 
   const docOpen = isDocSurfaceOpen(docSession.status);
   const docLayout = docSession.layout;
-  const isPeek = docOpen && docLayout === "peek";
-  /** Split stage: card + doc side by side (not peek overlay). */
-  const useSplit = docOpen && !isPeek && !showEmpty && workspaceMode === "focus";
+  const isPeek = docOpen && docLayout === "peek" && !materialsOpen;
+  /** Shared companion slot: materials list OR preview (never a third column). */
+  const companionOpen =
+    (materialsOpen || docOpen) && !isPeek && workspaceMode === "focus";
+  const useSplit = companionOpen && !showEmpty;
 
   const closePalette = useCallback(() => setPaletteOpen(false), []);
   const closeOpenDoc = useCallback(() => setOpenDocOpen(false), []);
+
+  // Enter map: card exits alone → then orbit mounts on empty paper (never over card).
+  // Leave map: drop orbit immediately; card returns as sole main surface.
+  useEffect(() => {
+    if (showEmpty) {
+      setCardExiting(false);
+      setOrbitLive(false);
+      return;
+    }
+    if (workspaceMode === "map") {
+      if (orbitLive) return;
+      setCardExiting(true);
+      setOrbitLive(false);
+      const reduced =
+        typeof window !== "undefined" &&
+        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      const ms = reduced ? 40 : CARD_EXIT_MS;
+      const t = window.setTimeout(() => {
+        setCardExiting(false);
+        setOrbitLive(true);
+      }, ms);
+      return () => window.clearTimeout(t);
+    }
+    setCardExiting(false);
+    setOrbitLive(false);
+  }, [workspaceMode, showEmpty, orbitLive]);
 
   useEffect(() => {
     const onOpen = () => setPaletteOpen(true);
@@ -287,73 +324,80 @@ export default function AppShell() {
     focusNode,
   ]);
 
-  const renderMain = () => {
-    // Map: Orbit/Map only — doc already force_closed; never mount Doc with map.
-    if (workspaceMode === "map") {
-      return <MapStage onClose={() => setMode("focus")} />;
-    }
-
-    // Empty + doc → full-width DocPane; empty + closed → EmptyWorkspace
+  const renderFocusMain = () => {
+    // Empty + companion → full-width list/preview; empty alone → EmptyWorkspace
     if (showEmpty) {
-      if (docOpen && !isPeek) {
-        return <DocPane />;
+      if (companionOpen) {
+        return (
+          <main className="center-stage companion-full" aria-label="资料">
+            <CompanionPane />
+          </main>
+        );
       }
       return (
         <main className="center-stage" aria-label="empty workspace">
           <EmptyWorkspace />
-          {isPeek ? <DocPane /> : null}
         </main>
       );
     }
 
+    // Map transition / orbit — never mount companion with Orbit.
+    if (orbitLive) {
+      return (
+        <OrbitStage
+          onClose={() => setMode("focus")}
+          onPick={(id) => {
+            focusNode(id);
+            setMode("focus");
+          }}
+        />
+      );
+    }
+
     const card = (
-      <main className="center-stage" aria-label="inquiry card">
+      <main
+        className={`center-stage${cardExiting ? " is-map-exit" : ""}`}
+        aria-label="inquiry card"
+        aria-hidden={cardExiting || undefined}
+      >
         <InquiryCard />
       </main>
     );
 
-    // Peek: card full width + fixed DocPane overlay
+    // Peek only when materials closed (legacy overlay path).
     if (isPeek) {
       return (
         <>
           {card}
-          <LocusPeek onExpandMap={() => setMode("map")} />
-          <DocPane />
+          <CompanionPane />
         </>
       );
     }
 
-    // Split / doc-wide: Card | sash | DocPane (--doc-fraction law)
+    // Card | sash | companion (list XOR preview in one slot)
     if (useSplit) {
       return (
         <WorkspaceSplit
           layout={docLayout === "doc-wide" ? "doc-wide" : "split"}
           card={card}
-          doc={<DocPane />}
+          doc={<CompanionPane />}
         />
       );
     }
 
-    // focus + doc closed: InquiryCard full width
-    return (
-      <>
-        {card}
-        <LocusPeek onExpandMap={() => setMode("map")} />
-      </>
-    );
+    return card;
   };
 
   return (
     <div
-      className={`app-shell${railCollapsed ? " rail-collapsed" : ""}${workspaceMode === "map" ? " mode-map" : " mode-focus"}${materialsOpen ? " materials-rail-open" : ""}`}
+      className={`app-shell${railCollapsed ? " rail-collapsed" : ""}${workspaceMode === "map" ? " mode-map" : " mode-focus"}${companionOpen ? " companion-open" : ""}`}
     >
       <LeftRail
         collapsed={railCollapsed}
         onToggleCollapse={toggleRail}
       />
-      <div className="workspace-main">{renderMain()}</div>
-      <MaterialsRail />
-      {/* Permanent chrome stack — gear + materials toggle (SPE §2.4) */}
+      <div className="workspace-main">{renderFocusMain()}</div>
+      {/* Permanent chrome stack — gear + materials toggle */}
       <div className="chrome-stack">
         <button
           type="button"

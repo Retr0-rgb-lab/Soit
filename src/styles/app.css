@@ -76,9 +76,12 @@ button:focus-visible,
   padding-left: var(--rail-w-collapsed, 48px);
 }
 
-/* Materials rail open: reserve right dock (SPE §2.4) */
-.app-shell.materials-rail-open .workspace-main {
-  padding-inline-end: 260px;
+/* Companion (list|preview) lives in workspace-split — no third-column padding */
+
+/* 专注模式：收回左轨占位，主区铺满 */
+.app-shell:has(.inquiry-root.is-focus-mode) .workspace-main,
+body.soit-focus-mode .app-shell .workspace-main {
+  padding-left: 0;
 }
 
 /* Floating chrome-less rail — sits on app bg, no panel plate */
@@ -142,18 +145,75 @@ button:focus-visible,
   gap: 0;
   padding-top: 0;
   width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
   background: transparent;
-  overflow: visible;
+  overflow: hidden;
 }
 
-/* Ensure orbit rail never paints list/card plates */
+/* Top: concentric orbit (fixed height content) */
+.left-rail--orbit-only .rail-orbit-block {
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 0;
+}
+
+.rail-orbit-head {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 4px 4px;
+}
+
+.rail-orbit-expand {
+  margin: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  background: transparent;
+  color: var(--ink-faint);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.rail-orbit-expand:hover {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+/* Bottom: depth-path Line Sidebar fills remaining rail */
+.left-rail--orbit-only .rail-path-block {
+  flex: 1 1 auto;
+  min-height: 120px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+  margin-top: 6px;
+  padding-top: 8px;
+  overflow: hidden;
+}
+
+/* Ensure orbit rail never paints list/card plates or focus chrome */
 .left-rail--orbit-only .rail-scroll--orbit,
 .left-rail--orbit-only .focus-orbit,
-.left-rail--orbit-only .fo-concentric,
+.left-rail--orbit-only .fo-stage,
 .left-rail--orbit-only .option-wheel {
   background: transparent !important;
   box-shadow: none !important;
-  border: none;
+  border: none !important;
+  outline: none !important;
+}
+
+.left-rail--orbit-only .focus-orbit:focus,
+.left-rail--orbit-only .focus-orbit:focus-visible,
+.left-rail--orbit-only .fo-node:focus,
+.left-rail--orbit-only .fo-node:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .left-rail--orbit-only .rail-orbit-empty {
@@ -409,13 +469,15 @@ button:focus-visible,
 .center-stage {
   position: relative;
   z-index: 1;
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  padding: 16px calc(var(--locus-w, 148px) + 28px) 16px 20px;
+  /* Default (empty etc.); inquiry-root path overrides in card.css */
+  padding: 16px max(48px, calc(var(--locus-w, 168px) * 0.28 + 28px)) 14px 12px;
   gap: 10px;
   background: transparent;
   min-height: 0;
+  height: 100%;
   /* history Line Sidebar docks outside the card on the right */
   overflow: visible;
 }
@@ -435,7 +497,8 @@ button:focus-visible,
   min-width: 0;
 }
 
-.workspace-split .doc-pane {
+.workspace-split .doc-pane,
+.workspace-split .materials-pane {
   flex: 1 1 calc(var(--doc-fraction) * 100%);
   min-width: 0;
   border-inline-start: none;
@@ -481,8 +544,9 @@ button:focus-visible,
   outline: none;
 }
 
-/* Empty + full-width doc (no card) */
-.workspace-main > .doc-pane {
+/* Empty + full-width companion (no card) */
+.workspace-main > .doc-pane,
+.workspace-main > .center-stage.companion-full {
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
@@ -490,53 +554,16 @@ button:focus-visible,
   border-inline-start: none;
 }
 
-/* Composer open-doc tool row (PEL-156 D4) */
-.ic-dock-toolbar {
+.center-stage.companion-full {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-  min-height: 28px;
-}
-
-.ic-dock-tools {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex: 0 0 auto;
-}
-
-.ic-tool-btn {
-  width: 30px;
-  height: 30px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--ink-soft);
-  display: grid;
-  place-items: center;
+  flex-direction: column;
   padding: 0;
-  cursor: pointer;
 }
 
-.ic-tool-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
-.ic-tool-btn:hover:not(:disabled) {
-  background: var(--bg-muted);
-  color: var(--ink);
-}
-
-.ic-tool-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.ic-dock-toolbar .hint {
-  flex: 1;
-  min-width: 0;
+.center-stage.companion-full .materials-pane,
+.center-stage.companion-full .doc-pane {
+  flex: 1 1 auto;
+  height: 100%;
 }
 
 /* Locus peek — page-margin annotation; collapsed until proximity/hover */

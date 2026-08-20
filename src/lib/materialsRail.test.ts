@@ -5,9 +5,10 @@ import {
 } from "./materialsRail";
 
 describe("materialsRail helpers", () => {
-  it("initialMaterialsRail starts closed idle", () => {
+  it("initialMaterialsRail starts closed idle on list view", () => {
     const s = initialMaterialsRail();
     expect(s.open).toBe(false);
+    expect(s.view).toBe("list");
     expect(s.listStatus).toBe("idle");
     expect(s.entries).toEqual([]);
     expect(s.selectedPathRel).toBeNull();
@@ -19,12 +20,13 @@ describe("materialsRail helpers", () => {
     const open = {
       ...initialMaterialsRail(),
       open: true,
+      view: "preview" as const,
       listStatus: "ready" as const,
       entries: [
         {
           pathRel: "demo/welcome.md",
           name: "welcome.md",
-          kind: "md",
+          kind: "md" as const,
           size: 10,
         },
       ],
@@ -35,6 +37,7 @@ describe("materialsRail helpers", () => {
     };
     const closed = forceCloseMaterialsRail(open);
     expect(closed.open).toBe(false);
+    expect(closed.view).toBe("list");
     expect(closed.listStatus).toBe("idle");
     expect(closed.importBusy).toBe(false);
     expect(closed.error).toBeNull();
