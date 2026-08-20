@@ -9,20 +9,22 @@ Project-wide constraints: root `AGENTS.md`. Product rules: `知识库/AGENTS.md`
 | Path | Role |
 |------|------|
 | `main.tsx` | Mount + import global CSS only |
-| `App.tsx` | First paint `AppShell`, then async bootstrap/snapshot; boot epoch + optional `lastVault` restore via `openUniverse` |
+| `App.tsx` | Cold start: default `shellPhase=picker` → `WorkspacePicker` first; boot closes Host-bound vault if any, loads session (last+recents), **never** silent `openUniverse(lastVault)` |
 | `types.ts` | Shared DTO shapes (`InquiryNode`, `Turn`, snapshots) |
-| `components/shell/` | Three-pane chrome + map |
+| `components/shell/` | Hall (`WorkspacePicker`) + three-pane chrome + map |
 | `components/card/` | Focused inquiry card |
 | `components/overlays/` | Floating UI over card/selection |
 | `lib/` | Host bridge + pure helpers |
-| `state/` | Zustand workspace store |
+| `state/` | Zustand workspace store (`shellPhase` + space nav) |
 | `styles/` | Design tokens + app chrome CSS |
 
 ## Rules
 
-- **First paint before IO:** render shell immediately; never block mount on vault/DB/network (`App.tsx`).
+- **Hall before workspace:** store default `shellPhase = "picker"`. First paint is the vault hall, not `AppShell`. User must **enter** a path before any `open_universe`.
+- **`shellPhase`** (orthogonal to `workspaceMode` focus/map): `picker` \| `entering` \| `workspace` \| `leaving` \| `error`. Mount: hall phases → `WorkspacePicker`; `workspace`/`leaving` → `AppShell`. Actions: `enter` / `leave` / `switchVault` / `forgetRecent` via `state/spaceNav.ts` + navEpoch (`beginBootLoad`).
+- **First paint before IO:** never block mount on vault/DB/network (`App.tsx`). Boot may `closeUniverse` if Host already bound, then stay on hall.
 - **Host boundary:** all Tauri `invoke` goes through `lib/host.ts`. UI must not import `@tauri-apps/*` elsewhere.
-- **Load matrix:** `demo` may use frontend seed; `empty`/`universe` never silent-demo. Empty vault → `EmptyWorkspace` CTA.
+- **Load matrix:** product hall/unbound uses empty nodes (no demo-card flood). Bound empty vault → `EmptyWorkspace` CTA. `demo` seed only when `source === "demo"` in browser/dev paths that intentionally use it.
 - **No CDN fonts/CSS** in this tree. Stack is system UI (`styles/tokens.css` `--font`).
 - Visual tokens live in `styles/tokens.css`; component CSS stays next to its folder (`card.css`, `overlays.css`, shell styles in `app.css` as established).
 - Prefer warm paper UI language already in tokens — do not restyle toward Explore pastel clones.

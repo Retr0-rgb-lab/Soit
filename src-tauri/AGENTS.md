@@ -26,9 +26,9 @@ Project-wide: root `AGENTS.md`. IPC types mirrored in `../src/types.ts` and `../
 
 | Command | Contract |
 |---------|----------|
-| `get_bootstrap_state` | Instant `{ phase: "ready_ui", vault, lastVault, version }` — **no** DB open / network; `lastVault` from app config only |
-| `open_universe(path)` | Absolute path only + canonicalize; ensure `vault/.soit/`, open `universe.db`, seed skills; on success write `lastVault` + `push_recent`; `{ ok, path, snapshot? }` with `source: empty\|universe` |
-| `close_universe` | Drop DB handle; clear vault bind — **does not** clear `lastVault` / recents |
+| `get_bootstrap_state` | Instant `{ phase: "ready_ui", vault, lastVault, version }` — **no** DB open / network; `lastVault` from app config only; FE cold start stays on **hall** and must **not** treat this as auto-open |
+| `open_universe(path)` | Absolute path only + canonicalize; ensure `vault/.soit/`, open `universe.db`, seed skills; on success write `lastVault` + `push_recent`; `{ ok, path, snapshot? }` with `source: empty\|universe` — **only** after user enter (or explicit space switch), never silent boot restore |
+| `close_universe` | Drop DB handle; clear vault bind — **does not** clear `lastVault` / recents; leave workspace / hall boot uses this |
 | `get_workspace_snapshot` | Open universe → DB snapshot (stuck/next + last_focus_id); unbound → `source: "demo"` nodes `[]` |
 | `create_root_inquiry(title, question?)` | Host ids; insert root card + seed turn; return snapshot |
 | `spawn_inquiry(kind, fromCardId, source, why?, actor?)` | `deepen` \| `diverge` child + SourceSpan edge (+ deepen seed turn); host ids; focus → child (`last_focus_id`) |
@@ -67,14 +67,15 @@ Doc companion FE contract: `docs/superpowers/specs/2026-08-20-doc-companion-view
 
 ## Rules
 
-- Keep startup path light: no heavy work in `setup`; bootstrap never opens DB / never `list_runtimes`.
+- Keep startup path light: no heavy work in `setup`; bootstrap never opens DB / never `list_runtimes` / never auto-`open_universe` from `lastVault`.
+- **Workspace hall:** FE owns `shellPhase`; Host is session + DB authority. Cold start may still have a bound vault after HMR — FE must `close_universe` then stay picker. Stale FE nav after successful open must `close_universe` so Host is never open while FE is on hall.
 - New commands need **all three**: handler, permission toml, capabilities entry, plus frontend `host.ts` (+ types).
 - Prefer `camelCase` JSON fields (`#[serde(rename_all = "camelCase")]`).
 - Host generates ids for DB writes (`c_*`, `t_*`, `d_*`/`v_*` children, `e_*` edges).
 - Skill toggle: reject empty/unsafe id (`^[A-Za-z0-9_-]+$` only); require `skills/<id>/SKILL.md` on disk.
 - Multi-row writes (`create_root_inquiry`, `spawn_inquiry`, turn/card mutations): SQLite immediate transaction.
 - Deepen seed `ai_html` / user text: HTML-escape selection label before store.
-- `open_universe`: reject relative paths; store canonical vault path; schema_version > app → Err.
+- `open_universe`: reject relative paths; store canonical vault path; schema_version > app → Err; success updates session last+recents.
 - Runtime: `enableSpawn` Host-enforced default false; handoff cwd/files only under `vault/.soit/runs/<runId>/` (canonicalize prefix); reject `run_id` with `..` or path seps; at most one concurrent handoff.
 - **Vault docs (PEL-156):** `dunce::canonicalize` + `starts_with(vault_canon)`; reject path escape and reads under `vault/.soit/**`; `pathRel` output uses `/`; pdf resolve returns kind+size only (no bulk bytes / base64 in P0); commands no-op error when universe closed (`universe_closed`).
 - **Materials:** only `vault/materials/**`; import decoded size ≤ 2_097_152; never scan whole vault; never open materials DB on cold start.

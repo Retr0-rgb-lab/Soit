@@ -28,7 +28,7 @@ Parent: `src/AGENTS.md`.
 | `chat/modelSettings.ts` | `ModelSettings` v1 types, migrate flat `ChatConfig`, `resolveChatConfig` / `activeModelLabel`, LS read/write + legacy key migrate |
 | `math/tex.ts` | Shared KaTeX protect/render (`protectAndRenderMath`) for assistant + doc md; same PH alphabet as code slots; fallback `<code class="soit-math-fallback">` |
 | `runtime/` | RuntimeId/info/prefs types + localStorage prefs mirror — spec §2.5; host wrappers in `host.ts` |
-| `sessionConfig.ts` | SessionConfig v1 normalize/migrate/push/remove recentVaults (≤8); LS `soit-session`; Host authority via `host.ts` |
+| `sessionConfig.ts` | SessionConfig v1 normalize/migrate/push/remove recentVaults (≤8); LS `soit-session`; Host authority via `host.ts` — hall preselect only; **no** cold-start auto-open |
 
 ## Rules
 
@@ -41,7 +41,11 @@ Parent: `src/AGENTS.md`.
   - skills: `list_skills`, `set_skill_enabled`, `get_enabled_skills_text`
   - BYOK multi-provider: `get_model_settings` / `set_model_settings` (authoritative `ModelSettings`); `get_chat_config` / `set_chat_config` (project active → flat `ChatConfig` / legacy upsert); app config JSON / localStorage — **never** `universe.db`
   - Runtime (dual-track): `list_runtimes` / `get_runtime_prefs` / `set_runtime_prefs` / `start_runtime_handoff` / `cancel_runtime_handoff` — app config + `vault/.soit/runs/`; never treat external session as universe source; browser mock-only
-  - Session: `get_session_config` / `set_session_config` / `get_last_vault` / `set_last_vault` — app config `soit-session.json` (browser LS `soit-session`); open success Host writes last+recent; set last null keeps recents
+  - Session: `get_session_config` / `set_session_config` / `get_last_vault` / `set_last_vault` — app config `soit-session.json` (browser LS `soit-session`); open success Host writes last+recent; set last null keeps recents; `close_universe` does **not** clear last/recents
+- **Workspace hall / session** (spec `docs/superpowers/specs/2026-08-20-workspace-hall-spec.md`):
+  - Cold start: FE reads `getSessionConfig` for last+recents + `getBootstrapState` only to detect Host-bound vault → `closeUniverse`; **never** auto `openUniverse(lastVault)`
+  - Enter is user-driven (`spaceNav` / store); Host canonical path is authority after open ok
+  - Browser: no fake bound vault; open fails; no “演示宇宙” enter CTA in v1
 - **ModelSettings contract** (`chat/modelSettings.ts`; Rust mirror `src-tauri/src/chat_config.rs`):
   - Shape: `{ version:1, providers[], models[], activeModelId }` — provider = name + baseUrl + apiKey; model = providerId + modelId + optional label + enabled
   - Migrate: legacy flat `ChatConfig` with non-empty key → 1 provider + 1 model + active; empty key → empty catalog

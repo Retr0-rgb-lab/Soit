@@ -1,30 +1,32 @@
 # src/components/shell/ — app chrome
 
-Workspace chrome: floating left orbit rail, center card/doc host, map/graph.
+Top-level: **hall** (`WorkspacePicker`) vs **workspace** (`AppShell` three-pane). Inside workspace: floating left orbit rail, center card/doc host, map/graph.
 
 Parent: `src/AGENTS.md`. Map product notes: `知识库/docs/map-scale-lod.md`.
 Doc companion (PEL-156): `docs/superpowers/specs/2026-08-20-doc-companion-viewer-spec.md`; UI in `components/doc/`.
+Hall contract: `docs/superpowers/specs/2026-08-20-workspace-hall-spec.md` v1.1.
 
 ## Pieces
 
 | File | Role |
 |------|------|
-| `AppShell.tsx` | Shell; rail collapse (`Ctrl+B`); **settings gear bottom-left**; **right-edge triangle** opens companion; center matrix; Esc |
+| `WorkspacePicker.tsx` | **Hall** fullscreen: recent vaults (≤8), path paste, enter / forget; busy+error on same surface |
+| `AppShell.tsx` | **Workspace** shell only when `shellPhase ∈ {workspace, leaving}`; rail collapse (`Ctrl+B`); **settings gear bottom-left**; **right-edge triangle** opens companion; center matrix; Esc |
 | `CompanionPane.tsx` | **One** right slot: materials list **or** DocPane preview (never both as two columns) |
-| `MaterialsRail.tsx` | List body only (`MaterialsList`); embedded in CompanionPane |
+| `MaterialsRail.tsx` | List body only (`MaterialsList`); embedded in CompanionPane; unbound → leave/hall CTA (not settings·空间 as sole door) |
 | `SplitSash.tsx` | `WorkspaceSplit`: Card \| sash \| CompanionPane; owns `--doc-fraction` + persist (`lib/splitRatio`) |
-| `LeftRail.tsx` | Orbit (top) + PathLineNav (bottom) + hide toggle |
+| `LeftRail.tsx` | Orbit (top) + PathLineNav (bottom) + hide toggle + **退出工作区** → `leaveWorkspace` |
 | `FocusOrbit.tsx` | Stable world orbit + camera pan (orbitNav) |
 | `PathLineNav.tsx` | Line Sidebar: hub→focus radial path only; 7-row window; hide |
 | `SettingsPanel.tsx` | Settings modal — 空间 / **外观** / 模型 / 运行时 / 技能 / 关于 |
-| `settings/SpaceSection.tsx` | Vault bind / switch / unbind / lastVault |
+| `settings/SpaceSection.tsx` | Path switch via `enter`/`switchVault`; leave; clear lastVault memory; **not** a second hall |
 | `settings/AppearanceSection.tsx` | Theme (5) + font family + font size — `lib/appearance.ts` |
 | `settings/ModelSettingsForm.tsx` | 模型段壳：子 Tab 供应商 \| 可用模型；默认空供应商→供应商，否则可用模型 |
 | `settings/ProvidersPanel.tsx` | BYOK 供应商列表 + 添加/编辑/删除（级联模型；密钥列表只显示已配置/未配置） |
 | `settings/ProviderForm.tsx` | 供应商表单：名*、Base URL*（http/s）、API Key（编辑留空不改） |
 | `settings/ModelsPanel.tsx` | 可用模型目录 + 启用开关 + 设为对话模型 + 编辑/删除 |
 | `settings/ModelForm.tsx` | 模型表单：供应商*、Model ID*、可选显示名 |
-| `settings/SkillsList.tsx` | Skills toggles (embedded, not a second modal) |
+| `settings/SkillsList.tsx` | Skills toggles; unbound → leave/hall, not settings·空间-only |
 | `settings/RuntimeSection.tsx` | External coding-agent detect/prefs/handoff enable |
 | `settings/AboutSection.tsx` | Version + memory boundary copy |
 | `OrbitStage.tsx` | Global left-circle view (map mode) — card fades, orbit centers |
@@ -32,9 +34,20 @@ Doc companion (PEL-156): `docs/superpowers/specs/2026-08-20-doc-companion-viewer
 | `LocusPeek.tsx` | Removed from shell (was bottom-right 方位) |
 | `CommandPalette.tsx` | Jump (Ctrl+K); **打开文档…** → `soit:open-doc` |
 | `ReentryBanner.tsx` | Resume hint (unused in shell; kept for later) |
-| `EmptyWorkspace.tsx` | Empty vault CTA; unbound → open settings · 空间 |
+| `EmptyWorkspace.tsx` | Bound empty vault: **新建根探究** only; hall is `WorkspacePicker`, not settings·空间 |
 | `../doc/DocPane.tsx` | Read-only companion pane (mounted by AppShell matrix; not shell-owned state) |
-| `../doc/OpenDocPopover.tsx` | Path popover; opened via `soit:open-doc` (Composer / palette) |
+| `../doc/OpenDocPopover.tsx` | Path popover; unbound → leave/hall CTA |
+
+## Hall vs workspace (`shellPhase`)
+
+| Phase | UI |
+|-------|-----|
+| `picker` / `entering` / `error` | `WorkspacePicker` (App root) |
+| `workspace` / `leaving` | `AppShell` |
+
+- Cold start always hall; **no** silent `open_universe(lastVault)`. Picker preselects `lastVault ?? recentVaults[0]`.
+- Enter/leave/switch go through store space nav + navEpoch; leave **does not** clear `lastVault`.
+- Do not treat 设置·空间 / Empty / Materials / OpenDoc / Skills as the only door home — use hall or **退出工作区**.
 
 ## LeftRail (current)
 
@@ -46,7 +59,7 @@ Doc companion (PEL-156): `docs/superpowers/specs/2026-08-20-doc-companion-viewer
 
 ## Settings IA
 
-- 空间 → open/close universe (path text; no folder dialog v1)
+- 空间 → switch path / leave workspace / clear last memory (path text; no folder dialog v1); same enter/leave pipes as hall — **not** a second hall
 - **外观** → themes paper/matcha/celadon/ink/cinnabar + fonts system/song/hei/kai/mono + size sm–xl; `soit-appearance` localStorage; boot in `index.html`
 - **模型** (nav hint: **供应商 · 密钥**) → 本机 BYOK 多供应商 + 模型目录；**不**抄套餐墙 / ChatGPT 登录
   - 权威数据：`ModelSettings` v1（`providers[]` / `models[]` / `activeModelId`）via `getModelSettings` / `setModelSettings`
@@ -57,7 +70,7 @@ Doc companion (PEL-156): `docs/superpowers/specs/2026-08-20-doc-companion-viewer
   - 投影：`getChatConfig` = active → 旧扁平 `ChatConfig`（Port 兼容）；密钥仅 app config / localStorage，**不进** universe.db
   - Spec: `docs/superpowers/specs/2026-08-20-model-providers-spec.md`
 - **运行时** → external coding-agent detect/prefs/`enableSpawn`
-- 技能 → SkillsList; unbound guides to 空间
+- 技能 → SkillsList; unbound guides to leave/hall (not 空间-only)
 - 关于 → version + db/md/key boundaries
 - Nav order (frozen): **空间 · 外观 · 模型 · 运行时 · 技能 · 关于**
 - Events: `soit:open-settings` `{ section? }` including `appearance` / `runtime` / `model`; `soit:open-skills` → settings skills
@@ -66,7 +79,7 @@ Doc companion (PEL-156): `docs/superpowers/specs/2026-08-20-doc-companion-viewer
 
 ## Rules
 
-- Shell renders without selected vault.
+- Hall can render with no vault; `AppShell` only after enter (`shellPhase` workspace/leaving).
 - Focus only via `useWorkspace.focusNode`.
 - `prefers-reduced-motion` → flat wheel lists.
 - Card stage chrome (专注模式 / drag / motion sync): `知识库/docs/card-stage-chrome.md`. Shared clock `--motion-focus` with FocusOrbit camera.
