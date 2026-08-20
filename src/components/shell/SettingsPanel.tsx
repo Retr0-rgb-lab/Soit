@@ -29,7 +29,7 @@ type Props = {
 const NAV: { id: SettingsSection; label: string; hint: string }[] = [
   { id: "space", label: "空间", hint: "本库 · Obsidian" },
   { id: "appearance", label: "外观", hint: "主题 · 字体" },
-  { id: "model", label: "模型", hint: "BYOK 密钥" },
+  { id: "model", label: "模型", hint: "供应商 · 密钥" },
   { id: "runtime", label: "运行时", hint: "本机 Agent" },
   { id: "skills", label: "技能", hint: "本库启停" },
   { id: "about", label: "关于", hint: "记忆边界" },
