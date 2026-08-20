@@ -9,6 +9,7 @@
 | [非目标.md](./非目标.md) | 明确不做的事（含失败路径） |
 | [live-attention.md](./live-attention.md) | 活线 / 停养 = 注意力集合，≠ 探究 status |
 | [doc-session-fsm.md](./doc-session-fsm.md) | 文档陪读会话状态机 / 布局 / 划词出口（PEL-156） |
+| [materials-rail-fsm.md](./materials-rail-fsm.md) | 资料轨 / materials 目录 / 导入 / 拖分栏 |
 | [card-stage-chrome.md](./card-stage-chrome.md) | 专注模式 / 拖卡 / 中栏与陪读耦合 |
 | [card-pip-fsm.md](./card-pip-fsm.md) | 探究卡 PiP（非文档窗） |
 | [explore-layout.md](./explore-layout.md) | Explore 布局骨架与借/不借 |

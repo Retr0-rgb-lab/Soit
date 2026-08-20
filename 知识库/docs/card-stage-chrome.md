@@ -24,7 +24,15 @@
 - layout：`split` | `doc-wide` | `peek` —— 详见 `doc-session-fsm.md`。
 - **进 map：DocSession → closed**（与卡退出再挂 Orbit 同一硬规则：禁止三层叠）。
 - 文档 **不是** 卡 PiP；可与卡 PiP 并存，但独立状态机。
-- 打开入口（实现波次定 UI）：作曲区 / 命令 / 卡工具；路径须在当前 vault 内。
+- 打开入口：资料轨点选 / 作曲区 / 命令；路径须在当前 vault 内。
+- **拖分隔条**：Card | DocPane 之间可拖，`docFraction` 本机记忆（见 `materials-rail-fsm.md`）。
+
+## 资料轨（右 chrome）
+
+- 设置齿轮**正下方**「资料」按钮；展开 `vault/materials/` 列表。
+- 点文件 → `openDoc`；导入 → 复制进 `materials/`。
+- 与 Doc 可并存：`[卡|预览] + 资料轨`。
+- map / loadSnapshot → 轨 `force_close`。详见 `materials-rail-fsm.md`。
 
 ## PEL-150 拖动 = **切换卡片**
 
