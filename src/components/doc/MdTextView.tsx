@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { escapeHtml } from "../../lib/chat/port";
+import { protectAndRenderMath } from "../../lib/math/tex";
 import type { DocKind } from "../../lib/docSession";
 
 type Props = {
@@ -14,9 +15,9 @@ const PH_GLOBAL = new RegExp(`${PH_START}(\\d+)${PH_END}`, "g");
 
 /**
  * Lightweight safe md subset for the companion pane.
- * Escape first; no chat marks / wrapMarks (spec §2.5).
+ * Escape → code put → math put → md subset → restore (no wrapMarks; math-katex §2.5).
  */
-function renderDocMd(text: string): string {
+export function renderDocMd(text: string): string {
   const raw = text.replace(/^\uFEFF/, "");
   if (!raw) return "";
 
@@ -35,6 +36,8 @@ function renderDocMd(text: string): string {
   s = s.replace(/`([^`\n]+)`/g, (_m, code: string) =>
     put(`<code>${code}</code>`),
   );
+
+  s = protectAndRenderMath(s, put);
 
   s = applyDocMdSubset(s);
   s = s.replace(PH_GLOBAL, (_m, n: string) => slots[Number(n)] ?? "");

@@ -241,6 +241,32 @@
   font-weight: 650;
 }
 
+/* KaTeX math (math-katex §2.5 / §2.6) */
+.md-text-view .soit-math-inline {
+  display: inline;
+  white-space: nowrap;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.md-text-view .soit-math-block {
+  display: block;
+  margin: 0.85em 0;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.md-text-view .soit-math-fallback {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: 0.9em;
+  color: var(--ink-soft);
+  background: var(--bg-muted);
+}
+
+.md-text-view .katex {
+  color: inherit;
+}
+
 /* PDF / unsupported guide */
 .pdf-guide {
   display: flex;
