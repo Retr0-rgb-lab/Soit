@@ -39,16 +39,12 @@ button:focus-visible,
 }
 
 .app-shell {
-  display: grid;
-  grid-template-columns: var(--rail-w) minmax(0, 1fr);
+  /* Single full-bleed stage; rail floats on the left over the same paper bg */
+  position: relative;
+  display: block;
   height: 100%;
   min-height: 0;
   background: var(--bg-app);
-  transition: grid-template-columns 0.18s ease;
-}
-
-.app-shell.rail-collapsed {
-  grid-template-columns: var(--rail-w-collapsed, 48px) minmax(0, 1fr);
 }
 
 .left-rail,
@@ -61,25 +57,53 @@ button:focus-visible,
 /* Center stage + graph share one continuous app background (no right panel). */
 .workspace-main {
   position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
+  height: 100%;
   min-height: 0;
   background: transparent;
+  /* room for floating rail when expanded */
+  padding-left: var(--rail-w);
+  transition: padding-left 0.2s var(--ease-soft, ease);
+  box-sizing: border-box;
 }
 
+.app-shell.rail-collapsed .workspace-main {
+  padding-left: var(--rail-w-collapsed, 48px);
+}
+
+/* Floating chrome-less rail — sits on app bg, no panel plate */
 .left-rail {
-  /* Soft chrome — no hard divider; continuous paper field to the right */
+  position: absolute;
+  z-index: 8;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: var(--rail-w);
+  border: 0;
   border-right: none;
-  background: color-mix(in srgb, var(--bg-panel) 72%, var(--bg-app));
-  padding: 14px 12px 12px;
+  background: transparent;
+  box-shadow: none;
+  padding: 14px 10px 12px 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   overflow: hidden;
   min-width: 0;
+  pointer-events: none; /* children re-enable */
+  transition:
+    width 0.2s var(--ease-soft, ease),
+    padding 0.2s var(--ease-soft, ease),
+    opacity 0.18s ease;
+}
+
+.left-rail > * {
+  pointer-events: auto;
 }
 
 .left-rail.collapsed {
+  width: var(--rail-w-collapsed, 48px);
   padding: 12px 6px;
   align-items: center;
 }
@@ -127,19 +151,26 @@ button:focus-visible,
 
 .rail-toggle {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--bg-card);
+  width: 30px;
+  height: 30px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-card) 55%, transparent);
   color: var(--ink-soft);
   line-height: 1;
   padding: 0;
+  backdrop-filter: blur(6px);
 }
 
 .rail-toggle:hover {
-  background: var(--bg-muted);
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
   color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.left-rail.collapsed .rail-toggle {
+  background: color-mix(in srgb, var(--bg-card) 70%, transparent);
+  box-shadow: var(--e1);
 }
 
 .rail-nav {
@@ -167,8 +198,9 @@ button:focus-visible,
   flex-direction: column;
   gap: 6px;
   padding-bottom: 4px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
   margin-bottom: 4px;
+  background: transparent;
 }
 
 .rail-vault.compact {
@@ -568,36 +600,47 @@ button:focus-visible,
   min-height: 320px;
 }
 
-/* Rail extras */
+/* Rail extras — light chips on open paper, not a solid panel */
 .rail-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
 .rail-action {
   flex: 1;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg-card);
+  border: 1px solid color-mix(in srgb, var(--line) 75%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-card) 42%, transparent);
   color: var(--ink);
   font-size: 12px;
-  padding: 6px 8px;
+  padding: 6px 10px;
+  backdrop-filter: blur(5px);
 }
 
 .rail-action.on {
   background: var(--ink);
   border-color: var(--ink);
   color: var(--bg-card);
+  backdrop-filter: none;
 }
 
 .rail-action.ghost {
   flex: 0 0 auto;
   background: transparent;
+  border-color: transparent;
   color: var(--ink-soft);
+  backdrop-filter: none;
 }
 
 .rail-action:hover {
-  background: var(--bg-muted);
+  background: color-mix(in srgb, var(--bg-card) 78%, transparent);
+  border-color: var(--line);
+}
+
+.rail-action.ghost:hover {
+  background: color-mix(in srgb, var(--bg-muted) 55%, transparent);
+  color: var(--ink);
 }
 
 .rail-action.on:hover {
@@ -641,20 +684,23 @@ button:focus-visible,
 }
 
 .rail-icon-btn {
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg-card);
+  width: 34px;
+  height: 34px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-card) 50%, transparent);
   color: var(--ink-soft);
   font-size: 14px;
   padding: 0;
+  backdrop-filter: blur(6px);
+  box-shadow: var(--e1);
 }
 
 .rail-icon-btn.on {
   background: var(--ink);
   color: var(--bg-card);
   border-color: var(--ink);
+  backdrop-filter: none;
 }
 
 .rail-foot-meta {
@@ -662,6 +708,7 @@ button:focus-visible,
   margin-top: 4px;
   font-size: 11px;
   color: var(--ink-faint);
+  background: transparent;
 }
 
 /* Skills panel (Wave E — settings list only) */
@@ -1016,8 +1063,17 @@ button:focus-visible,
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   padding-right: 2px;
+  background: transparent;
+  /* soft fade into paper so content doesn't need a plate */
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 8px,
+    #000 calc(100% - 10px),
+    transparent 100%
+  );
 }
 
 /* Accordion sections (活线 / 最近 / 线债) — CSS only, no GSAP */
@@ -1034,9 +1090,9 @@ button:focus-visible,
   gap: 6px;
   width: 100%;
   margin: 0;
-  padding: 4px 2px;
+  padding: 5px 4px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
   color: inherit;
   text-align: left;

@@ -192,10 +192,10 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
         <button
           type="button"
           className="rail-toggle"
-          aria-label={collapsed ? "展开左栏" : "折叠左栏"}
+          aria-label={collapsed ? "显示侧栏" : "隐藏侧栏"}
           aria-expanded={!collapsed}
           onClick={onToggleCollapse}
-          title={collapsed ? "展开" : "折叠"}
+          title={collapsed ? "显示侧栏" : "隐藏侧栏"}
         >
           {collapsed ? "›" : "‹"}
         </button>

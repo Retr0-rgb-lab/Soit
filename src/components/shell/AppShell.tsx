@@ -22,6 +22,10 @@ export default function AppShell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
 
+  const toggleRail = useCallback(() => {
+    setRailCollapsed((v) => !v);
+  }, []);
+
   const workspaceMode = useWorkspace((s) => s.workspaceMode);
   const setMode = useWorkspace((s) => s.setWorkspaceMode);
   const toggleMap = useWorkspace((s) => s.toggleMapMode);
@@ -61,6 +65,12 @@ export default function AppShell() {
         e.preventDefault();
         setSkillsOpen(false);
         setPaletteOpen((v) => !v);
+        return;
+      }
+      // Ctrl+B — hide / show floating left rail
+      if (mod && (e.key === "b" || e.key === "B") && !e.altKey) {
+        e.preventDefault();
+        toggleRail();
         return;
       }
       // Ctrl+\ — toggle map (skip when card overlays own the surface)
@@ -156,6 +166,7 @@ export default function AppShell() {
     workspaceMode,
     setMode,
     toggleMap,
+    toggleRail,
     nodes,
     focusId,
     focusNode,
@@ -167,7 +178,7 @@ export default function AppShell() {
     >
       <LeftRail
         collapsed={railCollapsed}
-        onToggleCollapse={() => setRailCollapsed((v) => !v)}
+        onToggleCollapse={toggleRail}
       />
       <div className="workspace-main">
         {workspaceMode === "map" ? (
