@@ -1,6 +1,7 @@
 import type {
   ChatCompleteInput,
   ChatCompleteResult,
+  ChatExplainInput,
   ChatMark,
   ChatPort,
 } from "./port";
@@ -112,6 +113,26 @@ export class MockChat implements ChatPort {
     ].join("\n");
 
     return { text, marks };
+  }
+
+  /**
+   * Deterministic short explain — prefix must stay assertable in UI/tests.
+   * Must not only echo marks.ts / bare GLOSSARY.explanation.
+   */
+  async explain(input: ChatExplainInput): Promise<{ text: string }> {
+    if (input.signal) {
+      await abortableDelay(MOCK_ABORT_BUDGET_MS, input.signal);
+    }
+    throwIfAborted(input.signal);
+
+    const span = (input.span ?? "").trim() || "（空选区）";
+    const preview = span.length > 80 ? `${span.slice(0, 80)}…` : span;
+    const hit = GLOSSARY.find((m) => m.term === span || span.includes(m.term));
+    const gloss = hit
+      ? `${hit.explanation} 可再点深挖/发散继续探究，解释本身不建卡。`
+      : `这是对「${preview}」的本地短解释：先弄清含义，再决定是否深挖或发散。解释不落库、不长新卡。`;
+
+    return { text: `（MockExplain）${preview}：${gloss}` };
   }
 }
 

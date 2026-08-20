@@ -26,8 +26,21 @@ export interface ChatCompleteResult {
   marks?: ChatMark[];
 }
 
+/** Short explain input — span/selection gloss; does not write turns or vault. */
+export interface ChatExplainInput {
+  cardId: string;
+  /** Mark term or selection text to explain. */
+  span: string;
+  /** Optional recent card messages for context (caller assembles). */
+  contextMessages?: ChatMessage[];
+  /** Optional abort — ports honor when provided (dual-track aligned). */
+  signal?: AbortSignal;
+}
+
 export interface ChatPort {
   complete(input: ChatCompleteInput): Promise<ChatCompleteResult>;
+  /** Short 2–4 sentence explain; no marks required; no persistence. */
+  explain?(input: ChatExplainInput): Promise<{ text: string }>;
 }
 
 /** Escape text for safe insertion into HTML. */

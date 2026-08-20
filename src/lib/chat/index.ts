@@ -12,6 +12,7 @@ export type { ChatConfig } from "./config";
 export type {
   ChatCompleteInput,
   ChatCompleteResult,
+  ChatExplainInput,
   ChatMark,
   ChatMessage,
   ChatPort,
