@@ -8,9 +8,11 @@ Parent: `知识库/AGENTS.md`.
 
 | File | Use when |
 |------|----------|
-| `共识.md` | Identity, two-layer memory, fork rules, skills, v1 closed loop |
-| `对象模型.md` | Card / edge / vault / universe / context-inheritance invariants |
+| `共识.md` | Identity, two-layer memory, fork rules, skills, v1 closed loop, doc companion (§2.1) |
+| `对象模型.md` | Card / edge / vault / universe / DocRef·DocSession / context-inheritance invariants |
 | `非目标.md` | What not to build; failed paths not to reopen |
+| `doc-session-fsm.md` | Read-only doc companion session FSM (PEL-156) |
+| `card-stage-chrome.md` / `card-pip-fsm.md` | Focus stage, drag/PiP; doc pane coupling (not CardPip) |
 | `explore-*.md` / `map-scale-lod.md` / `card-motion-locus.md` | UX research borrowed into Soit rules — patterns, not a mandate to clone Explore |
 
 ## Rules
