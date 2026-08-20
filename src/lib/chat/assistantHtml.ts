@@ -1,5 +1,6 @@
 /** Safe markdown subset → HTML for assistant turns (Spec card-read-explain §2.1). */
 
+import { protectAndRenderMath } from "../math/tex";
 import {
   escapeHtml,
   wrapMarksOnEscaped,
@@ -14,7 +15,7 @@ const PH_GLOBAL = new RegExp(`${PH_START}(\\d+)${PH_END}`, "g");
 
 /**
  * Model text → trusted HTML for `dangerouslySetInnerHTML`.
- * Pipeline: escape → code protect → marks outside code → md subset → restore.
+ * Pipeline: escape → code protect → math → marks outside code → md subset → restore.
  * Whitelist tags only; never parse model raw HTML.
  */
 export function renderAssistantHtml(text: string, marks?: ChatMark[]): string {
@@ -24,7 +25,7 @@ export function renderAssistantHtml(text: string, marks?: ChatMark[]): string {
   // A. Escape once.
   let s = escapeHtml(raw);
 
-  // B. Protect fences + inline code (no marks / emphasis inside).
+  // B. Protect fences + inline code (no marks / emphasis / math inside).
   const slots: string[] = [];
   const put = (html: string): string => {
     const i = slots.length;
@@ -38,10 +39,13 @@ export function renderAssistantHtml(text: string, marks?: ChatMark[]): string {
   });
   s = s.replace(/`([^`\n]+)`/g, (_m, code: string) => put(`<code>${code}</code>`));
 
-  // C. Marks on escaped text only (outside placeholders).
+  // C. Math on escaped text (code already in PH slots).
+  s = protectAndRenderMath(s, put);
+
+  // D. Marks on escaped text only (outside placeholders).
   s = wrapMarksOnEscaped(s, marks);
 
-  // D. Block + inline subset; skip tag interiors; do not split marks.
+  // E. Block + inline subset; skip tag interiors; do not split marks.
   s = applyMdSubset(s);
 
   s = s.replace(PH_GLOBAL, (_m, n: string) => slots[Number(n)] ?? "");

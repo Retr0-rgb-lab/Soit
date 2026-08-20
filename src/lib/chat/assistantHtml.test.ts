@@ -66,6 +66,61 @@ describe("renderAssistantHtml", () => {
     expect(html).toContain("&lt;img");
     expect(html).toContain("class=&quot;mark&quot;");
   });
+
+  it("renders inline $a+b$ with katex", () => {
+    const html = renderAssistantHtml("see $a+b$ here");
+    expect(html).toContain('class="soit-math soit-math-inline"');
+    expect(html).toContain('data-tex="a+b"');
+    expect(html).toContain("katex");
+  });
+
+  it("unescapes $a < b$ before katex", () => {
+    const html = renderAssistantHtml("cmp $a < b$ ok");
+    expect(html).toContain('class="soit-math soit-math-inline"');
+    expect(html).toContain('data-tex="a &lt; b"');
+    expect(html).toContain("katex");
+    expect(html).not.toContain("soit-math-fallback");
+  });
+
+  it("renders display $$…$$ as block outside p", () => {
+    const html = renderAssistantHtml("before\n\n$$\\frac{1}{2}$$\n\nafter");
+    expect(html).toContain('class="soit-math soit-math-block"');
+    expect(html).toContain("katex");
+    // Display math must not nest inside <p>…</p>.
+    expect(html).not.toMatch(/<p[^>]*>[^<]*<div class="soit-math/);
+  });
+
+  it("does not render math inside fenced code", () => {
+    const html = renderAssistantHtml("```\n$a$\n```");
+    expect(html).toContain("<pre><code>");
+    expect(html).toContain("$a$");
+    expect(html).not.toContain("soit-math");
+  });
+
+  it("does not render math inside inline code", () => {
+    const html = renderAssistantHtml("use `$a$` literally");
+    expect(html).toContain("<code>$a$</code>");
+    expect(html).not.toContain("soit-math");
+  });
+
+  it("coexists **bold** with inline math", () => {
+    const html = renderAssistantHtml("**bold** and $x$");
+    expect(html).toContain("<strong>bold</strong>");
+    expect(html).toContain('class="soit-math soit-math-inline"');
+    expect(html).toContain('data-tex="x"');
+    expect(html).toContain("katex");
+  });
+
+  it("mark stays outside math shell", () => {
+    const html = renderAssistantHtml("term 函子 and $x$", [{ term: "函子" }]);
+    expect(html).toContain('class="mark"');
+    expect(html).toContain('data-term="函子"');
+    expect(html).toContain('class="soit-math soit-math-inline"');
+    // Mark must not appear inside the math shell.
+    expect(html).not.toMatch(
+      /soit-math[^>]*>[\s\S]*class="mark"/,
+    );
+  });
 });
 
 describe("wrapMarksOnEscaped / applyMarksHtml", () => {
@@ -92,5 +147,16 @@ describe("stripHtml", () => {
     expect(stripHtml("<ul><li>a</li><li>b</li></ul>")).toBe("a\nb");
     expect(stripHtml("<h2>Title</h2>body")).toBe("Title\nbody");
     expect(stripHtml("<pre><code>x</code></pre>after")).toBe("x\nafter");
+  });
+
+  it("restores inline and display math via data-tex", () => {
+    const inline = renderAssistantHtml("see $a+b$ here");
+    expect(stripHtml(inline)).toBe("see $a+b$ here");
+
+    const display = renderAssistantHtml("$$\\frac{1}{2}$$");
+    expect(stripHtml(display)).toBe("$$\\frac{1}{2}$$");
+
+    const cmp = renderAssistantHtml("cmp $a < b$ ok");
+    expect(stripHtml(cmp)).toBe("cmp $a < b$ ok");
   });
 });

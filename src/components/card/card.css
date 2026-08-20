@@ -1355,6 +1355,32 @@ body.has-selbar .ic-turn-bar {
   font-style: italic;
 }
 
+/* KaTeX math (math-katex Spec §2.6) — inherit theme ink, no fixed black */
+.ai-html .soit-math-inline {
+  display: inline;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: nowrap;
+}
+
+.ai-html .soit-math-block {
+  display: block;
+  overflow-x: auto;
+  text-align: center;
+  margin: 0.65em 0;
+  padding: 0.15em 0;
+}
+
+.ai-html .soit-math-fallback {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  color: var(--ink-soft, color-mix(in srgb, var(--ink) 70%, transparent));
+}
+
+.ai-html .katex {
+  color: inherit;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ai-html .mark.mark-highlight,
   .mark-highlight {

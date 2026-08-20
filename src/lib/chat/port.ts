@@ -1,5 +1,6 @@
 /** ChatPort — single complete path for send + regenerate (Wave C). */
 
+import { htmlUnescape } from "../math/tex";
 import { renderAssistantHtml } from "./assistantHtml";
 
 export type ChatRole = "user" | "assistant" | "system";
@@ -106,9 +107,54 @@ export function completeResultToHtml(result: ChatCompleteResult): string {
   return renderAssistantHtml(result.text, result.marks);
 }
 
+/**
+ * Restore KaTeX shells to `$…$` / `$$…$$` via data-tex before generic strip.
+ * Walks balanced span/div so nested .katex markup is not truncated.
+ */
+function restoreMathTex(html: string): string {
+  const openRe = /<(span|div)\b([^>]*\bsoit-math\b[^>]*)>/gi;
+  let out = "";
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = openRe.exec(html)) !== null) {
+    const tag = m[1];
+    const attrs = m[2];
+    const texMatch = /\bdata-tex="([^"]*)"/.exec(attrs);
+    if (!texMatch) continue;
+
+    const start = m.index;
+    const afterOpen = start + m[0].length;
+    const scanner = new RegExp(`</?${tag}\\b[^>]*>`, "gi");
+    scanner.lastIndex = afterOpen;
+    let depth = 1;
+    let end = -1;
+    let sm: RegExpExecArray | null;
+    while ((sm = scanner.exec(html)) !== null) {
+      if (sm[0].startsWith("</")) {
+        depth -= 1;
+        if (depth === 0) {
+          end = sm.index + sm[0].length;
+          break;
+        }
+      } else if (!sm[0].endsWith("/>")) {
+        depth += 1;
+      }
+    }
+    if (end < 0) continue;
+
+    out += html.slice(last, start);
+    const tex = htmlUnescape(texMatch[1]);
+    out += /\bsoit-math-block\b/.test(attrs) ? `$$${tex}$$` : `$${tex}$`;
+    last = end;
+    openRe.lastIndex = end;
+  }
+  out += html.slice(last);
+  return out;
+}
+
 /** Strip tags for message history fed back into the model. */
 export function stripHtml(html: string): string {
-  return html
+  return restoreMathTex(html)
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>/gi, "\n")
     .replace(/<\/li>/gi, "\n")
