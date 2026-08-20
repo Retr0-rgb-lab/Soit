@@ -97,9 +97,9 @@ v1 列表：**单层或浅递归（≤2 层）文件**；目录可显示但点�
 |------|----|----|--------|
 | `toggle` 且 closed | closed | open | 触发 `list` |
 | `toggle` 且 open | open | closed | 不清 DocSession |
-| `list` | open | loading→ready/error | Host `list_materials` |
+| `list` | open | loading→ready/error | Host `list_vault_materials` |
 | `refresh` | open+ready/error | loading→… | 同上 |
-| `import_files` | open | （保持 open） | Host 复制进 materials → refresh → 可选 openDoc 首个 |
+| `import_files` | open | （保持 open） | Host `import_vault_material`（P0：base64≤2MB）→ refresh → openDoc 首个成功 |
 | `select(pathRel)` | open | open | **`openDoc(pathRel)`**；selectedPathRel=pathRel |
 | `force_close` | * | closed | map / loadSnapshot / unbind；**不**自动 closeDoc（Doc 由 DocSession 自己 force_close） |
 | Esc（见壳层顺序） | open | closed | 仅收轨 |
@@ -138,16 +138,19 @@ v1 布局优先级：
 ```text
 user pick files (input[type=file] multiple)
     → import_status=busy
-    → Host import_vault_material(bytes|path) × N
+    → 每个 file.size 预检（>2MB 跳过并提示）
+    → Host import_vault_material({ fileName, bytesBase64 }) × N
          · 仅写入 vault/materials/
-         · 路径沙箱 + 拒绝 .soit
-         · 返回 pathRel[]
+         · 解码后 ≤ 2_000_000 bytes
+         · 路径沙箱；返回 pathRel
     → import_status=idle
     → list refresh
-    → 若用户勾选「打开」或 v1 默认打开第一个 → DocSession.open(first)
+    → DocSession.open(第一个成功)
 ```
 
-浏览器 mock：无 Tauri 时列表用内置 `demo/welcome.md` 等 fixture；导入可 no-op 或内存列表。
+大文件：请用户直接放进 `vault/materials/` 后点刷新（P1 再做 OS 路径复制）。
+
+浏览器 mock：list 含 `demo/welcome.md`；import **内存追加** entries，不写盘。
 
 ---
 
