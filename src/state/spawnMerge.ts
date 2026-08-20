@@ -4,6 +4,10 @@ import {
   touchSession,
 } from "../lib/liveSet";
 import { rootOf } from "../lib/threadDebt";
+import {
+  collectSubtreeIds,
+  nextFocusAfterDelete,
+} from "../lib/treeNav";
 import type {
   Edge,
   InquiryNode,
@@ -16,6 +20,7 @@ import {
   type StoreSet,
 } from "./turnHelpers";
 import type { SpawnInquiryInput, WorkspaceState } from "./workspaceStore";
+import { reduceDocSession } from "../lib/docSession";
 
 const RECENT_MAX = 8;
 
@@ -167,8 +172,15 @@ export function mergeHostSnapshot(
   preferredFocus: string,
 ): void {
   const prev = get();
-  const focusId = preferredFocus || snap.focusId;
   const nodeIds = new Set(snap.nodes.map((n) => n.id));
+  const want = preferredFocus || snap.focusId;
+  const focusId = nodeIds.has(want)
+    ? want
+    : nodeIds.has(snap.focusId)
+      ? snap.focusId
+      : (snap.nodes.find((n) => !n.parentId)?.id ??
+        snap.nodes[0]?.id ??
+        "");
   const focusNode = snap.nodes.find((n) => n.id === focusId);
   let rootId = focusId;
   if (focusNode?.parentId) {
@@ -181,7 +193,10 @@ export function mergeHostSnapshot(
     if (cur) rootId = cur.id;
   }
   const prunedLive = prev.liveIds.filter((id) => nodeIds.has(id));
-  const { liveIds } = pinLiveId(prunedLive, rootId || focusId, LIVE_MAX);
+  const { liveIds } =
+    focusId.length > 0
+      ? pinLiveId(prunedLive, rootId || focusId, LIVE_MAX)
+      : { liveIds: [] as string[] };
   // Host may leave newly focused child unread; clear like focusNode would.
   const nodes = snap.nodes.map((n) =>
     n.id === focusId && n.unread ? { ...n, unread: false } : { ...n },
@@ -198,11 +213,78 @@ export function mergeHostSnapshot(
     focusId,
     source: snap.source,
     workspaceMode: "focus",
-    recentIds: pushRecent(prev.recentIds, focusId, prev.focusId),
-    sessionTouchIds: touchSession(prev.sessionTouchIds, focusId),
+    recentIds:
+      focusId.length > 0
+        ? pushRecent(prev.recentIds, focusId, prev.focusId)
+        : [],
+    sessionTouchIds:
+      focusId.length > 0
+        ? touchSession(prev.sessionTouchIds, focusId)
+        : [],
     liveIds,
     highlightSpan: null,
   });
+}
+
+/**
+ * Demo / unbound memory delete — never used when source === "universe".
+ * Cascade subtree; returns next focus id (may be "").
+ */
+export function memoryDeleteInquiry(
+  get: StoreGet,
+  set: StoreSet,
+  cardId: string,
+): string {
+  const s0 = get();
+  const deleteIds = collectSubtreeIds(s0.nodes, cardId);
+  if (deleteIds.size === 0) return s0.focusId;
+
+  const nextFocus = nextFocusAfterDelete(
+    s0.nodes,
+    deleteIds,
+    s0.focusId,
+    cardId,
+  );
+
+  const nodes = s0.nodes.filter((n) => !deleteIds.has(n.id));
+  const edges = s0.edges.filter(
+    (e) => !deleteIds.has(e.fromCardId) && !deleteIds.has(e.toCardId),
+  );
+  const turnsByCardId = { ...s0.turnsByCardId };
+  for (const id of deleteIds) {
+    delete turnsByCardId[id];
+  }
+
+  let docSession = s0.docSession;
+  if (
+    docSession.boundCardId &&
+    deleteIds.has(docSession.boundCardId)
+  ) {
+    docSession = reduceDocSession(docSession, { type: "force_close" });
+  }
+
+  const nodeIds = new Set(nodes.map((n) => n.id));
+  const prunedLive = s0.liveIds.filter((id) => nodeIds.has(id));
+  const root = nextFocus ? rootOf(nodes, nextFocus) : null;
+  const { liveIds } =
+    nextFocus.length > 0
+      ? pinLiveId(prunedLive, root?.id ?? nextFocus, LIVE_MAX)
+      : { liveIds: [] as string[] };
+
+  set({
+    nodes,
+    edges,
+    turnsByCardId,
+    focusId: nextFocus,
+    recentIds: s0.recentIds.filter((id) => nodeIds.has(id)),
+    sessionTouchIds: s0.sessionTouchIds.filter((id) => nodeIds.has(id)),
+    liveIds,
+    highlightSpan: null,
+    docSession,
+    workspaceMode: "focus",
+  });
+
+  return nextFocus;
 }
 
 /** Fire-and-forget Host unread clear (universe path). */

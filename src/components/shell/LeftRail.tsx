@@ -57,16 +57,42 @@ export default function LeftRail({
       className={`left-rail left-rail--orbit-only${collapsed ? " collapsed" : ""}`}
       aria-label="探究导航"
     >
-      <button
-        type="button"
-        className="rail-toggle"
-        aria-label={collapsed ? "显示轨道" : "隐藏轨道"}
-        aria-expanded={!collapsed}
-        onClick={onToggleCollapse}
-        title={collapsed ? "显示轨道 (Ctrl+B)" : "隐藏轨道 (Ctrl+B)"}
-      >
-        {collapsed ? "›" : "‹"}
-      </button>
+      <div className="rail-head">
+        {!collapsed ? (
+          <div className="rail-brand">
+            <img
+              className="rail-logo"
+              src="/soit-mark.svg"
+              width={28}
+              height={28}
+              alt=""
+              draggable={false}
+            />
+            <div className="rail-brand-text">
+              <strong className="rail-title">Soit</strong>
+            </div>
+          </div>
+        ) : (
+          <img
+            className="rail-logo"
+            src="/soit-mark.svg"
+            width={32}
+            height={32}
+            alt="Soit"
+            draggable={false}
+          />
+        )}
+        <button
+          type="button"
+          className="rail-toggle"
+          aria-label={collapsed ? "显示轨道" : "隐藏轨道"}
+          aria-expanded={!collapsed}
+          onClick={onToggleCollapse}
+          title={collapsed ? "显示轨道 (Ctrl+B)" : "隐藏轨道 (Ctrl+B)"}
+        >
+          {collapsed ? "›" : "‹"}
+        </button>
+      </div>
 
       {!collapsed && (
         <div className="rail-scroll rail-scroll--orbit">

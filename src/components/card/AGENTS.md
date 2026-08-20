@@ -27,6 +27,7 @@ Stage chrome: `知识库/docs/card-stage-chrome.md` (专注模式 · **drag-to-s
 - Edge long-card actions are **exactly two:** deepen and diverge. No third edge type for regenerate.
 - Composer: **Enter = send**, **Shift+Enter = newline**; **@** or toolbar opens card mention picker; attach button adds local files (text inlined into user turn, binary name-only).
 - Turn ops (`regenerateTurn`, `deleteTurn`, collapse) stay **on the current card**; regenerate must not spawn nodes.
+- **Delete inquiry** (`deleteInquiry`): HoverIconTray trash → confirm → cascade subtree (turns + edges). Not EdgeActions. No Obsidian cascade. Universe → Host `delete_inquiry`.
 - Assistant HTML is a **safe subset** from `renderAssistantHtml` (escape → structure → marks); may include marks (`class="mark" data-term=...`). Never trust model raw HTML.
 - Mark / selection short-explain goes through **`explainSpan` only** (never `port.explain` / fetch from UI). Explain does **not** create cards, turns, or db rows; spawn still requires explicit deepen/diverge — do not silent-deepen.
 - Wire mutations through `useWorkspace`, not local fake graphs.

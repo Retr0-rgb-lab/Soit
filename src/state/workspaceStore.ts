@@ -39,6 +39,7 @@ import {
   afterFocus,
   cloneEdges,
   hostClearUnread,
+  memoryDeleteInquiry,
   memorySpawnInquiry,
   mergeHostSnapshot,
 } from "./spawnMerge";
@@ -192,6 +193,12 @@ export interface WorkspaceState {
   /** Prefer (cardId, turnId). cardId optional → resolve only under current focusId. */
   regenerateTurn: (turnId: string, cardId?: string) => Promise<void>;
   deleteTurn: (turnId: string, cardId?: string) => Promise<void>;
+  /**
+   * Delete inquiry + descendant subtree (turns + edges).
+   * Universe → Host `delete_inquiry`; demo → memory. No Obsidian cascade.
+   * Returns next focus id ("" if universe emptied).
+   */
+  deleteInquiry: (cardId?: string) => Promise<string>;
   toggleTurnCollapsed: (turnId: string, cardId?: string) => Promise<void>;
   /** Fire-and-forget OK; returns when assistant turn is filled via ChatPort. */
   appendUserMessage: (text: string, quote?: string) => Promise<void>;
@@ -860,6 +867,66 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     },
 
     clearHighlight: () => set({ highlightSpan: null }),
+
+    deleteInquiry: async (cardIdArg) => {
+      const s0 = get();
+      const cardId = (cardIdArg ?? s0.focusId).trim();
+      if (!cardId || !s0.nodes.some((n) => n.id === cardId)) return s0.focusId;
+
+      // Cancel generation if it touches this card (or any subtree member after memory path).
+      const inflight = s0.inquiryInflight;
+      if (inflight?.cardId === cardId) {
+        get().cancelInflight();
+      }
+
+      if (isUniverseSource(s0.source)) {
+        try {
+          const { deleteInquiry: hostDelete } = await import("../lib/host");
+          const res = await hostDelete(cardId);
+          if (res.snapshot) {
+            const preferred = res.snapshot.focusId || "";
+            mergeHostSnapshot(
+              get as StoreGet,
+              set as StoreSet,
+              res.snapshot,
+              preferred,
+            );
+            // Cancel if inflight card vanished.
+            const s1 = get();
+            if (
+              s1.inquiryInflight &&
+              !s1.nodes.some((n) => n.id === s1.inquiryInflight!.cardId)
+            ) {
+              get().cancelInflight();
+            }
+            const bound = s1.docSession.boundCardId;
+            if (bound && !s1.nodes.some((n) => n.id === bound)) {
+              set({
+                docSession: reduceDocSession(s1.docSession, {
+                  type: "force_close",
+                }),
+              });
+            }
+            return get().focusId;
+          }
+        } catch (err) {
+          console.error("[soit] delete_inquiry host failed", err);
+          return get().focusId;
+        }
+        return get().focusId;
+      }
+
+      // Demo / unbound: cancel any inflight in subtree before strip.
+      const { collectSubtreeIds } = await import("../lib/treeNav");
+      const doomed = collectSubtreeIds(s0.nodes, cardId);
+      if (
+        s0.inquiryInflight &&
+        doomed.has(s0.inquiryInflight.cardId)
+      ) {
+        get().cancelInflight();
+      }
+      return memoryDeleteInquiry(get as StoreGet, set as StoreSet, cardId);
+    },
 
     regenerateTurn: chat.regenerateTurn,
     deleteTurn: chat.deleteTurn,

@@ -10,6 +10,7 @@ const hostMocks = vi.hoisted(() => ({
   appendTurn: vi.fn(),
   updateTurn: vi.fn(),
   deleteTurn: vi.fn(),
+  deleteInquiry: vi.fn(),
   updateCard: vi.fn(),
   getEnabledSkillsText: vi.fn(async () => ""),
 }));
@@ -27,6 +28,7 @@ vi.mock("../lib/host", async (importOriginal) => {
     appendTurn: hostMocks.appendTurn,
     updateTurn: hostMocks.updateTurn,
     deleteTurn: hostMocks.deleteTurn,
+    deleteInquiry: hostMocks.deleteInquiry,
     updateCard: hostMocks.updateCard,
     getEnabledSkillsText: hostMocks.getEnabledSkillsText,
   };
@@ -254,6 +256,61 @@ describe("workspaceStore", () => {
     ).toBeUndefined();
     expect(useWorkspaceStore.getState().turnsByCardId.c1!.length).toBe(1);
     expect(useWorkspaceStore.getState().turnsByCardId.c2!.length).toBe(1);
+  });
+
+  it("deleteInquiry leaf focuses parent and strips edges/turns", async () => {
+    useWorkspaceStore.getState().focusNode("c3");
+    const next = await useWorkspaceStore.getState().deleteInquiry("c3");
+    const s = useWorkspaceStore.getState();
+    expect(next).toBe("c2");
+    expect(s.focusId).toBe("c2");
+    expect(s.nodes.some((n) => n.id === "c3")).toBe(false);
+    expect(s.turnsByCardId.c3).toBeUndefined();
+    expect(s.edges.some((e) => e.toCardId === "c3" || e.fromCardId === "c3")).toBe(
+      false,
+    );
+  });
+
+  it("deleteInquiry subtree removes descendants", async () => {
+    useWorkspaceStore.getState().focusNode("c3");
+    await useWorkspaceStore.getState().deleteInquiry("c2");
+    const s = useWorkspaceStore.getState();
+    expect(s.focusId).toBe("c1");
+    expect(s.nodes.map((n) => n.id).sort()).toEqual(["c1"]);
+    expect(s.edges).toEqual([]);
+  });
+
+  it("deleteInquiry universe uses host and does not memory-drop on failure", async () => {
+    useWorkspaceStore.getState().loadSnapshot(universeSnap({ focusId: "c3" }));
+    hostMocks.deleteInquiry.mockRejectedValueOnce(new Error("db down"));
+    const before = useWorkspaceStore.getState().nodes.length;
+    await useWorkspaceStore.getState().deleteInquiry("c3");
+    expect(hostMocks.deleteInquiry).toHaveBeenCalledWith("c3");
+    expect(useWorkspaceStore.getState().nodes.length).toBe(before);
+    expect(useWorkspaceStore.getState().nodes.some((n) => n.id === "c3")).toBe(
+      true,
+    );
+  });
+
+  it("deleteInquiry universe merges host snapshot", async () => {
+    useWorkspaceStore.getState().loadSnapshot(universeSnap({ focusId: "c3" }));
+    const demo = demoSnapshot();
+    const after = universeSnap({
+      focusId: "c2",
+      nodes: demo.nodes.filter((n) => n.id !== "c3"),
+      edges: (demo.edges ?? []).filter(
+        (e) => e.toCardId !== "c3" && e.fromCardId !== "c3",
+      ),
+      turnsByCardId: Object.fromEntries(
+        Object.entries(demo.turnsByCardId).filter(([k]) => k !== "c3"),
+      ),
+    });
+    hostMocks.deleteInquiry.mockResolvedValueOnce({ ok: true, snapshot: after });
+    await useWorkspaceStore.getState().deleteInquiry("c3");
+    expect(useWorkspaceStore.getState().focusId).toBe("c2");
+    expect(useWorkspaceStore.getState().nodes.some((n) => n.id === "c3")).toBe(
+      false,
+    );
   });
 
   it("spawnInquiry leaves focused child unread=false", async () => {
@@ -752,7 +809,7 @@ describe("workspaceStore materialsRail (M3)", () => {
     useWorkspaceStore.getState().closeMaterialsRail();
   });
 
-  it("openMaterialsRail lazy-lists mock demo/welcome.md", async () => {
+  it("openMaterialsRail starts with empty materials list (no silent demo seed)", async () => {
     useWorkspaceStore.getState().openMaterialsRail();
     // list is async
     await vi.waitFor(() => {
@@ -762,9 +819,7 @@ describe("workspaceStore materialsRail (M3)", () => {
     });
     const rail = useWorkspaceStore.getState().materialsRail;
     expect(rail.open).toBe(true);
-    expect(rail.entries.some((e) => e.pathRel === "demo/welcome.md")).toBe(
-      true,
-    );
+    expect(rail.entries).toEqual([]);
     expect(rail.error).toBeNull();
   });
 

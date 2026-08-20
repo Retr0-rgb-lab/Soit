@@ -105,7 +105,7 @@ Hall contract: `docs/superpowers/specs/2026-08-20-workspace-hall-spec.md` v1.1.
 - CSS var `--doc-fraction` ∈ [0.28, 0.72]; default **0.42**; localStorage `soit-doc-split-ratio` (never universe.db).
 - `layout==='split'`: stored fraction; sash visible. `doc-wide`: display **0.68** only (no auto-persist).
 - Drag sash → update fraction + persist; if was doc-wide → `setDocLayout("split")`. Double-click sash → 0.42 + persist + split.
-- DocPane **加宽** toggles layout only — must not write fraction.
+- DocPane has **no** 加宽 button; width is sash drag only (`SplitSash`).
 
 ### Materials / settings chrome
 

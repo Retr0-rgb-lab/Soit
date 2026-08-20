@@ -95,10 +95,12 @@ export default function AppShell() {
   const closeMaterialsRail = useWorkspace((s) => s.closeMaterialsRail);
   const toggleMaterialsRail = useWorkspace((s) => s.toggleMaterialsRail);
 
+  // Clean product: no silent demo cards — empty graph → EmptyWorkspace.
   const showEmpty =
-    source === "empty" ||
-    (source === "universe" && nodes.length === 0) ||
-    (source !== "demo" && source !== null && !focusId);
+    source !== null &&
+    (nodes.length === 0 ||
+      source === "empty" ||
+      !focusId);
 
   const docOpen = isDocSurfaceOpen(docSession.status);
   const docLayout = docSession.layout;

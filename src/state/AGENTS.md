@@ -30,6 +30,7 @@ Spec: `知识库/specs/2026-08-20-host-hardening-and-durability.md` §6.
   - `appendUserMessage` → Host `append_turn` → chat complete → `update_turn` (aiHtml)
   - `regenerateTurn` → complete → `update_turn` only (no nodes)
   - `deleteTurn` / `toggleTurnCollapsed` → Host `delete_turn` / `update_turn`
+  - `deleteInquiry` → Host `delete_inquiry` (subtree); on failure keep graph — **never** memory strip
   - `focusNode` / `markThreadRead` unread clear → `update_card` unread=false (fire-and-forget)
   - `spawnInquiry` → Host only; on failure log + `""` — **never** `memorySpawnInquiry`
 - **Demo / unbound** (`source === "demo"` etc.): memory spawn + local turns.

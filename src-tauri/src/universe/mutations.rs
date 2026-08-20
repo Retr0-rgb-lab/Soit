@@ -338,6 +338,104 @@ impl Universe {
     })
   }
 
+  /// Hard-delete one inquiry and its descendant subtree (cards + touching edges).
+  /// Turns cascade via FK. Does not touch Obsidian markdown.
+  pub fn delete_inquiry(&mut self, card_id: &str) -> Result<MutationResult, String> {
+    let card_id = card_id.trim();
+    if card_id.is_empty() {
+      return Err("cardId is required".into());
+    }
+
+    let tx = self
+      .conn
+      .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+      .map_err(|e| format!("begin transaction: {e}"))?;
+
+    let parent_id: Option<String> = match tx
+      .query_row(
+        "SELECT parent_id FROM cards WHERE id = ?1",
+        params![card_id],
+        |r| r.get::<_, Option<String>>(0),
+      )
+      .optional()
+      .map_err(|e| format!("lookup card: {e}"))?
+    {
+      None => return Err(format!("card not found: {card_id}")),
+      Some(p) => p,
+    };
+
+    let ids: Vec<String> = {
+      let mut stmt = tx
+        .prepare(
+          "WITH RECURSIVE tree(id) AS (
+             SELECT id FROM cards WHERE id = ?1
+             UNION ALL
+             SELECT c.id FROM cards c INNER JOIN tree t ON c.parent_id = t.id
+           )
+           SELECT id FROM tree",
+        )
+        .map_err(|e| format!("prepare subtree: {e}"))?;
+      let rows = stmt
+        .query_map(params![card_id], |r| r.get::<_, String>(0))
+        .map_err(|e| format!("query subtree: {e}"))?;
+      let mut out = Vec::new();
+      for row in rows {
+        out.push(row.map_err(|e| format!("subtree row: {e}"))?);
+      }
+      out
+    };
+    if ids.is_empty() {
+      return Err(format!("card not found: {card_id}"));
+    }
+
+    let marks = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let edge_sql = format!(
+      "DELETE FROM edges WHERE from_card_id IN ({m}) OR to_card_id IN ({m})",
+      m = marks
+    );
+    let mut edge_args = ids.clone();
+    edge_args.extend(ids.iter().cloned());
+    tx.execute(&edge_sql, rusqlite::params_from_iter(edge_args))
+      .map_err(|e| format!("delete edges: {e}"))?;
+
+    let card_sql = format!("DELETE FROM cards WHERE id IN ({m})", m = marks);
+    tx.execute(&card_sql, rusqlite::params_from_iter(ids.iter()))
+      .map_err(|e| format!("delete cards: {e}"))?;
+
+    let id_set: std::collections::HashSet<&str> =
+      ids.iter().map(|s| s.as_str()).collect();
+    let prev_focus = Self::get_meta_tx(&tx, "last_focus_id")?
+      .filter(|id| !id.is_empty());
+    let need_repoint = match &prev_focus {
+      None => true,
+      Some(f) => id_set.contains(f.as_str()),
+    };
+    let next_focus: String = if need_repoint {
+      if let Some(p) = parent_id.filter(|p| !p.is_empty()) {
+        p
+      } else {
+        tx.query_row(
+          "SELECT id FROM cards ORDER BY created_at ASC, id ASC LIMIT 1",
+          [],
+          |r| r.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|e| format!("next focus: {e}"))?
+        .unwrap_or_default()
+      }
+    } else {
+      prev_focus.unwrap_or_default()
+    };
+    Self::set_meta_tx(&tx, "last_focus_id", &next_focus)?;
+
+    tx.commit().map_err(|e| format!("commit: {e}"))?;
+
+    Ok(MutationResult {
+      ok: true,
+      snapshot: self.snapshot()?,
+    })
+  }
+
   pub fn delete_turn(
     &mut self,
     card_id: &str,

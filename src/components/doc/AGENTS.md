@@ -9,7 +9,7 @@ Parent: `src/AGENTS.md`. Spec SSoT: `docs/superpowers/specs/2026-08-20-doc-compa
 
 | File | Role |
 |------|------|
-| `DocPane.tsx` | Chrome: title, close, split/doc-wide/peek layout, loading/error/retry; body host; owns selection UI state. **加宽** toggles layout only (fraction law in shell `SplitSash`) |
+| `DocPane.tsx` | Chrome: title, list back, close; loading/error/retry; body host; owns selection UI state. Width via shell sash only (no 加宽 button) |
 | `MdTextView.tsx` | md/text body; text=`<pre>`; md=escaped lightweight subset (**no** `wrapMarks`); pipeline **escape → code put → `protectAndRenderMath` → md subset → restore** (math-katex §2.5); host `.md-text-view` |
 | `PdfGuide.tsx` | pdf/unsupported guide — path, size, copy; **no** iframe/base64 |
 | `OpenDocPopover.tsx` | Path input + recent 5 (`soit-doc-recent`); submit → `openDoc`; unbound → guide to 设置·空间 |
@@ -20,7 +20,7 @@ Parent: `src/AGENTS.md`. Spec SSoT: `docs/superpowers/specs/2026-08-20-doc-compa
 - Session state lives in `workspaceStore.docSession` (`openDoc` / `closeDoc` / `setDocLayout` / `retryDoc`). Pure FSM: `lib/docSession.ts`.
 - AppShell owns the center-stage matrix; **never** mount Doc with Orbit (map / `loadSnapshot` → store `force_close`).
 - Open entry: Composer tool + command palette → `soit:open-doc` → `OpenDocPopover`; MaterialsRail → `selectMaterial` → `openDoc`. No `window.prompt`; no `<input type="file">` as main path (materials import is separate). Mock path: `demo/welcome.md`.
-- **Layout / fraction (SPE §2.6):** `setDocLayout("doc-wide"|"split"|"peek")` only. Doc-wide display width is shell `--doc-fraction` (0.68 visual); **加宽 must not** call `writeStoredDocFraction`. Sash drag/double-click live in `components/shell/SplitSash.tsx`.
+- **Layout / fraction (SPE §2.6):** DocPane does not expose 加宽. Sash drag/double-click live in `components/shell/SplitSash.tsx` (`--doc-fraction` / localStorage).
 - P0 pdf = guide only. Embedded pdfjs is out of scope here.
 - **Selection:** DocPane owns selBar/chooser/float; reuse `SelectionBar` / `DirectionChooser` / `TermFloat`. Quote → `formatDocAnchorQuote` → `soit:set-composer-quote` (InquiryCard sets composer chip). Spawn via **`spawnInquiry` full text** + `docPath`/`docKind`/`docPage?`; disable deepen/diverge when focus card has no turns (toast「先在卡内有一轮对话」).
 - **Return-to-source:** when edge `SourceSpan.docPath` set, focus parent then `openDoc(docPath)` (+ page clue); else existing turn highlight.

@@ -3,9 +3,11 @@ import { demoSnapshot } from "./demoSeed";
 import {
   ancestorChain,
   collapseCrumbs,
+  collectSubtreeIds,
   ELLIPSIS_CRUMB_ID,
   kindGlyph,
   locusNodes,
+  nextFocusAfterDelete,
 } from "./treeNav";
 
 describe("treeNav", () => {
@@ -38,6 +40,31 @@ describe("treeNav", () => {
       { id: "b", title: "B" },
     ];
     expect(collapseCrumbs(c)).toEqual(c);
+  });
+
+  it("collectSubtreeIds includes self and descendants", () => {
+    const leaf = collectSubtreeIds(nodes, "c3");
+    expect([...leaf].sort()).toEqual(["c3"]);
+    const mid = collectSubtreeIds(nodes, "c2");
+    expect(mid.has("c2")).toBe(true);
+    expect(mid.has("c3")).toBe(true);
+    expect(mid.has("c4")).toBe(true);
+    expect(mid.has("c5")).toBe(true);
+    expect(mid.has("c1")).toBe(false);
+    expect(collectSubtreeIds(nodes, "missing").size).toBe(0);
+  });
+
+  it("nextFocusAfterDelete prefers parent then sibling", () => {
+    const delC3 = collectSubtreeIds(nodes, "c3");
+    expect(nextFocusAfterDelete(nodes, delC3, "c3", "c3")).toBe("c2");
+    const delC2 = collectSubtreeIds(nodes, "c2");
+    expect(nextFocusAfterDelete(nodes, delC2, "c3", "c2")).toBe("c1");
+    expect(nextFocusAfterDelete(nodes, delC3, "c1", "c3")).toBe("c1");
+  });
+
+  it("nextFocusAfterDelete emptying the tree is empty string", () => {
+    const all = collectSubtreeIds(nodes, "c1");
+    expect(nextFocusAfterDelete(nodes, all, "c3", "c1")).toBe("");
   });
 
   it("collapseCrumbs folds deep chains to root/…/parent/current", () => {

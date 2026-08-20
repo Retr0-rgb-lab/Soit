@@ -34,7 +34,7 @@ Parent: `src/AGENTS.md`.
 
 - `host.ts` command surface (match Rust names + `types.ts`):
   - bootstrap / universe: `get_bootstrap_state`, `get_workspace_snapshot`, `open_universe`, `close_universe`, `create_root_inquiry`, `select_vault` (compat), `spawn_inquiry`
-  - turns/cards (Spec §5): `append_turn`, `update_turn`, `delete_turn`, `update_card` — camelCase invoke args
+  - turns/cards (Spec §5): `append_turn`, `update_turn`, `delete_turn`, `delete_inquiry`, `update_card` — camelCase invoke args
   - vault MD: `precipitate_concept`, `append_residue`
   - vault docs (PEL-156): `resolve_vault_doc` / `read_vault_text` — path sandbox under open vault; reject `..` / outside vault / `vault/.soit/**`; browser mock fixtures `demo/*.md` (e.g. `demo/welcome.md`)
   - materials (materials-rail SPE): `list_vault_materials` / `import_vault_material` — vault `materials/` only; import ≤2MB decoded; **not** bootstrap; browser mock list includes `demo/welcome.md` + in-memory imports
@@ -61,7 +61,7 @@ Parent: `src/AGENTS.md`.
 - **`protectAndRenderMath`** (`math/tex.ts`): runs on already-escaped text after code PH; `$…$` inline / `$$…$$` block; tex body `htmlUnescape` then KaTeX; display PH on its own line for `PH_ONLY`; `stripHtml` restores `$`/`$$` via `data-tex`. Doc preview reuses the same helper (`MdTextView` / `renderDocMd`).
 - **`ChatPort.explain?` / `explainSpan`** (`state/explainActions.ts`): short 2–4 sentence explain; **no marks required, no db/turns write, no spawn**. UI sole entry is `explainSpan` (resolves port); overlays must not call `port.explain` or `fetch`.
 - **Deepen scope v2** (`deepenScope.ts`): `{ parent: { title, status, question, stuck, next }, span, why, recentTurns }` — **child turns only**; never parent transcript.
-- **Load matrix** (`App.tsx`): only inject `demoSnapshot()` when `source === "demo"`. Never when `empty` or `universe`.
+- **Load matrix** (`App.tsx`): never silent-inject `demoSnapshot()` on boot. Unbound → empty graph (`unboundEmptySnapshot`); `empty`/`universe` from Host as-is. `demoSnapshot()` is tests-only.
 - Browser path (no Tauri): mock bootstrap + demo snapshot; turn/card host helpers throw (store must not call them off universe path).
 - Prefer pure input→output helpers; side effects only in `host.ts` (dynamic `import("@tauri-apps/api/core")`).
 - Co-locate `*.test.ts` next to the module; keep Vitest env `node` unless a test truly needs DOM.

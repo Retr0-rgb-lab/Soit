@@ -38,7 +38,6 @@ export default function DocPane({
   const docSession = useWorkspace((s) => s.docSession);
   const closeDoc = useWorkspace((s) => s.closeDoc);
   const closeMaterialsRail = useWorkspace((s) => s.closeMaterialsRail);
-  const setDocLayout = useWorkspace((s) => s.setDocLayout);
   const retryDoc = useWorkspace((s) => s.retryDoc);
   const confirmDocClosed = useWorkspace((s) => s.confirmDocClosed);
   const focusId = useWorkspace((s) => s.focusId);
@@ -121,13 +120,6 @@ export default function DocPane({
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
-
-  /** 加宽: split ⇄ doc-wide only. Never writes --doc-fraction / localStorage (SPE §2.6). */
-  const onToggleLayout = useCallback(() => {
-    if (status !== "ready") return;
-    if (layout === "doc-wide") setDocLayout("split");
-    else setDocLayout("doc-wide");
-  }, [status, layout, setDocLayout]);
 
   const displayTerm = useCallback((span: string) => {
     const t = span.trim();
@@ -345,18 +337,6 @@ export default function DocPane({
               onClick={onBackToList}
             >
               列表
-            </button>
-          ) : null}
-          {!isPeek ? (
-            <button
-              type="button"
-              className={`doc-pane__btn${layout === "doc-wide" ? " is-on" : ""}`}
-              data-tip={layout === "doc-wide" ? "恢复分栏" : "加宽文档"}
-              aria-label={layout === "doc-wide" ? "恢复分栏" : "加宽文档"}
-              disabled={status !== "ready"}
-              onClick={onToggleLayout}
-            >
-              {layout === "doc-wide" ? "分栏" : "加宽"}
             </button>
           ) : null}
           <button

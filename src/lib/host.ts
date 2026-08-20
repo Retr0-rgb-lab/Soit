@@ -70,34 +70,20 @@ const MOCK_WELCOME_MD = `# 欢迎
 你可以在专注模式下并排阅读材料，划词后引用、解释或深挖发散。
 `;
 
-/** Mutable fixture map: seed demo + mock import bodies (SPE §2.5). */
-const MOCK_DEMO_MD: Record<string, string> = {
-  "demo/welcome.md": MOCK_WELCOME_MD,
-};
+/** Mutable fixture map for browser mock import bodies (SPE §2.5). Starts empty. */
+const MOCK_DEMO_MD: Record<string, string> = {};
 
-/** In-memory materials list for browser mock (SPE §2.5). */
-let mockMaterialsEntries: MaterialsEntry[] = [
-  {
-    pathRel: "demo/welcome.md",
-    name: "welcome.md",
-    kind: "md",
-    size: new TextEncoder().encode(MOCK_WELCOME_MD).length,
-  },
-];
+/** In-memory materials list for browser mock — empty until user imports. */
+let mockMaterialsEntries: MaterialsEntry[] = [];
 
 /** Test helper — reset mock materials list/bodies between cases. */
 export function __resetMockMaterialsForTests(): void {
   for (const key of Object.keys(MOCK_DEMO_MD)) {
-    if (key !== "demo/welcome.md") delete MOCK_DEMO_MD[key];
+    delete MOCK_DEMO_MD[key];
   }
-  mockMaterialsEntries = [
-    {
-      pathRel: "demo/welcome.md",
-      name: "welcome.md",
-      kind: "md",
-      size: new TextEncoder().encode(MOCK_WELCOME_MD).length,
-    },
-  ];
+  mockMaterialsEntries = [];
+  // Optional fixture some tests still open by path:
+  MOCK_DEMO_MD["demo/welcome.md"] = MOCK_WELCOME_MD;
 }
 
 function hasTauri(): boolean {
@@ -308,13 +294,13 @@ export async function setLastVault(path: string | null): Promise<void> {
 }
 
 /**
- * Host snapshot. Unbound → source "demo" (nodes may be empty).
+ * Host snapshot. Unbound → source "demo" with **empty** graph (no product seed).
  * Bound empty universe → source "empty". Bound with cards → "universe".
  */
 export async function getWorkspaceSnapshot(): Promise<WorkspaceSnapshot> {
   if (!hasTauri()) {
-    const { demoSnapshot } = await import("./demoSeed");
-    return demoSnapshot();
+    const { unboundEmptySnapshot } = await import("./demoSeed");
+    return unboundEmptySnapshot();
   }
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<WorkspaceSnapshot>("get_workspace_snapshot");
@@ -426,6 +412,17 @@ export async function deleteTurn(
     cardId: args.cardId,
     turnId: args.turnId,
   });
+}
+
+/** Host `delete_inquiry` — card + subtree; turns cascade; edges stripped. */
+export async function deleteInquiry(
+  cardId: string,
+): Promise<HostMutationResult> {
+  if (!hasTauri()) {
+    throw new Error("delete_inquiry requires tauri");
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<HostMutationResult>("delete_inquiry", { cardId });
 }
 
 /** Host `update_card` — title/status/question/stuck/next/unread. */

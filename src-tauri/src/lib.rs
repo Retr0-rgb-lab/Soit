@@ -339,6 +339,22 @@ fn delete_turn(
   u.delete_turn(&card_id, &turn_id)
 }
 
+/// Delete one inquiry card and its descendant subtree.
+#[tauri::command]
+fn delete_inquiry(
+  card_id: String,
+  state: State<'_, AppState>,
+) -> Result<MutationResult, String> {
+  let mut g = state
+    .universe
+    .lock()
+    .map_err(|_| "universe lock poisoned".to_string())?;
+  let u = g
+    .as_mut()
+    .ok_or_else(|| "no universe open — bind a vault first".to_string())?;
+  u.delete_inquiry(&card_id)
+}
+
 /// Patch card fields (title/status/question/stuck/next/unread).
 /// For `question`/`stuck`/`next`: omit = no change; empty string clears to SQL NULL.
 #[tauri::command]
@@ -438,6 +454,7 @@ pub fn run() {
       append_turn,
       update_turn,
       delete_turn,
+      delete_inquiry,
       update_card,
       precipitate_concept,
       append_residue,

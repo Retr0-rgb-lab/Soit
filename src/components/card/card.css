@@ -825,6 +825,73 @@
   color: var(--danger);
 }
 
+/* Delete inquiry confirm */
+.ic-delete-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--ink) 28%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.ic-delete-dialog {
+  width: min(400px, 100%);
+  padding: 18px 18px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg-card);
+  box-shadow: var(--e3, var(--e2));
+  color: var(--ink);
+}
+
+.ic-delete-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.ic-delete-body {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.ic-delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ic-delete-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.ic-delete-btn.ghost {
+  background: var(--bg-muted);
+  color: var(--ink-soft);
+}
+
+.ic-delete-btn.danger {
+  background: color-mix(in srgb, var(--danger) 88%, var(--ink));
+  color: #fdf8f2;
+}
+
+.ic-delete-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .ic-round:disabled {
   opacity: 0.45;
   cursor: not-allowed;

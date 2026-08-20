@@ -140,6 +140,20 @@ impl Universe {
     Ok(())
   }
 
+  /// Transaction-scoped meta read.
+  pub(super) fn get_meta_tx(
+    tx: &rusqlite::Transaction<'_>,
+    key: &str,
+  ) -> Result<Option<String>, String> {
+    tx.query_row(
+      "SELECT value FROM meta WHERE key = ?1",
+      params![key],
+      |r| r.get(0),
+    )
+    .optional()
+    .map_err(|e| format!("get meta {key}: {e}"))
+  }
+
   /// Transaction-scoped meta write (same UPSERT).
   pub(super) fn set_meta_tx(
     tx: &rusqlite::Transaction<'_>,

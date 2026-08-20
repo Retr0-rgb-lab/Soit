@@ -23,7 +23,9 @@ import {
   IconFocusExit,
   IconJump,
   IconMap,
+  IconTrash,
 } from "./icons";
+import { collectSubtreeIds } from "../../lib/treeNav";
 import TurnHistoryRail from "./TurnHistoryRail";
 import TurnItem from "./TurnItem";
 import { useCardPip } from "./useCardPip";
@@ -50,6 +52,7 @@ export default function InquiryCard() {
   const clearHighlight = useWorkspace((s) => s.clearHighlight);
   const regenerateTurn = useWorkspace((s) => s.regenerateTurn);
   const deleteTurn = useWorkspace((s) => s.deleteTurn);
+  const deleteInquiry = useWorkspace((s) => s.deleteInquiry);
   const toggleTurnCollapsed = useWorkspace((s) => s.toggleTurnCollapsed);
   const appendUserMessage = useWorkspace((s) => s.appendUserMessage);
 
@@ -67,6 +70,12 @@ export default function InquiryCard() {
     if (!focus?.parentId) return null;
     return nodes.find((n) => n.id === focus.parentId) ?? null;
   }, [focus, nodes]);
+
+  const deleteChildCount = useMemo(() => {
+    if (!focusId) return 0;
+    const n = collectSubtreeIds(nodes, focusId).size;
+    return Math.max(0, n - 1);
+  }, [nodes, focusId]);
 
   /** Under-sheets: nearest ancestors (excluding focus). */
   const sheetAncestors = useMemo(() => {
@@ -112,6 +121,9 @@ export default function InquiryCard() {
   const [historyOpen, setHistoryOpen] = useState(false);
   /** 专注模式 — card + composer only */
   const [focusMode, setFocusMode] = useState(false);
+  /** Confirm delete inquiry (+ subtree). */
+  const [deleteAsk, setDeleteAsk] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   /** Explore-like: title chrome fades as body scrolls down (0..1). */
   const [chromeFade, setChromeFade] = useState(0);
   const prevFocusRef = useRef(focusId);
@@ -193,6 +205,21 @@ export default function InquiryCard() {
     onFocusCard,
   });
 
+  const confirmDeleteInquiry = useCallback(async () => {
+    if (!focusId || deleteBusy) return;
+    setDeleteBusy(true);
+    try {
+      if (pipSession?.cardId) {
+        const doomed = collectSubtreeIds(nodes, focusId);
+        if (doomed.has(pipSession.cardId)) onClose();
+      }
+      await deleteInquiry(focusId);
+      setDeleteAsk(false);
+    } finally {
+      setDeleteBusy(false);
+    }
+  }, [focusId, deleteBusy, pipSession, nodes, onClose, deleteInquiry]);
+
   // Clear ephemeral UI + one-shot enter motion when focus card changes
   // (PiP session is independent — entering PiP intentionally switches stage focus)
   useEffect(() => {
@@ -203,6 +230,8 @@ export default function InquiryCard() {
     setSelBar(null);
     setChooser(null);
     setSpawnError(null);
+    setDeleteAsk(false);
+    setDeleteBusy(false);
     setActiveTurnId(null);
     setHistoryOpen(false);
     setChromeFade(0);
@@ -817,6 +846,15 @@ export default function InquiryCard() {
                   >
                     <IconDeepen />
                   </button>
+                  <button
+                    type="button"
+                    className="ic-round danger"
+                    data-tip="删除探究"
+                    aria-label="删除探究"
+                    onClick={() => setDeleteAsk(true)}
+                  >
+                    <IconTrash />
+                  </button>
                 </HoverIconTray>
               </div>
             </article>
@@ -848,6 +886,59 @@ export default function InquiryCard() {
         <p className="ic-spawn-error" role="alert">
           {spawnError}
         </p>
+      ) : null}
+
+      {deleteAsk && focus ? (
+        <div
+          className="ic-delete-mask"
+          role="presentation"
+          onClick={() => {
+            if (!deleteBusy) setDeleteAsk(false);
+          }}
+        >
+          <div
+            className="ic-delete-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="ic-del-title"
+            aria-describedby="ic-del-body"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="ic-del-title" className="ic-delete-title">
+              {deleteChildCount > 0 ? "删除探究及子树？" : "删除这张探究？"}
+            </h2>
+            <p id="ic-del-body" className="ic-delete-body">
+              {deleteChildCount > 0
+                ? `将删除「${focus.title}」及其下 ${deleteChildCount} 张子探究（含对话与边），且无法撤销。不会改动 Obsidian 笔记。`
+                : `「${focus.title}」的对话与关联边将永久移除，且无法撤销。不会改动 Obsidian 笔记。`}
+              {nodes.length <= deleteChildCount + 1
+                ? " 删除后本宇宙将没有探究卡片。"
+                : ""}
+            </p>
+            <div className="ic-delete-actions">
+              <button
+                type="button"
+                className="ic-delete-btn ghost"
+                disabled={deleteBusy}
+                onClick={() => setDeleteAsk(false)}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="ic-delete-btn danger"
+                disabled={deleteBusy}
+                onClick={() => void confirmDeleteInquiry()}
+              >
+                {deleteBusy
+                  ? "删除中…"
+                  : deleteChildCount > 0
+                    ? "删除子树"
+                    : "删除"}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {float ? (

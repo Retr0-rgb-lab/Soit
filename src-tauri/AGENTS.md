@@ -35,6 +35,7 @@ Project-wide: root `AGENTS.md`. IPC types mirrored in `../src/types.ts` and `../
 | `append_turn(cardId, title?, user, quote?)` | Host `t_*` id; sort_order max+1; quote → `> q\n\nuser`; `{ turn, snapshot }` |
 | `update_turn(cardId, turnId, aiHtml?, think?, thinkOpen?, collapsed?, title?, user?)` | Patch provided fields only; `{ ok, snapshot }` |
 | `delete_turn(cardId, turnId)` | Remove one turn; `{ ok, snapshot }` |
+| `delete_inquiry(cardId)` | Hard-delete card + descendant subtree (edges first; turns cascade); set `last_focus_id`; `{ ok, snapshot }`; no Obsidian writes |
 | `update_card(cardId, title?, status?, question?, stuck?, next?, unread?)` | `next` → `next_step`; status ∈ active\|paused\|done\|stuck; `{ ok, snapshot }` |
 | `precipitate_concept(cardId, title, …)` | Write/update `concepts/{slug}.md` (preserve user body) |
 | `append_residue(cardId, text)` | Append short note under `inquiry/` |

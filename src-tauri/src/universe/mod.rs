@@ -344,6 +344,103 @@ mod tests {
   }
 
   #[test]
+  fn delete_inquiry_leaf_keeps_parent() {
+    let dir = temp_vault("del_leaf_only");
+    let mut u = Universe::open(&dir).unwrap();
+    let root = u.create_root_inquiry("根", None).unwrap();
+    let root_id = root.nodes[0].id.clone();
+    let child = u
+      .spawn_inquiry(&SpawnInquiryArgs {
+        kind: "deepen".into(),
+        from_card_id: root_id.clone(),
+        source: SourceSpanDto {
+          turn_id: "t".into(),
+          text: "词".into(),
+          mark_id: None,
+          start: None,
+          end: None,
+          doc_path: None,
+          doc_page: None,
+          doc_kind: None,
+        },
+        why: None,
+        actor: None,
+      })
+      .unwrap();
+    let child_id = child
+      .nodes
+      .iter()
+      .find(|n| n.kind == "deepen")
+      .unwrap()
+      .id
+      .clone();
+    let r = u.delete_inquiry(&child_id).unwrap();
+    assert!(r.ok);
+    assert_eq!(r.snapshot.nodes.len(), 1);
+    assert_eq!(r.snapshot.nodes[0].id, root_id);
+    assert!(r.snapshot.edges.is_empty());
+    assert!(!r.snapshot.turns_by_card_id.contains_key(&child_id));
+    let _ = fs::remove_dir_all(&dir);
+  }
+
+  #[test]
+  fn delete_inquiry_subtree_and_unknown() {
+    let dir = temp_vault("del_tree");
+    let mut u = Universe::open(&dir).unwrap();
+    let root = u.create_root_inquiry("根", None).unwrap();
+    let root_id = root.nodes[0].id.clone();
+    let mid = u
+      .spawn_inquiry(&SpawnInquiryArgs {
+        kind: "deepen".into(),
+        from_card_id: root_id.clone(),
+        source: SourceSpanDto {
+          turn_id: "t".into(),
+          text: "中".into(),
+          mark_id: None,
+          start: None,
+          end: None,
+          doc_path: None,
+          doc_page: None,
+          doc_kind: None,
+        },
+        why: None,
+        actor: None,
+      })
+      .unwrap();
+    let mid_id = mid
+      .nodes
+      .iter()
+      .find(|n| n.kind == "deepen")
+      .unwrap()
+      .id
+      .clone();
+    let _leaf = u
+      .spawn_inquiry(&SpawnInquiryArgs {
+        kind: "diverge".into(),
+        from_card_id: mid_id.clone(),
+        source: SourceSpanDto {
+          turn_id: "t".into(),
+          text: "叶".into(),
+          mark_id: None,
+          start: None,
+          end: None,
+          doc_path: None,
+          doc_page: None,
+          doc_kind: None,
+        },
+        why: None,
+        actor: None,
+      })
+      .unwrap();
+    assert!(u.snapshot().unwrap().nodes.len() >= 3);
+    let r = u.delete_inquiry(&mid_id).unwrap();
+    assert_eq!(r.snapshot.nodes.len(), 1);
+    assert_eq!(r.snapshot.focus_id, root_id);
+    assert!(u.delete_inquiry("nope").is_err());
+    let _ = fs::remove_dir_all(&dir);
+  }
+
+  #[test]
   fn update_turn_and_delete_turn() {
     let dir = temp_vault("turn_mut");
     let mut u = Universe::open(&dir).unwrap();

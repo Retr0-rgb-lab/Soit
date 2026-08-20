@@ -263,6 +263,14 @@ body.soit-focus-mode .app-shell .workspace-main {
   gap: 1px;
 }
 
+.rail-title {
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
 .rail-toggle {
   flex-shrink: 0;
   width: 30px;

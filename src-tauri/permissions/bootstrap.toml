@@ -49,6 +49,11 @@ description = "Allow delete_turn command"
 commands.allow = ["delete_turn"]
 
 [[permission]]
+identifier = "allow-delete-inquiry"
+description = "Allow delete_inquiry command"
+commands.allow = ["delete_inquiry"]
+
+[[permission]]
 identifier = "allow-update-card"
 description = "Allow update_card command"
 commands.allow = ["update_card"]
