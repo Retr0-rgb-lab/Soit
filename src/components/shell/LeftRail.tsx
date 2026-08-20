@@ -8,12 +8,16 @@ import {
 import { demoSnapshot } from "../../lib/demoSeed";
 import { kindGlyph } from "../../lib/treeNav";
 import { groupUnreadByThread, isInLiveThread } from "../../lib/threadDebt";
+import { buildOrbitModel } from "../../lib/orbitLayout";
 import { UNREAD_RAIL_CAP, useWorkspace } from "../../state/workspaceStore";
+import FocusOrbit from "./FocusOrbit";
 
 type Props = {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
 };
+
+type AccordionKey = "live" | "recent" | "debt";
 
 function vaultDisplayName(path: string | null): string {
   if (!path) return "未绑定";
@@ -41,6 +45,11 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
   const [vaultError, setVaultError] = useState<string | null>(null);
   /** Prompt suggestion after unbind; host lastVault is also kept (close ≠ clear). */
   const [rememberedVault, setRememberedVault] = useState<string | null>(null);
+  const [openSections, setOpenSections] = useState<Record<AccordionKey, boolean>>({
+    live: true,
+    recent: false,
+    debt: false,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -66,6 +75,12 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
     [nodes, focusId],
   );
 
+  const debtByRoot = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const d of debts) m.set(d.rootId, d.unreadCount);
+    return m;
+  }, [debts]);
+
   const unreadTotal = useMemo(
     () => nodes.filter((n) => n.unread && n.id !== focusId).length,
     [nodes, focusId],
@@ -77,31 +92,33 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
       .filter((n): n is NonNullable<typeof n> => Boolean(n));
   }, [liveIds, byId]);
 
+  /** True MRU only — no node-array padding when recent is short. */
   const recent = useMemo(() => {
-    const ids = recentIds.length ? recentIds : focusId ? [focusId] : [];
     const list: typeof nodes = [];
     const seen = new Set<string>();
-    for (const id of ids) {
+    for (const id of recentIds) {
       const n = byId.get(id);
       if (!n || seen.has(id)) continue;
       seen.add(id);
       list.push(n);
       if (list.length >= 8) break;
     }
-    if (list.length < 5) {
-      for (const n of nodes) {
-        if (seen.has(n.id)) continue;
-        seen.add(n.id);
-        list.push(n);
-        if (list.length >= 5) break;
-      }
-    }
     return list;
-  }, [recentIds, focusId, byId, nodes]);
+  }, [recentIds, byId]);
+
+  const orbitFocusId = focusId || liveIds[0] || "";
+  const orbitModel = useMemo(() => {
+    if (!orbitFocusId) return null;
+    return buildOrbitModel(nodes, orbitFocusId);
+  }, [nodes, orbitFocusId]);
 
   const open = (id: string) => {
     focusNode(id);
     setMode("focus");
+  };
+
+  const toggleSection = (key: AccordionKey) => {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const bindVault = async () => {
@@ -186,6 +203,24 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
 
       {collapsed ? (
         <div className="rail-icon-col">
+          <div className="rail-hud-stack" aria-label="注意力摘要">
+            <span
+              className="rail-hud-badge"
+              title={`活线 ${live.length}`}
+              aria-label={`活线 ${live.length}`}
+            >
+              {live.length}
+            </span>
+            {unreadTotal > 0 && (
+              <span
+                className="rail-hud-badge debt"
+                title={`未读 ${unreadTotal}`}
+                aria-label={`未读 ${unreadTotal}`}
+              >
+                {unreadTotal > 99 ? "99+" : unreadTotal}
+              </span>
+            )}
+          </div>
           <button
             type="button"
             className={`rail-icon-btn${workspaceMode === "map" ? " on" : ""}`}
@@ -211,8 +246,8 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
         </div>
       ) : (
         <>
-          <div className="rail-vault" aria-label="vault bind">
-            <p className="rail-section-label">本库</p>
+          <div className="rail-vault compact" aria-label="vault bind">
+            <span className="rail-vault-kicker">本库</span>
             <p className="rail-vault-name" title={vaultPath ?? undefined}>
               {vaultDisplayName(vaultPath)}
             </p>
@@ -223,7 +258,7 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
                 onClick={() => void bindVault()}
                 disabled={vaultBusy}
               >
-                {vaultPath ? "换库" : "绑定库"}
+                {vaultPath ? "换库" : "绑定"}
               </button>
               {vaultPath && (
                 <button
@@ -231,8 +266,9 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
                   className="rail-action ghost"
                   onClick={() => void unbindVault()}
                   disabled={vaultBusy}
+                  title="解绑"
                 >
-                  解绑
+                  ×
                 </button>
               )}
             </div>
@@ -241,6 +277,209 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
                 {vaultError}
               </p>
             )}
+          </div>
+
+          <div className="rail-scroll">
+            <section className="rail-acc">
+              <button
+                type="button"
+                className="rail-acc-head"
+                aria-expanded={openSections.live}
+                onClick={() => toggleSection("live")}
+              >
+                <span className="rail-acc-chevron" aria-hidden>
+                  {openSections.live ? "▾" : "▸"}
+                </span>
+                <span className="rail-section-label">
+                  活线 {live.length}/{LIVE_MAX}
+                </span>
+              </button>
+              <div
+                className={`rail-acc-body${openSections.live ? " open" : ""}`}
+              >
+                <div className="rail-acc-inner">
+                  {live.length === 0 ? (
+                    <p className="shell-placeholder">打开卡片会自动进入活线</p>
+                  ) : (
+                    <ul className="node-list">
+                      {live.map((n) => {
+                        const debt = debtByRoot.get(n.id) ?? 0;
+                        return (
+                          <li key={n.id} className="rail-live-row">
+                            <button
+                              type="button"
+                              className={`rail-item${n.id === focusId ? " on" : ""}`}
+                              onClick={() => open(n.id)}
+                              title={n.title}
+                            >
+                              <span className="node-kind" aria-hidden>
+                                {kindGlyph(n.kind)}
+                              </span>
+                              {n.title}
+                            </button>
+                            {debt > 0 && (
+                              <span
+                                className="rail-debt-badge"
+                                title={`${debt} 未读`}
+                                aria-label={`${debt} 未读`}
+                              >
+                                {debt}
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              className="rail-mini"
+                              title="移出活线（注意力，不改探究状态）"
+                              aria-label={`移出活线 ${n.title}`}
+                              onClick={() => unpinLive(n.id)}
+                            >
+                              ×
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  {orbitModel?.center && (
+                    <FocusOrbit model={orbitModel} onSelect={open} />
+                  )}
+                </div>
+              </div>
+            </section>
+
+            <section className="rail-acc">
+              <button
+                type="button"
+                className="rail-acc-head"
+                aria-expanded={openSections.recent}
+                onClick={() => toggleSection("recent")}
+              >
+                <span className="rail-acc-chevron" aria-hidden>
+                  {openSections.recent ? "▾" : "▸"}
+                </span>
+                <span className="rail-section-label">
+                  最近{recent.length > 0 ? ` · ${recent.length}` : ""}
+                </span>
+              </button>
+              <div
+                className={`rail-acc-body${openSections.recent ? " open" : ""}`}
+              >
+                <div className="rail-acc-inner">
+                  {recent.length === 0 ? (
+                    <p className="shell-placeholder">尚无最近</p>
+                  ) : (
+                    <ul className="node-list">
+                      {recent.map((n) => (
+                        <li key={n.id} className="rail-live-row">
+                          <button
+                            type="button"
+                            className={`rail-item${n.id === focusId ? " on" : ""}${n.unread ? " unread" : ""}`.replace(
+                              /  +/g,
+                              " ",
+                            )}
+                            onClick={() => open(n.id)}
+                            title={n.title}
+                          >
+                            <span className="node-kind" aria-hidden>
+                              {kindGlyph(n.kind)}
+                            </span>
+                            {n.title}
+                          </button>
+                          {!isInLiveThread(nodes, liveIds, n.id) && (
+                            <button
+                              type="button"
+                              className="rail-mini"
+                              title="钉入活线（注意力集合）"
+                              aria-label={`钉入活线 ${n.title}`}
+                              onClick={() => pinLive(n.id)}
+                            >
+                              +
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            <section className="rail-acc">
+              <button
+                type="button"
+                className="rail-acc-head"
+                aria-expanded={openSections.debt}
+                onClick={() => toggleSection("debt")}
+              >
+                <span className="rail-acc-chevron" aria-hidden>
+                  {openSections.debt ? "▾" : "▸"}
+                </span>
+                <span className="rail-section-label">
+                  线债
+                  {debts.length > 0
+                    ? ` · ${debts.length} 线 · ${unreadTotal} 未读`
+                    : ""}
+                </span>
+                {!openSections.debt && unreadTotal > 0 && (
+                  <span className="rail-debt-badge head" aria-hidden>
+                    {unreadTotal > 99 ? "99+" : unreadTotal}
+                  </span>
+                )}
+              </button>
+              <div
+                className={`rail-acc-body${openSections.debt ? " open" : ""}`}
+              >
+                <div className="rail-acc-inner">
+                  {debts.length === 0 ? (
+                    <p className="shell-placeholder">无线债</p>
+                  ) : (
+                    <>
+                      <ul className="node-list debt-list">
+                        {debts.slice(0, UNREAD_RAIL_CAP).map((d) => {
+                          const sample = d.sampleIds[0];
+                          const sampleNode = sample
+                            ? byId.get(sample)
+                            : undefined;
+                          return (
+                            <li key={d.rootId}>
+                              <button
+                                type="button"
+                                className="debt-row"
+                                onClick={() => open(sample ?? d.rootId)}
+                                title={d.rootTitle}
+                              >
+                                <span className="debt-title">{d.rootTitle}</span>
+                                <span className="debt-count">{d.unreadCount}</span>
+                              </button>
+                              {sampleNode && (
+                                <p
+                                  className="debt-sample"
+                                  title={sampleNode.title}
+                                >
+                                  {sampleNode.title}
+                                </p>
+                              )}
+                              <button
+                                type="button"
+                                className="debt-skim"
+                                onClick={() => markThreadRead(d.rootId)}
+                              >
+                                本线标已读
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      {debts.length > UNREAD_RAIL_CAP && (
+                        <p className="rail-more-unread">
+                          还有 {debts.length - UNREAD_RAIL_CAP} 条线 · Ctrl+K
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </section>
           </div>
 
           <div className="rail-actions">
@@ -274,123 +513,6 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
             >
               技能
             </button>
-          </div>
-
-          <div className="rail-scroll">
-            <p className="rail-section-label">
-              活线 {live.length}/{LIVE_MAX}
-            </p>
-            {live.length === 0 ? (
-              <p className="shell-placeholder">打开卡片会自动进入活线</p>
-            ) : (
-              <ul className="node-list">
-                {live.map((n) => (
-                  <li key={n.id} className="rail-live-row">
-                    <button
-                      type="button"
-                      className={`rail-item${n.id === focusId ? " on" : ""}`}
-                      onClick={() => open(n.id)}
-                      title={n.title}
-                    >
-                      <span className="node-kind" aria-hidden>
-                        {kindGlyph(n.kind)}
-                      </span>
-                      {n.title}
-                    </button>
-                    <button
-                      type="button"
-                      className="rail-mini"
-                      title="移出活线（注意力，不改探究状态）"
-                      aria-label={`移出活线 ${n.title}`}
-                      onClick={() => unpinLive(n.id)}
-                    >
-                      ×
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <p className="rail-section-label">最近</p>
-            {recent.length === 0 ? (
-              <p className="shell-placeholder">尚无探究</p>
-            ) : (
-              <ul className="node-list">
-                {recent.map((n) => (
-                  <li key={n.id} className="rail-live-row">
-                    <button
-                      type="button"
-                      className={`rail-item${n.id === focusId ? " on" : ""}${n.unread ? " unread" : ""}`.replace(
-                        /  +/g,
-                        " ",
-                      )}
-                      onClick={() => open(n.id)}
-                      title={n.title}
-                    >
-                      <span className="node-kind" aria-hidden>
-                        {kindGlyph(n.kind)}
-                      </span>
-                      {n.title}
-                    </button>
-                    {!isInLiveThread(nodes, liveIds, n.id) && (
-                      <button
-                        type="button"
-                        className="rail-mini"
-                        title="钉入活线（注意力集合）"
-                        aria-label={`钉入活线 ${n.title}`}
-                        onClick={() => pinLive(n.id)}
-                      >
-                        +
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {debts.length > 0 && (
-              <>
-                <p className="rail-section-label">
-                  线债 · {debts.length} 线 · {unreadTotal} 未读
-                </p>
-                <ul className="node-list debt-list">
-                  {debts.slice(0, UNREAD_RAIL_CAP).map((d) => {
-                    const sample = d.sampleIds[0];
-                    const sampleNode = sample ? byId.get(sample) : undefined;
-                    return (
-                      <li key={d.rootId}>
-                        <button
-                          type="button"
-                          className="debt-row"
-                          onClick={() => open(sample ?? d.rootId)}
-                          title={d.rootTitle}
-                        >
-                          <span className="debt-title">{d.rootTitle}</span>
-                          <span className="debt-count">{d.unreadCount}</span>
-                        </button>
-                        {sampleNode && (
-                          <p className="debt-sample" title={sampleNode.title}>
-                            {sampleNode.title}
-                          </p>
-                        )}
-                        <button
-                          type="button"
-                          className="debt-skim"
-                          onClick={() => markThreadRead(d.rootId)}
-                        >
-                          本线标已读
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-                {debts.length > UNREAD_RAIL_CAP && (
-                  <p className="rail-more-unread">
-                    还有 {debts.length - UNREAD_RAIL_CAP} 条线 · Ctrl+K
-                  </p>
-                )}
-              </>
-            )}
           </div>
 
           <p className="rail-foot-meta">

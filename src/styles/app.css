@@ -171,6 +171,23 @@ button:focus-visible,
   margin-bottom: 4px;
 }
 
+.rail-vault.compact {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding-bottom: 8px;
+  margin-bottom: 2px;
+}
+
+.rail-vault-kicker {
+  flex-shrink: 0;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
 .rail-vault-name {
   margin: 0;
   font-size: 13px;
@@ -181,14 +198,33 @@ button:focus-visible,
   white-space: nowrap;
 }
 
+.rail-vault.compact .rail-vault-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 550;
+}
+
 .rail-vault-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
+.rail-vault.compact .rail-vault-actions {
+  flex-shrink: 0;
+  gap: 4px;
+}
+
+.rail-vault.compact .rail-vault-actions .rail-action {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
 .rail-vault-error {
   margin: 0;
+  flex: 1 0 100%;
   font-size: 11px;
   color: var(--danger, #a33);
   line-height: 1.35;
@@ -576,6 +612,34 @@ button:focus-visible,
   margin-top: 8px;
 }
 
+.rail-hud-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.rail-hud-badge {
+  min-width: 22px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 18px;
+  text-align: center;
+  border: 1px solid var(--line);
+}
+
+.rail-hud-badge.debt {
+  background: var(--focus);
+  color: #fff;
+  border-color: transparent;
+}
+
 .rail-icon-btn {
   width: 32px;
   height: 32px;
@@ -952,8 +1016,166 @@ button:focus-visible,
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   padding-right: 2px;
+}
+
+/* Accordion sections (活线 / 最近 / 线债) — CSS only, no GSAP */
+.rail-acc {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rail-acc-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 4px 2px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rail-acc-head:hover {
+  background: color-mix(in srgb, var(--bg-muted) 70%, transparent);
+}
+
+.rail-acc-head .rail-section-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.rail-acc-chevron {
+  flex-shrink: 0;
+  width: 12px;
+  font-size: 10px;
+  color: var(--ink-faint);
+  line-height: 1;
+}
+
+.rail-acc-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.18s ease;
+}
+
+.rail-acc-body.open {
+  grid-template-rows: 1fr;
+}
+
+.rail-acc-inner {
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 0 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rail-acc-body {
+    transition: none;
+  }
+}
+
+.rail-debt-badge {
+  flex-shrink: 0;
+  min-width: 1.35em;
+  height: 1.35em;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--focus);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.35em;
+  text-align: center;
+}
+
+.rail-debt-badge.head {
+  margin-left: auto;
+}
+
+/* FocusOrbit host stub (full arc styles may land from pel-149-02) */
+.focus-orbit {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 4px 2px 2px;
+  border-top: 1px dashed color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.focus-orbit-center,
+.focus-orbit-item {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink-soft);
+}
+
+.focus-orbit-center {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent-soft) 45%, transparent);
+}
+
+.focus-orbit-center.on,
+.focus-orbit-item.on {
+  background: var(--accent-soft);
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.focus-orbit-center:hover,
+.focus-orbit-item:hover {
+  background: var(--bg-muted);
+}
+
+.focus-orbit-ring {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  border-left: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+}
+
+.focus-orbit-ring.faint {
+  opacity: 0.78;
+  padding-left: 14px;
+}
+
+.focus-orbit-item.unread::after {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--focus);
+  vertical-align: middle;
 }
 
 .node-list {
