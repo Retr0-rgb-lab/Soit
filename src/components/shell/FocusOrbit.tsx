@@ -1,13 +1,6 @@
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useState,
-  type CSSProperties,
-  type KeyboardEvent,
-  type WheelEvent,
-} from "react";
-import type { OrbitItem, OrbitModel } from "../../lib/orbitLayout";
+import { useCallback, useMemo } from "react";
+import type { OrbitModel } from "../../lib/orbitLayout";
+import OptionWheel from "./OptionWheel";
 import "./FocusOrbit.css";
 
 export type FocusOrbitProps = {
@@ -16,239 +9,65 @@ export type FocusOrbitProps = {
   className?: string;
 };
 
-function kindGlyph(kind: OrbitItem["kind"]): string {
+function kindPrefix(kind: string): string {
   if (kind === "deepen") return "↓";
   if (kind === "diverge") return "↗";
-  return "●";
-}
-
-function clampIndex(i: number, len: number): number {
-  if (len <= 0) return 0;
-  return Math.max(0, Math.min(len - 1, i));
-}
-
-function indexOfId(items: OrbitItem[], id: string): number {
-  const i = items.findIndex((it) => it.id === id);
-  return i >= 0 ? i : 0;
-}
-
-function usePrefersReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return false;
-    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  });
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const onChange = () => setReduced(mq.matches);
-    onChange();
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-
-  return reduced;
-}
-
-type WheelLayerProps = {
-  items: OrbitItem[];
-  activeIndex: number;
-  focusId: string;
-  label: string;
-  /** Visual stack depth: 0 = innermost wheel under center */
-  layer: number;
-  reduced: boolean;
-  onActivate: (index: number) => void;
-  onCommit: (id: string) => void;
-};
-
-/**
- * One Option-Wheel layer: curved vertical list, active in the middle.
- * Layers stack with offset so multiple wheels read as concentric / stacked.
- */
-function WheelLayer({
-  items,
-  activeIndex,
-  focusId,
-  label,
-  layer,
-  reduced,
-  onActivate,
-  onCommit,
-}: WheelLayerProps) {
-  const listId = useId();
-  if (!items.length) return null;
-
-  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "ArrowDown" || e.key === "ArrowRight") {
-      e.preventDefault();
-      const next = clampIndex(activeIndex + 1, items.length);
-      onActivate(next);
-      onCommit(items[next]!.id);
-    } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
-      e.preventDefault();
-      const next = clampIndex(activeIndex - 1, items.length);
-      onActivate(next);
-      onCommit(items[next]!.id);
-    } else if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      const cur = items[activeIndex];
-      if (cur) onCommit(cur.id);
-    }
-  };
-
-  const onWheel = (e: WheelEvent<HTMLDivElement>) => {
-    if (Math.abs(e.deltaY) < 0.5 && Math.abs(e.deltaX) < 0.5) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
-    const next = clampIndex(activeIndex + (delta > 0 ? 1 : -1), items.length);
-    if (next === activeIndex) return;
-    onActivate(next);
-    onCommit(items[next]!.id);
-  };
-
-  // Window of neighbors around active (Option Wheel shows a slice)
-  const windowRadius = 2;
-  const visible = items.map((item, i) => {
-    const dist = i - activeIndex;
-    return { item, i, dist, abs: Math.abs(dist) };
-  });
-
-  return (
-    <div
-      className={`fo-wheel fo-wheel--L${layer}${reduced ? " is-flat" : ""}`}
-      style={
-        {
-          "--fo-layer": layer,
-        } as CSSProperties
-      }
-      role="listbox"
-      aria-label={label}
-      aria-activedescendant={
-        items[activeIndex]
-          ? `${listId}-${items[activeIndex]!.id}`
-          : undefined
-      }
-      tabIndex={0}
-      onKeyDown={onKeyDown}
-      onWheel={onWheel}
-    >
-      <div className="fo-wheel__track" aria-hidden={!items.length}>
-        {visible.map(({ item, i, dist, abs }) => {
-          if (!reduced && abs > windowRadius) return null;
-
-          const t = Math.min(abs / windowRadius, 1);
-          // Curve: options fan on a vertical arc (React Bits Option Wheel)
-          const curve = reduced ? 0 : 1 - t * t;
-          const y = reduced ? 0 : dist * (26 - layer * 2);
-          const x = reduced ? 0 : curve * (18 + layer * 10) + layer * 6;
-          const scale = reduced ? 1 : 1.06 - t * 0.18 - layer * 0.04;
-          const opacity = reduced
-            ? 1
-            : Math.max(0.22, 1 - t * 0.55 - layer * 0.08);
-          const blur = reduced || abs === 0 ? 0 : t * (1.4 + layer * 0.3);
-
-          const style: CSSProperties = reduced
-            ? {}
-            : {
-                transform: `translate3d(${x}px, ${y}px, 0) scale(${scale})`,
-                opacity,
-                filter: blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : "none",
-                zIndex: 30 - abs - layer,
-              };
-
-          return (
-            <button
-              key={item.id}
-              id={`${listId}-${item.id}`}
-              type="button"
-              role="option"
-              aria-selected={i === activeIndex}
-              data-kind={item.kind}
-              className={[
-                "fo-wheel__item",
-                i === activeIndex ? "is-active" : "",
-                item.id === focusId ? "is-focus" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              style={style}
-              title={item.title}
-              onClick={() => {
-                onActivate(i);
-                onCommit(item.id);
-              }}
-            >
-              <span className="fo-wheel__glyph" aria-hidden="true">
-                {kindGlyph(item.kind)}
-              </span>
-              <span className="fo-wheel__label">{item.title}</span>
-              {item.unread ? (
-                <span className="fo-wheel__unread" aria-label="未读" />
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
-      {!reduced && (
-        <div className="fo-wheel__arc" aria-hidden="true" />
-      )}
-    </div>
-  );
+  return "";
 }
 
 /**
- * Stacked Option Wheels for the left rail.
- * Center = root; each deeper ring is another wheel layer offset outward.
+ * Stacked Option Wheels (React Bits model × concentric depth).
+ *
+ * Visual metaphor (from reactbits Option Wheel + PEL-149):
+ * - Each depth level is a full vertical drum picker (blur/fade neighbors, no chips).
+ * - Wheels stack top→bottom = inner→outer ring (同心圆的「露出弧」叠在一起).
+ * - Hub text = root at the center of decorative circles (not a file-tree row).
  */
 export default function FocusOrbit({
   model,
   onSelect,
   className = "",
 }: FocusOrbitProps) {
-  const reduced = usePrefersReducedMotion();
   const ring1 = model.rings[1] ?? [];
   const ring2 = model.rings[2] ?? [];
 
-  const pickActive = useCallback(
-    (items: OrbitItem[], ring: 1 | 2) => {
-      if (!items.length) return 0;
-      if (items.some((it) => it.id === model.focusId)) {
-        return indexOfId(items, model.focusId);
-      }
-      if (ring === 1 && (model.rings[2] ?? []).length) {
-        const outerParent = model.rings[2]![0]?.parentId;
-        if (outerParent && items.some((it) => it.id === outerParent)) {
-          return indexOfId(items, outerParent);
-        }
-      }
-      return 0;
+  const labels1 = useMemo(() => ring1.map((i) => i.title), [ring1]);
+  const labels2 = useMemo(() => ring2.map((i) => i.title), [ring2]);
+  const prefix1 = useMemo(() => ring1.map((i) => kindPrefix(i.kind)), [ring1]);
+  const prefix2 = useMemo(() => ring2.map((i) => kindPrefix(i.kind)), [ring2]);
+
+  const selected1 = useMemo(() => {
+    const i = ring1.findIndex((x) => x.id === model.focusId);
+    if (i >= 0) return i;
+    if (ring2[0]?.parentId) {
+      const p = ring1.findIndex((x) => x.id === ring2[0]!.parentId);
+      if (p >= 0) return p;
+    }
+    return Math.max(0, Math.min(labels1.length - 1, 0));
+  }, [ring1, ring2, model.focusId, labels1.length]);
+
+  const selected2 = useMemo(() => {
+    const i = ring2.findIndex((x) => x.id === model.focusId);
+    return i >= 0 ? i : 0;
+  }, [ring2, model.focusId]);
+
+  const onRing1 = useCallback(
+    (index: number) => {
+      const it = ring1[index];
+      if (it) onSelect(it.id);
     },
-    [model.focusId, model.rings],
+    [onSelect, ring1],
   );
 
-  const [active1, setActive1] = useState(() => pickActive(ring1, 1));
-  const [active2, setActive2] = useState(() => pickActive(ring2, 2));
-
-  useEffect(() => {
-    setActive1(pickActive(ring1, 1));
-  }, [ring1, pickActive, model.focusId]);
-
-  useEffect(() => {
-    setActive2(pickActive(ring2, 2));
-  }, [ring2, pickActive, model.focusId]);
-
-  const commit = useCallback(
-    (id: string) => {
-      onSelect(id);
+  const onRing2 = useCallback(
+    (index: number) => {
+      const it = ring2[index];
+      if (it) onSelect(it.id);
     },
-    [onSelect],
+    [onSelect, ring2],
   );
 
-  const centerTitle = model.center?.title ?? "—";
-
-  if (!model.center && !ring1.length && !ring2.length) {
+  if (!model.center && !ring1.length) {
     return (
       <div className={`focus-orbit${className ? ` ${className}` : ""}`}>
         <p className="focus-orbit__empty">无探究</p>
@@ -256,60 +75,80 @@ export default function FocusOrbit({
     );
   }
 
+  const hub = model.center?.title ?? "—";
+
   return (
     <div
-      className={`focus-orbit focus-orbit--stack${className ? ` ${className}` : ""}${reduced ? " is-reduced" : ""}`}
+      className={`focus-orbit focus-orbit--stack${className ? ` ${className}` : ""}`}
       data-focus={model.focusId || undefined}
     >
-      {/* Hub = root card (center of stacked wheels) */}
-      {model.center ? (
+      {/* Decorative concentric rings + hub (center of circles) */}
+      <div className="fo-hub-block">
+        <div className="fo-hub-block__rings" aria-hidden>
+          <span className="fo-ring fo-ring--a" />
+          <span className="fo-ring fo-ring--b" />
+          <span className="fo-ring fo-ring--c" />
+        </div>
         <button
           type="button"
           className={[
-            "fo-hub",
-            model.center.id === model.focusId ? "is-focus" : "",
+            "fo-hub-text",
+            model.center?.id === model.focusId ? "is-focus" : "",
           ]
             .filter(Boolean)
             .join(" ")}
-          aria-label={`根探究 ${centerTitle}`}
-          title={centerTitle}
-          onClick={() => commit(model.center!.id)}
+          title={hub}
+          aria-label={`根探究 ${hub}`}
+          onClick={() => model.center && onSelect(model.center.id)}
         >
-          <span className="fo-hub__ring" aria-hidden />
-          <span className="fo-hub__label">{centerTitle}</span>
+          {hub}
         </button>
-      ) : null}
-
-      {/* Stacked option wheels — each layer is one concentric ring */}
-      <div className="fo-stack" aria-label="叠轮轨道">
-        {ring1.length > 0 ? (
-          <WheelLayer
-            items={ring1}
-            activeIndex={clampIndex(active1, ring1.length)}
-            focusId={model.focusId}
-            label="内轮 · 根下分支"
-            layer={0}
-            reduced={reduced}
-            onActivate={setActive1}
-            onCommit={commit}
-          />
-        ) : (
-          <p className="focus-orbit__empty subtle">根下尚无分支</p>
-        )}
-
-        {ring2.length > 0 ? (
-          <WheelLayer
-            items={ring2}
-            activeIndex={clampIndex(active2, ring2.length)}
-            focusId={model.focusId}
-            label="外轮 · 当前层"
-            layer={1}
-            reduced={reduced}
-            onActivate={setActive2}
-            onCommit={commit}
-          />
-        ) : null}
       </div>
+
+      {/* Stacked option wheels — each = one concentric ring’s exposed arc */}
+      {labels1.length > 0 && (
+        <section className="fo-layer fo-layer--1" aria-label="内轮">
+          <OptionWheel
+            items={labels1}
+            prefixes={prefix1}
+            selected={selected1}
+            onChange={onRing1}
+            side="left"
+            fontSize={1.45}
+            spacing={1.4}
+            curve={1}
+            tilt={5}
+            blur={2}
+            fade={0.25}
+            minOpacity={0.08}
+            inset={12}
+            smoothing={180}
+            draggable
+          />
+        </section>
+      )}
+
+      {labels2.length > 0 && (
+        <section className="fo-layer fo-layer--2" aria-label="外轮">
+          <OptionWheel
+            items={labels2}
+            prefixes={prefix2}
+            selected={selected2}
+            onChange={onRing2}
+            side="left"
+            fontSize={1.2}
+            spacing={1.35}
+            curve={0.9}
+            tilt={4}
+            blur={1.8}
+            fade={0.28}
+            minOpacity={0.08}
+            inset={20}
+            smoothing={180}
+            draggable
+          />
+        </section>
+      )}
     </div>
   );
 }

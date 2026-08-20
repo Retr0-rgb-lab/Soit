@@ -1,0 +1,108 @@
+/* React Bits Option Wheel — pure type, no chips / no plate */
+
+.option-wheel {
+  --ow-font: 1.35rem;
+  --ow-inset: 28px;
+  --ow-height: 200px;
+  --ow-text: var(--ink-faint);
+  --ow-active: var(--ink);
+
+  position: relative;
+  width: 100%;
+  height: var(--ow-height);
+  min-height: var(--ow-height);
+  outline: none;
+  user-select: none;
+  touch-action: none;
+  cursor: ns-resize;
+  background: transparent;
+}
+
+.option-wheel:focus-visible {
+  /* subtle — no box fill */
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--focus) 35%, transparent);
+  border-radius: 8px;
+}
+
+.option-wheel__viewport {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  background: transparent;
+}
+
+.option-wheel--left .option-wheel__viewport {
+  padding-left: var(--ow-inset);
+}
+
+.option-wheel--right .option-wheel__viewport {
+  padding-right: var(--ow-inset);
+}
+
+/* Centered active line (no background plate) */
+.option-wheel__viewport::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 0;
+  border-top: 1px solid color-mix(in srgb, var(--line-strong) 35%, transparent);
+  opacity: 0.35;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.option-wheel__item {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--ow-text);
+  font-size: var(--ow-font);
+  font-weight: 300;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  text-align: left;
+  white-space: nowrap;
+  overflow: visible;
+  cursor: pointer;
+  transform-origin: left center;
+  will-change: transform, opacity, filter, color;
+  display: flex;
+  align-items: baseline;
+  gap: 0.35em;
+}
+
+.option-wheel--right .option-wheel__item {
+  flex-direction: row-reverse;
+  text-align: right;
+  transform-origin: right center;
+}
+
+.option-wheel__prefix {
+  flex: 0 0 auto;
+  font-size: 0.55em;
+  opacity: 0.75;
+  font-weight: 400;
+}
+
+.option-wheel__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.option-wheel__item:focus {
+  outline: none;
+}
+
+.option-wheel__item:focus-visible .option-wheel__text {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

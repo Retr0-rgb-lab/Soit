@@ -134,6 +134,18 @@ button:focus-visible,
   gap: 0;
   padding-top: 0;
   width: 100%;
+  background: transparent;
+  overflow: visible;
+}
+
+/* Ensure orbit rail never paints list/card plates */
+.left-rail--orbit-only .rail-scroll--orbit,
+.left-rail--orbit-only .focus-orbit,
+.left-rail--orbit-only .fo-concentric,
+.left-rail--orbit-only .option-wheel {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none;
 }
 
 .left-rail--orbit-only .rail-orbit-empty {

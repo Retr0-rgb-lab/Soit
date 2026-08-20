@@ -9,8 +9,8 @@ type Props = {
 };
 
 /**
- * Minimal left chrome: Option-Wheel orbit only + hide toggle.
- * Vault / 活线列表 / 最近 / 线债 / 技能 — deferred (Ctrl+K, map shortcuts, empty workspace bind).
+ * Left rail = stacked Option Wheels only (+ hide).
+ * No vault / live list / recent / debt / action chrome.
  */
 export default function LeftRail({
   collapsed = false,
@@ -36,7 +36,7 @@ export default function LeftRail({
   return (
     <aside
       className={`left-rail left-rail--orbit-only${collapsed ? " collapsed" : ""}`}
-      aria-label="探究轨道"
+      aria-label="探究叠轮"
     >
       <button
         type="button"
@@ -49,14 +49,12 @@ export default function LeftRail({
         {collapsed ? "›" : "‹"}
       </button>
 
-      {collapsed ? null : (
+      {!collapsed && (
         <div className="rail-scroll rail-scroll--orbit">
           {orbitModel?.center ? (
             <FocusOrbit model={orbitModel} onSelect={open} />
           ) : (
-            <p className="shell-placeholder rail-orbit-empty">
-              尚无探究树
-            </p>
+            <p className="rail-orbit-empty">尚无探究树</p>
           )}
         </div>
       )}
