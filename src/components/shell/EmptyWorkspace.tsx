@@ -43,7 +43,7 @@ export default function EmptyWorkspace() {
       <p className="shell-placeholder">
         {vaultLabel
           ? `已绑定「${vaultLabel}」。卡片只活在本库 .soit/universe.db，不会为每张卡写一篇笔记。`
-          : "先在左侧绑定 Obsidian vault 目录，再新建根探究。"}
+          : "先绑定 Obsidian vault（可在空态流程中完成），再新建根探究。"}
       </p>
       {vaultPath && (
         <form

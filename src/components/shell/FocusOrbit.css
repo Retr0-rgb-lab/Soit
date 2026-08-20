@@ -1,181 +1,235 @@
-/* FocusOrbit — vertical multi-ring (Option Wheel–inspired), full rail width */
+/* Stacked Option Wheels — concentric layers under root hub */
 
 .focus-orbit {
-  --fo-smooth: 120ms;
   --fo-deepen: #3d6b8c;
   --fo-diverge: #8b5e34;
+  --fo-smooth: 140ms;
 
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  align-items: stretch;
+  gap: 14px;
   min-width: 0;
   width: 100%;
-  margin-top: 6px;
-  padding-top: 8px;
-  border-top: 1px dashed color-mix(in srgb, var(--line) 80%, transparent);
+  padding: 4px 2px 8px 0;
   font-family: var(--font);
   color: var(--ink);
 }
 
-.focus-orbit__center-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+/* —— Hub (root / center of wheels) —— */
+.fo-hub {
+  position: relative;
+  align-self: flex-start;
+  max-width: 100%;
   min-width: 0;
-}
-
-.focus-orbit__center {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-card) 72%, transparent);
-  box-shadow: var(--e1);
-  backdrop-filter: blur(6px);
-  color: var(--ink);
-  font-size: 12.5px;
-  font-weight: 600;
-  line-height: 1.25;
-  padding: 8px 12px;
-  text-align: left;
+  justify-content: center;
+  gap: 0;
+  border: 0;
+  background: transparent;
+  padding: 10px 4px 10px 0;
   cursor: pointer;
+  text-align: left;
 }
 
-.focus-orbit__center:hover {
-  background: var(--accent-soft);
+.fo-hub__ring {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  margin-top: -22px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--ink) 22%, var(--line-strong));
+  background: color-mix(in srgb, var(--bg-card) 55%, transparent);
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, var(--accent-soft) 35%, transparent),
+    var(--e1);
+  pointer-events: none;
 }
 
-.focus-orbit__center.is-focus {
+.fo-hub.is-focus .fo-hub__ring {
   border-color: var(--ink);
-  background: var(--accent-soft);
+  box-shadow:
+    0 0 0 7px color-mix(in srgb, var(--accent) 28%, transparent),
+    var(--e2);
 }
 
-.focus-orbit__center:focus-visible,
-.focus-orbit__item:focus-visible,
-.focus-orbit__unpin:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
-
-.focus-orbit__center-glyph {
-  flex: 0 0 auto;
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-
-.focus-orbit__center-label {
-  min-width: 0;
+.fo-hub__label {
+  position: relative;
+  z-index: 1;
+  margin-left: 52px;
+  max-width: calc(100% - 52px);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.25;
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.focus-orbit__unpin {
-  flex: 0 0 auto;
-  width: 26px;
-  height: 26px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--ink-faint);
-  font-size: 14px;
-  line-height: 1;
-  cursor: pointer;
+.fo-hub:hover .fo-hub__ring {
+  background: color-mix(in srgb, var(--accent-soft) 50%, var(--bg-card));
 }
 
-.focus-orbit__unpin:hover {
-  background: var(--bg-muted);
-  color: var(--ink);
-}
-
-.focus-orbit__wheel {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  padding: 2px 0 2px 2px;
-  border-radius: 10px;
+.fo-hub:focus-visible {
   outline: none;
 }
 
-.focus-orbit__wheel:focus-visible {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--focus) 45%, transparent);
+.fo-hub:focus-visible .fo-hub__ring {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
 }
 
-.focus-orbit__wheel--2 {
-  padding-left: 10px;
-  border-left: 2px solid color-mix(in srgb, var(--line-strong) 55%, transparent);
-  margin-left: 4px;
+/* —— Stack of wheels (concentric / offset layers) —— */
+.fo-stack {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 120px;
+  min-width: 0;
+  padding-left: 8px;
 }
 
-.focus-orbit__ring-sep {
-  height: 1px;
-  margin: 2px 4px;
-  background: color-mix(in srgb, var(--line) 70%, transparent);
+.fo-wheel {
+  --fo-layer: 0;
+  position: relative;
+  min-height: 112px;
+  margin-top: calc(var(--fo-layer) * -28px);
+  padding: 8px 0 8px calc(var(--fo-layer) * 14px);
+  outline: none;
 }
 
-.focus-orbit__item {
+.fo-wheel--L1 {
+  min-height: 100px;
+  opacity: 0.98;
+}
+
+.fo-wheel__arc {
+  position: absolute;
+  left: calc(4px + var(--fo-layer) * 12px);
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--line-strong) 70%, transparent) 18%,
+    color-mix(in srgb, var(--accent) 45%, var(--line-strong)) 50%,
+    color-mix(in srgb, var(--line-strong) 70%, transparent) 82%,
+    transparent 100%
+  );
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.fo-wheel--L1 .fo-wheel__arc {
+  opacity: 0.55;
+  filter: saturate(0.85);
+}
+
+.fo-wheel__track {
+  position: relative;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-left: 14px;
+}
+
+.fo-wheel.is-flat .fo-wheel__track {
+  min-height: 0;
+  gap: 4px;
+  padding-left: 4px;
+}
+
+.fo-wheel.is-flat .fo-wheel__arc {
+  display: none;
+}
+
+.fo-wheel__item {
+  /* Absolute fan for wheel mode; static for reduced motion */
+  position: absolute;
+  left: 14px;
+  right: 4px;
+  top: 50%;
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
-  width: 100%;
-  box-sizing: border-box;
+  max-width: calc(100% - 18px);
+  margin-top: -14px;
   border: 0;
-  border-radius: 8px;
-  background: transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-card) 35%, transparent);
   color: var(--ink-soft);
   font-size: 12.5px;
-  line-height: 1.25;
-  padding: 7px 8px;
+  line-height: 1.2;
+  padding: 7px 10px;
   text-align: left;
   cursor: pointer;
   transform-origin: left center;
   will-change: transform, opacity, filter;
-  transition:
-    background-color var(--fo-smooth) ease,
-    color var(--fo-smooth) ease;
+  transition: background-color var(--fo-smooth) ease, color var(--fo-smooth) ease;
 }
 
-.focus-orbit__item:hover {
-  background: color-mix(in srgb, var(--bg-muted) 80%, transparent);
+.fo-wheel.is-flat .fo-wheel__item {
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
+  margin-top: 0;
+  max-width: 100%;
+  transform: none !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+.fo-wheel__item:hover {
+  background: color-mix(in srgb, var(--bg-card) 78%, transparent);
   color: var(--ink);
 }
 
-.focus-orbit__item.is-active {
+.fo-wheel__item.is-active {
   color: var(--ink);
-  font-weight: 600;
-  background: color-mix(in srgb, var(--accent-soft) 70%, transparent);
+  font-weight: 650;
+  background: color-mix(in srgb, var(--accent-soft) 75%, var(--bg-card));
+  box-shadow: var(--e1);
 }
 
-.focus-orbit__item.is-focus:not(.is-active) {
+.fo-wheel__item.is-focus:not(.is-active) {
   box-shadow: inset 2px 0 0 var(--ink);
 }
 
-.focus-orbit__wheel--2 .focus-orbit__item {
-  font-size: 12px;
+.fo-wheel__item:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
-.focus-orbit__glyph {
+.fo-wheel--L1 .fo-wheel__item {
+  font-size: 12px;
+  padding: 6px 9px;
+}
+
+.fo-wheel__glyph {
   flex: 0 0 auto;
   width: 1em;
   font-size: 0.9em;
-  opacity: 0.9;
 }
 
-.focus-orbit__item[data-kind="deepen"] .focus-orbit__glyph {
+.fo-wheel__item[data-kind="deepen"] .fo-wheel__glyph {
   color: var(--fo-deepen);
 }
 
-.focus-orbit__item[data-kind="diverge"] .focus-orbit__glyph {
+.fo-wheel__item[data-kind="diverge"] .fo-wheel__glyph {
   color: var(--fo-diverge);
 }
 
-.focus-orbit__label {
+.fo-wheel__label {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -183,7 +237,7 @@
   white-space: nowrap;
 }
 
-.focus-orbit__unread {
+.fo-wheel__unread {
   flex: 0 0 auto;
   width: 6px;
   height: 6px;
@@ -193,26 +247,18 @@
 
 .focus-orbit__empty {
   margin: 0;
-  padding: 6px 4px;
+  padding: 8px 4px;
   font-size: 12px;
   color: var(--ink-faint);
 }
 
 .focus-orbit__empty.subtle {
-  padding: 2px 8px 4px;
+  padding: 4px 8px;
   font-size: 11px;
 }
 
-.focus-orbit.is-reduced .focus-orbit__item {
-  filter: none !important;
-  transform: none !important;
-  opacity: 1 !important;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .focus-orbit__item {
+  .fo-wheel__item {
     transition: none !important;
-    filter: none !important;
-    transform: none !important;
   }
 }
