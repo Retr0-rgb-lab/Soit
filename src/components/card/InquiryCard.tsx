@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { appendResidue, precipitateConcept } from "../../lib/host";
-import { termExplanation } from "../../lib/marks";
 import { ancestorChain } from "../../lib/treeNav";
+import { explainSpan } from "../../state/explainActions";
 import { useWorkspace } from "../../state/workspaceStore";
 import type { SourceSpan } from "../../types";
 import DirectionChooser from "../overlays/DirectionChooser";
@@ -70,9 +70,9 @@ export default function InquiryCard() {
   const [navKind, setNavKind] = useState<"jump" | "deepen" | "diverge" | "back">(
     "jump",
   );
-  const [float, setFloat] = useState<
-    (TermFloatState & { turnId?: string; markId?: string }) | null
-  >(null);
+  const [float, setFloat] = useState<TermFloatState | null>(null);
+  /** Bump on open/close/retry so late explainSpan results are ignored. */
+  const floatSeqRef = useRef(0);
   const [selBar, setSelBar] = useState<
     (SelectionBarState & { turnId?: string }) | null
   >(null);
@@ -95,6 +95,7 @@ export default function InquiryCard() {
   useEffect(() => {
     setDraft("");
     setQuote("");
+    floatSeqRef.current += 1;
     setFloat(null);
     setSelBar(null);
     setChooser(null);
@@ -201,6 +202,7 @@ export default function InquiryCard() {
       if (float) {
         e.preventDefault();
         e.stopPropagation();
+        floatSeqRef.current += 1;
         setFloat(null);
       }
     };
@@ -249,6 +251,7 @@ export default function InquiryCard() {
           );
         }
       });
+      floatSeqRef.current += 1;
       setFloat(null);
       setSelBar(null);
       setChooser(null);
@@ -312,6 +315,42 @@ export default function InquiryCard() {
     window.alert(`已记下残渣\n${r.path ?? ""}`);
   }, [focus]);
 
+  const runExplain = useCallback(
+    async (span: string, cardId: string, seq: number) => {
+      try {
+        const text = await explainSpan({ cardId, span });
+        if (floatSeqRef.current !== seq) return;
+        setFloat((prev) =>
+          prev
+            ? {
+                ...prev,
+                body: text,
+                status: "ready",
+                error: undefined,
+              }
+            : null,
+        );
+      } catch (err) {
+        if (floatSeqRef.current !== seq) return;
+        const message =
+          err instanceof Error && err.message
+            ? err.message
+            : "解释失败，请重试";
+        setFloat((prev) =>
+          prev
+            ? {
+                ...prev,
+                body: "",
+                status: "error",
+                error: message,
+              }
+            : null,
+        );
+      }
+    },
+    [],
+  );
+
   const onMarkClick = useCallback(
     (
       term: string,
@@ -319,19 +358,48 @@ export default function InquiryCard() {
       y: number,
       meta: { turnId: string; markId?: string },
     ) => {
+      if (!focusId) return;
       setSelBar(null);
       setChooser(null);
+      // Mark path: span === term; never auto-spawn — deepen/diverge stay explicit.
+      const span = term;
+      const seq = ++floatSeqRef.current;
       setFloat({
         term,
-        body: termExplanation(term),
+        span,
+        body: "",
+        status: "loading",
         x: x + 12,
         y: y + 12,
+        source: "mark",
         turnId: meta.turnId,
         markId: meta.markId,
       });
+      void runExplain(span, focusId, seq);
     },
-    [],
+    [focusId, runExplain],
   );
+
+  const onFloatRetry = useCallback(() => {
+    if (!float || !focusId) return;
+    const seq = ++floatSeqRef.current;
+    setFloat((prev) =>
+      prev
+        ? {
+            ...prev,
+            body: "",
+            status: "loading",
+            error: undefined,
+          }
+        : null,
+    );
+    void runExplain(float.span, focusId, seq);
+  }, [float, focusId, runExplain]);
+
+  const closeFloat = useCallback(() => {
+    floatSeqRef.current += 1;
+    setFloat(null);
+  }, []);
 
   const onAiMouseUp = useCallback((e: React.MouseEvent, turnId: string) => {
     const t = e.target;
@@ -356,6 +424,7 @@ export default function InquiryCard() {
     const rect = range?.getBoundingClientRect();
     const x = rect ? rect.left + rect.width / 2 : e.clientX;
     const y = rect ? rect.top - 8 : e.clientY;
+    floatSeqRef.current += 1;
     setFloat(null);
     setChooser(null);
     setSelBar({ text, x, y: Math.max(8, y - 40), turnId });
@@ -374,6 +443,7 @@ export default function InquiryCard() {
         return;
       }
       if (t.closest(".ai-html")) return;
+      floatSeqRef.current += 1;
       setFloat(null);
       setSelBar(null);
       setChooser(null);
@@ -545,12 +615,19 @@ export default function InquiryCard() {
       {float ? (
         <TermFloat
           float={float}
-          onClose={() => setFloat(null)}
-          onDeepen={(term) =>
-            onDeepen(term, { turnId: float.turnId, markId: float.markId })
+          onClose={closeFloat}
+          onRetry={onFloatRetry}
+          onDeepen={() =>
+            onDeepen(float.span, {
+              turnId: float.turnId,
+              markId: float.markId,
+            })
           }
-          onDiverge={(term) =>
-            onDiverge(term, { turnId: float.turnId, markId: float.markId })
+          onDiverge={() =>
+            onDiverge(float.span, {
+              turnId: float.turnId,
+              markId: float.markId,
+            })
           }
         />
       ) : null}
