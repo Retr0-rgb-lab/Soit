@@ -812,6 +812,80 @@ body.has-selbar .ic-turn-bar {
   line-height: 1.65;
 }
 
+/* Structured assistant HTML (safe md subset) — compact paper, not doc-site */
+.ai-html p {
+  margin: 0 0 0.65em;
+}
+
+.ai-html p:last-child {
+  margin-bottom: 0;
+}
+
+.ai-html ul,
+.ai-html ol {
+  margin: 0.35em 0 0.65em;
+  padding-left: 1.35em;
+}
+
+.ai-html li {
+  margin: 0.15em 0;
+}
+
+.ai-html li::marker {
+  color: color-mix(in srgb, var(--ink) 45%, transparent);
+}
+
+.ai-html h1,
+.ai-html h2,
+.ai-html h3 {
+  font-size: 1em;
+  font-weight: 650;
+  line-height: 1.35;
+  margin: 0.75em 0 0.35em;
+  letter-spacing: 0.01em;
+}
+
+.ai-html h1:first-child,
+.ai-html h2:first-child,
+.ai-html h3:first-child {
+  margin-top: 0;
+}
+
+.ai-html pre {
+  margin: 0.5em 0 0.75em;
+  padding: 0.65em 0.75em;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  overflow-x: auto;
+  font-size: 0.88em;
+  line-height: 1.45;
+}
+
+.ai-html code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.ai-html :not(pre) > code {
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.ai-html pre code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+}
+
+.ai-html strong {
+  font-weight: 650;
+}
+
+.ai-html em {
+  font-style: italic;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ai-html .mark.mark-highlight,
   .mark-highlight {
