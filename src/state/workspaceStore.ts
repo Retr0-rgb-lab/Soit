@@ -13,6 +13,11 @@ import {
   unpinLiveId,
 } from "../lib/liveSet";
 import type { MapScopeMode } from "../lib/mapScope";
+import {
+  forceCloseMaterialsRail,
+  initialMaterialsRail,
+  type MaterialsRailState,
+} from "../lib/materialsRail";
 import type { RuntimeInfo, RuntimePreferences } from "../lib/runtime";
 import { rootOf, subtreeIds } from "../lib/threadDebt";
 import type {
@@ -38,6 +43,8 @@ import {
   type StoreGet,
   type StoreSet,
 } from "./turnHelpers";
+
+export type { MaterialsRailState };
 
 export type WorkspaceMode = "focus" | "map";
 
@@ -106,6 +113,8 @@ export interface WorkspaceState {
   runtimeRun: RuntimeRun | null;
   /** Read-only doc companion session (PEL-156); not persisted. */
   docSession: DocSessionState;
+  /** Materials rail session (materials-rail SPE §2.3); not persisted. */
+  materialsRail: MaterialsRailState;
 
   /** Bump epoch for an async App / openUniverse load pipeline; returns new epoch. */
   beginBootLoad: () => number;
@@ -125,6 +134,17 @@ export interface WorkspaceState {
   setDocCursor: (cursor: DocSessionState["cursor"]) => void;
   rebindDoc: (boundCardId: string | null) => void;
   retryDoc: () => Promise<void>;
+  /** Materials rail: toggle open/closed; open lazy-lists. */
+  toggleMaterialsRail: () => void;
+  openMaterialsRail: () => void;
+  closeMaterialsRail: () => void;
+  refreshMaterials: () => Promise<void>;
+  /** map→focus then openDoc (SPE §2.3). */
+  selectMaterial: (pathRel: string) => Promise<void>;
+  /** Import base64 files ≤2MB; refresh; openDoc first success. */
+  importMaterials: (
+    files: Array<{ fileName: string; bytesBase64: string; size?: number }>,
+  ) => Promise<void>;
   pinLive: (id: string) => void;
   unpinLive: (id: string) => void;
   /** Mark all unread in thread (by root) as read */
@@ -178,6 +198,60 @@ function resolveRootId(
     if (cur) rootId = cur.id;
   }
   return rootId;
+}
+
+/** Lazy list materials when rail is open; drops stale responses via listEpoch. */
+async function runMaterialsList(
+  get: () => WorkspaceState,
+  set: (
+    partial:
+      | Partial<WorkspaceState>
+      | ((s: WorkspaceState) => Partial<WorkspaceState>),
+  ) => void,
+): Promise<void> {
+  const epoch = get().materialsRail.listEpoch;
+  set((s) => ({
+    materialsRail: {
+      ...s.materialsRail,
+      listStatus: "loading",
+      error: null,
+    },
+  }));
+  try {
+    const { listVaultMaterials } = await import("../lib/host");
+    const result = await listVaultMaterials();
+    if (get().materialsRail.listEpoch !== epoch) return;
+    if (!result.ok) {
+      set((s) => ({
+        materialsRail: {
+          ...s.materialsRail,
+          listStatus: "error",
+          error: result.error ?? "list failed",
+          entries: [],
+        },
+      }));
+      return;
+    }
+    set((s) => ({
+      materialsRail: {
+        ...s.materialsRail,
+        listStatus: "ready",
+        error: null,
+        entries: result.entries ?? [],
+      },
+    }));
+  } catch (err) {
+    if (get().materialsRail.listEpoch !== epoch) return;
+    const message = err instanceof Error ? err.message : String(err);
+    set((s) => ({
+      materialsRail: {
+        ...s.materialsRail,
+        listStatus: "error",
+        error: message || "list failed",
+        entries: [],
+      },
+    }));
+  }
 }
 
 /** Finish open/retry load after reduce → loading (epoch already bumped). */
@@ -278,6 +352,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     runtimes: [],
     runtimeRun: null,
     docSession: initialDocSession(),
+    materialsRail: initialMaterialsRail(),
 
     beginBootLoad: () => {
       const next = get().bootEpoch + 1;
@@ -334,6 +409,8 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
         runtimeRun: null,
         // Always drop doc companion (unbind / boot / host merge).
         docSession: reduceDocSession(prev.docSession, { type: "force_close" }),
+        // Always close materials rail (SPE §2.3 force_close).
+        materialsRail: forceCloseMaterialsRail(prev.materialsRail),
       });
     },
 
@@ -367,6 +444,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
           return {
             workspaceMode: mode,
             docSession: reduceDocSession(s.docSession, { type: "force_close" }),
+            materialsRail: forceCloseMaterialsRail(s.materialsRail),
           };
         }
         return { workspaceMode: mode };
@@ -382,6 +460,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
           return {
             workspaceMode: next,
             docSession: reduceDocSession(s.docSession, { type: "force_close" }),
+            materialsRail: forceCloseMaterialsRail(s.materialsRail),
           };
         }
         return { workspaceMode: next };
@@ -449,6 +528,127 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       });
       const epoch = get().docSession.epoch;
       await finishDocLoad(get, set, path, epoch);
+    },
+
+    toggleMaterialsRail: () => {
+      if (get().materialsRail.open) {
+        get().closeMaterialsRail();
+      } else {
+        get().openMaterialsRail();
+      }
+    },
+
+    openMaterialsRail: () => {
+      const prev = get().materialsRail;
+      if (prev.open) {
+        void get().refreshMaterials();
+        return;
+      }
+      set({
+        materialsRail: {
+          ...prev,
+          open: true,
+          listStatus: "loading",
+          error: null,
+          listEpoch: prev.listEpoch + 1,
+        },
+      });
+      void runMaterialsList(get, set);
+    },
+
+    closeMaterialsRail: () => {
+      // Close rail only — do not clear DocSession (SPE §2.3).
+      set((s) => ({
+        materialsRail: {
+          ...s.materialsRail,
+          open: false,
+          importBusy: false,
+        },
+      }));
+    },
+
+    refreshMaterials: async () => {
+      const rail = get().materialsRail;
+      if (!rail.open) return;
+      set({
+        materialsRail: {
+          ...rail,
+          listEpoch: rail.listEpoch + 1,
+          listStatus: "loading",
+          error: null,
+        },
+      });
+      await runMaterialsList(get, set);
+    },
+
+    selectMaterial: async (pathRel) => {
+      const path = pathRel.trim();
+      if (!path) return;
+      set((s) => ({
+        materialsRail: {
+          ...s.materialsRail,
+          selectedPathRel: path,
+        },
+      }));
+      // map → focus must precede openDoc (no ghost Doc+Orbit).
+      if (get().workspaceMode === "map") {
+        get().setWorkspaceMode("focus");
+      }
+      await get().openDoc(path);
+    },
+
+    importMaterials: async (files) => {
+      if (!files.length) return;
+      if (get().materialsRail.importBusy) return;
+      set((s) => ({
+        materialsRail: { ...s.materialsRail, importBusy: true },
+      }));
+      let firstOk: string | null = null;
+      try {
+        const {
+          importVaultMaterial,
+          MAX_MATERIAL_IMPORT_BYTES,
+        } = await import("../lib/host");
+        for (const file of files) {
+          // FE size precheck when caller provides byte length (SPE §2.5).
+          if (
+            typeof file.size === "number" &&
+            file.size > MAX_MATERIAL_IMPORT_BYTES
+          ) {
+            continue;
+          }
+          try {
+            const result = await importVaultMaterial({
+              fileName: file.fileName,
+              bytesBase64: file.bytesBase64,
+            });
+            if (result.ok && result.pathRel && !firstOk) {
+              firstOk = result.pathRel;
+            }
+          } catch {
+            // Failures must not stop later files.
+          }
+        }
+        if (get().materialsRail.open) {
+          await get().refreshMaterials();
+        } else {
+          // Still refresh list data if rail was closed mid-import.
+          set((s) => ({
+            materialsRail: {
+              ...s.materialsRail,
+              listEpoch: s.materialsRail.listEpoch + 1,
+            },
+          }));
+          await runMaterialsList(get, set);
+        }
+        if (firstOk) {
+          await get().selectMaterial(firstOk);
+        }
+      } finally {
+        set((s) => ({
+          materialsRail: { ...s.materialsRail, importBusy: false },
+        }));
+      }
     },
 
     pinLive: (id) => {

@@ -202,3 +202,29 @@ export interface ReadVaultTextResult {
   text?: string;
   error?: string;
 }
+
+/** Host `list_vault_materials` entry (materials-rail SPE §2.2). */
+export type MaterialsEntryKind = VaultDocKind | "dir" | string;
+
+export interface MaterialsEntry {
+  pathRel: string;
+  name: string;
+  kind: MaterialsEntryKind;
+  size: number;
+  mtimeMs?: number;
+}
+
+/** Host `list_vault_materials` result. */
+export interface ListVaultMaterialsResult {
+  ok: boolean;
+  entries?: MaterialsEntry[];
+  truncated?: boolean;
+  error?: string;
+}
+
+/** Host `import_vault_material` result. */
+export interface ImportVaultMaterialResult {
+  ok: boolean;
+  pathRel?: string;
+  error?: string;
+}

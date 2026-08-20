@@ -6,6 +6,9 @@ import type {
   ChatConfig,
   DeleteTurnArgs,
   HostMutationResult,
+  ImportVaultMaterialResult,
+  ListVaultMaterialsResult,
+  MaterialsEntry,
   OpenUniverseResult,
   PrecipitateConceptResult,
   ReadVaultTextResult,
@@ -39,10 +42,14 @@ import {
   readRuntimePrefsFromLocalStorage,
   writeRuntimePrefsToLocalStorage,
 } from "./runtime/prefs";
+import { sanitizeMaterialFileName } from "./splitRatio";
 
 /** Browser-only mock handoff cancel flag (at most one in-flight). */
 let browserHandoffCancel = false;
 let browserHandoffActive = false;
+
+/** Decoded import ceiling — matches Host MAX_IMPORT_BYTES (materials SPE §2.2). */
+export const MAX_MATERIAL_IMPORT_BYTES = 2_000_000;
 
 /** Browser mock vault docs (PEL-156) — no Tauri / no real vault. */
 const MOCK_WELCOME_MD = `# 欢迎
@@ -52,9 +59,35 @@ const MOCK_WELCOME_MD = `# 欢迎
 你可以在专注模式下并排阅读材料，划词后引用、解释或深挖发散。
 `;
 
+/** Mutable fixture map: seed demo + mock import bodies (SPE §2.5). */
 const MOCK_DEMO_MD: Record<string, string> = {
   "demo/welcome.md": MOCK_WELCOME_MD,
 };
+
+/** In-memory materials list for browser mock (SPE §2.5). */
+let mockMaterialsEntries: MaterialsEntry[] = [
+  {
+    pathRel: "demo/welcome.md",
+    name: "welcome.md",
+    kind: "md",
+    size: new TextEncoder().encode(MOCK_WELCOME_MD).length,
+  },
+];
+
+/** Test helper — reset mock materials list/bodies between cases. */
+export function __resetMockMaterialsForTests(): void {
+  for (const key of Object.keys(MOCK_DEMO_MD)) {
+    if (key !== "demo/welcome.md") delete MOCK_DEMO_MD[key];
+  }
+  mockMaterialsEntries = [
+    {
+      pathRel: "demo/welcome.md",
+      name: "welcome.md",
+      kind: "md",
+      size: new TextEncoder().encode(MOCK_WELCOME_MD).length,
+    },
+  ];
+}
 
 function hasTauri(): boolean {
   if (typeof window === "undefined") return false;
@@ -93,21 +126,23 @@ function mockProbeKind(pathRel: string): VaultDocKind {
   return "unsupported";
 }
 
+function mockHasDocBody(pathRel: string): boolean {
+  if (MOCK_DEMO_MD[pathRel] != null) return true;
+  // Loose demo/*.md fixtures for npm run dev split pane.
+  return pathRel.startsWith("demo/") && pathRel.toLowerCase().endsWith(".md");
+}
+
 function mockResolveVaultDoc(path: string): ResolveVaultDocResult {
   const pathRel = normalizeMockDocPath(path);
   if (!pathRel) {
     return { ok: false, error: "path is empty" };
   }
-  // Fixture map + any demo/*.md for npm run dev split pane.
-  const mapped = MOCK_DEMO_MD[pathRel];
-  const isDemoMd =
-    mapped != null ||
-    (pathRel.startsWith("demo/") && pathRel.toLowerCase().endsWith(".md"));
-  if (!isDemoMd) {
+  // Only paths with mock body resolve (SPE §2.5 — openDoc needs fixture text).
+  if (!mockHasDocBody(pathRel)) {
     // Browser has no bound vault — match Host unbound error style.
     return { ok: false, error: "universe_closed" };
   }
-  const text = mapped ?? MOCK_WELCOME_MD;
+  const text = MOCK_DEMO_MD[pathRel] ?? MOCK_WELCOME_MD;
   const kind = mockProbeKind(pathRel);
   const displayName = pathRel.split("/").pop() ?? pathRel;
   const size = new TextEncoder().encode(text).length;
@@ -123,14 +158,77 @@ function mockResolveVaultDoc(path: string): ResolveVaultDocResult {
 
 function mockReadVaultText(pathRelIn: string): ReadVaultTextResult {
   const pathRel = normalizeMockDocPath(pathRelIn);
-  const mapped = MOCK_DEMO_MD[pathRel];
-  const isDemoMd =
-    mapped != null ||
-    (pathRel.startsWith("demo/") && pathRel.toLowerCase().endsWith(".md"));
-  if (!isDemoMd) {
+  if (!mockHasDocBody(pathRel)) {
     return { ok: false, error: "universe_closed" };
   }
-  return { ok: true, text: mapped ?? MOCK_WELCOME_MD };
+  return { ok: true, text: MOCK_DEMO_MD[pathRel] ?? MOCK_WELCOME_MD };
+}
+
+function mockListVaultMaterials(): ListVaultMaterialsResult {
+  return {
+    ok: true,
+    entries: mockMaterialsEntries.map((e) => ({ ...e })),
+    truncated: false,
+  };
+}
+
+function mockImportVaultMaterial(
+  fileName: string,
+  bytesBase64: string,
+): ImportVaultMaterialResult {
+  let raw: Uint8Array;
+  try {
+    const bin = atob(bytesBase64);
+    // Check before allocating the full copy when possible.
+    if (bin.length > MAX_MATERIAL_IMPORT_BYTES) {
+      return { ok: false, error: "file_too_large" };
+    }
+    raw = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) raw[i] = bin.charCodeAt(i);
+  } catch {
+    return { ok: false, error: "invalid base64" };
+  }
+  if (raw.byteLength > MAX_MATERIAL_IMPORT_BYTES) {
+    return { ok: false, error: "file_too_large" };
+  }
+  if (!fileName.trim()) {
+    return { ok: false, error: "invalid file name" };
+  }
+  const name = sanitizeMaterialFileName(fileName);
+  // Collision: stem (n).ext under materials/
+  const dot = name.lastIndexOf(".");
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : "";
+  let dest = name;
+  let n = 2;
+  const taken = new Set(mockMaterialsEntries.map((e) => e.pathRel));
+  while (taken.has(`materials/${dest}`)) {
+    dest = `${stem} (${n})${ext}`;
+    n += 1;
+  }
+  const pathRel = `materials/${dest}`;
+  const kind = mockProbeKind(pathRel);
+  mockMaterialsEntries = [
+    ...mockMaterialsEntries,
+    {
+      pathRel,
+      name: dest,
+      kind,
+      size: raw.byteLength,
+      mtimeMs: Date.now(),
+    },
+  ];
+  // Store body so openDoc can preview md/text imports in browser mock.
+  if (kind === "md" || kind === "text") {
+    try {
+      MOCK_DEMO_MD[pathRel] = new TextDecoder("utf-8", { fatal: false }).decode(
+        raw,
+      );
+    } catch {
+      MOCK_DEMO_MD[pathRel] = "";
+    }
+  }
+  return { ok: true, pathRel };
 }
 
 export async function getBootstrapState(): Promise<BootstrapState> {
@@ -506,6 +604,43 @@ export async function readVaultText(
   return invoke<ReadVaultTextResult>("read_vault_text", {
     pathRel,
     maxBytes: maxBytes ?? null,
+  });
+}
+
+/**
+ * Lazy list files under vault `materials/` (materials-rail SPE §2.2).
+ * Browser mock: includes `demo/welcome.md` + in-memory imports (SPE §2.5).
+ * Not for bootstrap / open_universe.
+ */
+export async function listVaultMaterials(opts?: {
+  maxDepth?: number;
+  maxEntries?: number;
+}): Promise<ListVaultMaterialsResult> {
+  if (!hasTauri()) {
+    return mockListVaultMaterials();
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<ListVaultMaterialsResult>("list_vault_materials", {
+    maxDepth: opts?.maxDepth ?? null,
+    maxEntries: opts?.maxEntries ?? null,
+  });
+}
+
+/**
+ * Import one file (base64) into vault `materials/` (≤2MB decoded).
+ * Browser mock: appends in-memory entry; does not write disk (SPE §2.5).
+ */
+export async function importVaultMaterial(args: {
+  fileName: string;
+  bytesBase64: string;
+}): Promise<ImportVaultMaterialResult> {
+  if (!hasTauri()) {
+    return mockImportVaultMaterial(args.fileName, args.bytesBase64);
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<ImportVaultMaterialResult>("import_vault_material", {
+    fileName: args.fileName,
+    bytesBase64: args.bytesBase64,
   });
 }
 

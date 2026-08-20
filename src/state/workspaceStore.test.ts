@@ -740,6 +740,181 @@ describe("workspaceStore docSession (PEL-156 D3)", () => {
   });
 });
 
+describe("workspaceStore materialsRail (M3)", () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    chatPortMocks.override = null;
+    const { __resetMockMaterialsForTests } = await import("../lib/host");
+    __resetMockMaterialsForTests();
+    useWorkspaceStore.getState().setWorkspaceMode("focus");
+    useWorkspaceStore.getState().loadSnapshot(demoSnapshot());
+    useWorkspaceStore.getState().setWorkspaceMode("focus");
+    useWorkspaceStore.getState().closeMaterialsRail();
+  });
+
+  it("openMaterialsRail lazy-lists mock demo/welcome.md", async () => {
+    useWorkspaceStore.getState().openMaterialsRail();
+    // list is async
+    await vi.waitFor(() => {
+      expect(useWorkspaceStore.getState().materialsRail.listStatus).toBe(
+        "ready",
+      );
+    });
+    const rail = useWorkspaceStore.getState().materialsRail;
+    expect(rail.open).toBe(true);
+    expect(rail.entries.some((e) => e.pathRel === "demo/welcome.md")).toBe(
+      true,
+    );
+    expect(rail.error).toBeNull();
+  });
+
+  it("toggleMaterialsRail opens then closes without clearing doc", async () => {
+    await useWorkspaceStore.getState().openDoc("demo/welcome.md");
+    expect(useWorkspaceStore.getState().docSession.status).toBe("ready");
+
+    useWorkspaceStore.getState().toggleMaterialsRail();
+    await vi.waitFor(() => {
+      expect(useWorkspaceStore.getState().materialsRail.open).toBe(true);
+      expect(useWorkspaceStore.getState().materialsRail.listStatus).toBe(
+        "ready",
+      );
+    });
+    useWorkspaceStore.getState().toggleMaterialsRail();
+    expect(useWorkspaceStore.getState().materialsRail.open).toBe(false);
+    expect(useWorkspaceStore.getState().docSession.status).toBe("ready");
+    expect(useWorkspaceStore.getState().docSession.ref?.pathRel).toBe(
+      "demo/welcome.md",
+    );
+  });
+
+  it("selectMaterial map→focus then openDoc", async () => {
+    useWorkspaceStore.getState().setWorkspaceMode("map");
+    // Re-open rail while already on map (force_close only on enter map).
+    useWorkspaceStore.getState().openMaterialsRail();
+    await vi.waitFor(() => {
+      expect(useWorkspaceStore.getState().materialsRail.listStatus).toBe(
+        "ready",
+      );
+    });
+    expect(useWorkspaceStore.getState().workspaceMode).toBe("map");
+
+    await useWorkspaceStore.getState().selectMaterial("demo/welcome.md");
+    const s = useWorkspaceStore.getState();
+    expect(s.workspaceMode).toBe("focus");
+    expect(s.materialsRail.selectedPathRel).toBe("demo/welcome.md");
+    expect(s.docSession.status).toBe("ready");
+    expect(s.docSession.ref?.pathRel).toBe("demo/welcome.md");
+  });
+
+  it("loadSnapshot force_closes materials rail", async () => {
+    useWorkspaceStore.getState().openMaterialsRail();
+    await vi.waitFor(() => {
+      expect(useWorkspaceStore.getState().materialsRail.open).toBe(true);
+    });
+    const epochBefore = useWorkspaceStore.getState().materialsRail.listEpoch;
+    useWorkspaceStore.getState().loadSnapshot(demoSnapshot());
+    const rail = useWorkspaceStore.getState().materialsRail;
+    expect(rail.open).toBe(false);
+    expect(rail.listEpoch).toBeGreaterThan(epochBefore);
+  });
+
+  it("setWorkspaceMode map force_closes materials rail", async () => {
+    useWorkspaceStore.getState().openMaterialsRail();
+    await vi.waitFor(() => {
+      expect(useWorkspaceStore.getState().materialsRail.open).toBe(true);
+    });
+    useWorkspaceStore.getState().setWorkspaceMode("map");
+    expect(useWorkspaceStore.getState().materialsRail.open).toBe(false);
+    // focus does not re-open
+    useWorkspaceStore.getState().setWorkspaceMode("focus");
+    expect(useWorkspaceStore.getState().materialsRail.open).toBe(false);
+  });
+
+  it("toggleMapMode into map force_closes materials rail", async () => {
+    useWorkspaceStore.getState().setWorkspaceMode("focus");
+    useWorkspaceStore.getState().openMaterialsRail();
+    await vi.waitFor(() => {
+      expect(useWorkspaceStore.getState().materialsRail.open).toBe(true);
+    });
+    useWorkspaceStore.getState().toggleMapMode();
+    expect(useWorkspaceStore.getState().workspaceMode).toBe("map");
+    expect(useWorkspaceStore.getState().materialsRail.open).toBe(false);
+  });
+
+  it("importMaterials appends mock entry, refresh, opens first success", async () => {
+    useWorkspaceStore.getState().openMaterialsRail();
+    await vi.waitFor(() => {
+      expect(useWorkspaceStore.getState().materialsRail.listStatus).toBe(
+        "ready",
+      );
+    });
+    const body = "# imported note\nhello materials";
+    const bytesBase64 = btoa(body);
+    await useWorkspaceStore.getState().importMaterials([
+      { fileName: "note.md", bytesBase64, size: body.length },
+    ]);
+    const s = useWorkspaceStore.getState();
+    expect(s.materialsRail.importBusy).toBe(false);
+    expect(
+      s.materialsRail.entries.some((e) => e.pathRel === "materials/note.md"),
+    ).toBe(true);
+    expect(s.materialsRail.selectedPathRel).toBe("materials/note.md");
+    expect(s.docSession.status).toBe("ready");
+    expect(s.docSession.ref?.pathRel).toBe("materials/note.md");
+    expect(s.docSession.textContent).toContain("imported note");
+  });
+
+  it("importMaterials skips oversize by FE size precheck", async () => {
+    useWorkspaceStore.getState().openMaterialsRail();
+    await vi.waitFor(() => {
+      expect(useWorkspaceStore.getState().materialsRail.listStatus).toBe(
+        "ready",
+      );
+    });
+    const before = useWorkspaceStore.getState().materialsRail.entries.length;
+    await useWorkspaceStore.getState().importMaterials([
+      {
+        fileName: "huge.md",
+        bytesBase64: btoa("x"),
+        size: 2_000_001,
+      },
+    ]);
+    const rail = useWorkspaceStore.getState().materialsRail;
+    expect(rail.entries.length).toBe(before);
+    expect(rail.entries.some((e) => e.name === "huge.md")).toBe(false);
+    expect(rail.importBusy).toBe(false);
+  });
+
+  it("import mock host rejects decoded >2MB", async () => {
+    const { importVaultMaterial, MAX_MATERIAL_IMPORT_BYTES } = await import(
+      "../lib/host"
+    );
+    const realAtob = globalThis.atob;
+    // Proxy avoids allocating a real 2MB+ string in the test process.
+    globalThis.atob = () =>
+      new Proxy(
+        { length: MAX_MATERIAL_IMPORT_BYTES + 1 },
+        {
+          get(target, prop) {
+            if (prop === "length") return target.length;
+            if (prop === "charCodeAt") return () => 0;
+            return Reflect.get(target, prop as string);
+          },
+        },
+      ) as unknown as string;
+    try {
+      const r = await importVaultMaterial({
+        fileName: "big.bin",
+        bytesBase64: "AA==",
+      });
+      expect(r.ok).toBe(false);
+      expect(r.error).toBe("file_too_large");
+    } finally {
+      globalThis.atob = realAtob;
+    }
+  });
+});
+
 describe("layoutGraph", () => {
   it("places demo nodes inside viewBox 0..200 x 0..300", () => {
     const laid = layoutGraph(demoSnapshot().nodes);
