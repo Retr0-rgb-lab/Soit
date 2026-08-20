@@ -118,6 +118,8 @@ export interface WorkspaceState {
   /** Open vault doc companion (async resolve/read). */
   openDoc: (path: string, boundCardId?: string | null) => Promise<void>;
   closeDoc: () => void;
+  /** Complete close anim (closing → closed). */
+  confirmDocClosed: () => void;
   setDocLayout: (layout: DocLayout) => void;
   rebindDoc: (boundCardId: string | null) => void;
   retryDoc: () => Promise<void>;
@@ -400,6 +402,12 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     closeDoc: () => {
       set({
         docSession: reduceDocSession(get().docSession, { type: "close" }),
+      });
+    },
+
+    confirmDocClosed: () => {
+      set({
+        docSession: reduceDocSession(get().docSession, { type: "closed" }),
       });
     },
 

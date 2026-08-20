@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import InquiryCard from "../card/InquiryCard";
+import DocPane from "../doc/DocPane";
+import OpenDocPopover from "../doc/OpenDocPopover";
 import CommandPalette from "./CommandPalette";
 import EmptyWorkspace from "./EmptyWorkspace";
 import LeftRail from "./LeftRail";
@@ -31,12 +33,22 @@ function parseSettingsSection(raw: unknown): SettingsSection | null {
   return null;
 }
 
+function isDocSurfaceOpen(status: string): boolean {
+  return (
+    status === "loading" ||
+    status === "ready" ||
+    status === "error" ||
+    status === "closing"
+  );
+}
+
 export default function AppShell() {
   const [railCollapsed, setRailCollapsed] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] =
     useState<SettingsSection>("space");
+  const [openDocOpen, setOpenDocOpen] = useState(false);
 
   const toggleRail = useCallback(() => {
     setRailCollapsed((v) => !v);
@@ -45,6 +57,7 @@ export default function AppShell() {
   const openSettings = useCallback((section?: SettingsSection) => {
     if (section) setSettingsSection(section);
     setPaletteOpen(false);
+    setOpenDocOpen(false);
     setSettingsOpen(true);
   }, []);
 
@@ -57,18 +70,37 @@ export default function AppShell() {
   const nodes = useWorkspace((s) => s.nodes);
   const source = useWorkspace((s) => s.source);
   const focusNode = useWorkspace((s) => s.focusNode);
+  const docSession = useWorkspace((s) => s.docSession);
+  const closeDoc = useWorkspace((s) => s.closeDoc);
 
   const showEmpty =
     source === "empty" ||
     (source === "universe" && nodes.length === 0) ||
     (source !== "demo" && source !== null && !focusId);
 
+  const docOpen = isDocSurfaceOpen(docSession.status);
+  const docLayout = docSession.layout;
+  const isPeek = docOpen && docLayout === "peek";
+  /** Split stage: card + doc side by side (not peek overlay). */
+  const useSplit = docOpen && !isPeek && !showEmpty && workspaceMode === "focus";
+
   const closePalette = useCallback(() => setPaletteOpen(false), []);
+  const closeOpenDoc = useCallback(() => setOpenDocOpen(false), []);
 
   useEffect(() => {
     const onOpen = () => setPaletteOpen(true);
     window.addEventListener("soit:open-palette", onOpen);
     return () => window.removeEventListener("soit:open-palette", onOpen);
+  }, []);
+
+  useEffect(() => {
+    const onOpen = () => {
+      setSettingsOpen(false);
+      setPaletteOpen(false);
+      setOpenDocOpen(true);
+    };
+    window.addEventListener("soit:open-doc", onOpen);
+    return () => window.removeEventListener("soit:open-doc", onOpen);
   }, []);
 
   useEffect(() => {
@@ -97,6 +129,7 @@ export default function AppShell() {
       if (mod && e.key === ",") {
         e.preventDefault();
         setPaletteOpen(false);
+        setOpenDocOpen(false);
         setSettingsOpen((v) => !v);
         return;
       }
@@ -104,6 +137,7 @@ export default function AppShell() {
       if (mod && (e.key === "k" || e.key === "K")) {
         e.preventDefault();
         setSettingsOpen(false);
+        setOpenDocOpen(false);
         setPaletteOpen((v) => !v);
         return;
       }
@@ -121,11 +155,12 @@ export default function AppShell() {
         e.preventDefault();
         setPaletteOpen(false);
         setSettingsOpen(false);
+        setOpenDocOpen(false);
         toggleMap();
         return;
       }
       if (e.key === "Escape") {
-        // settings → palette → map
+        // settings → palette → open-doc popover → doc peek/close → map→focus
         if (settingsOpen) {
           e.preventDefault();
           setSettingsOpen(false);
@@ -134,6 +169,16 @@ export default function AppShell() {
         if (paletteOpen) {
           e.preventDefault();
           setPaletteOpen(false);
+          return;
+        }
+        if (openDocOpen) {
+          e.preventDefault();
+          setOpenDocOpen(false);
+          return;
+        }
+        if (docOpen) {
+          e.preventDefault();
+          closeDoc();
           return;
         }
         if (workspaceMode === "map") {
@@ -150,6 +195,7 @@ export default function AppShell() {
         !isTypingTarget(e.target) &&
         !paletteOpen &&
         !settingsOpen &&
+        !openDocOpen &&
         !document.querySelector(".ic-float, .ic-selbar, .ic-chooser")
       ) {
         e.preventDefault();
@@ -164,6 +210,7 @@ export default function AppShell() {
         workspaceMode === "focus" &&
         !paletteOpen &&
         !settingsOpen &&
+        !openDocOpen &&
         !isTypingTarget(e.target)
       ) {
         const byId = new Map(nodes.map((n) => [n.id, n]));
@@ -204,6 +251,9 @@ export default function AppShell() {
   }, [
     paletteOpen,
     settingsOpen,
+    openDocOpen,
+    docOpen,
+    closeDoc,
     workspaceMode,
     setMode,
     toggleMap,
@@ -213,6 +263,65 @@ export default function AppShell() {
     focusNode,
   ]);
 
+  const renderMain = () => {
+    // Map: Orbit/Map only — doc already force_closed; never mount Doc with map.
+    if (workspaceMode === "map") {
+      return <MapStage onClose={() => setMode("focus")} />;
+    }
+
+    // Empty + doc → full-width DocPane; empty + closed → EmptyWorkspace
+    if (showEmpty) {
+      if (docOpen && !isPeek) {
+        return <DocPane />;
+      }
+      return (
+        <main className="center-stage" aria-label="empty workspace">
+          <EmptyWorkspace />
+          {isPeek ? <DocPane /> : null}
+        </main>
+      );
+    }
+
+    const card = (
+      <main className="center-stage" aria-label="inquiry card">
+        <InquiryCard />
+      </main>
+    );
+
+    // Peek: card full width + fixed DocPane overlay
+    if (isPeek) {
+      return (
+        <>
+          {card}
+          <LocusPeek onExpandMap={() => setMode("map")} />
+          <DocPane />
+        </>
+      );
+    }
+
+    // Split / doc-wide: Card | DocPane
+    if (useSplit) {
+      const wide = docLayout === "doc-wide";
+      return (
+        <div
+          className={`workspace-split${wide ? " is-doc-wide" : ""}`}
+          aria-label="card and document"
+        >
+          {card}
+          <DocPane />
+        </div>
+      );
+    }
+
+    // focus + doc closed: InquiryCard full width
+    return (
+      <>
+        {card}
+        <LocusPeek onExpandMap={() => setMode("map")} />
+      </>
+    );
+  };
+
   return (
     <div
       className={`app-shell${railCollapsed ? " rail-collapsed" : ""}${workspaceMode === "map" ? " mode-map" : " mode-focus"}`}
@@ -221,22 +330,7 @@ export default function AppShell() {
         collapsed={railCollapsed}
         onToggleCollapse={toggleRail}
       />
-      <div className="workspace-main">
-        {workspaceMode === "map" ? (
-          <MapStage onClose={() => setMode("focus")} />
-        ) : showEmpty ? (
-          <main className="center-stage" aria-label="empty workspace">
-            <EmptyWorkspace />
-          </main>
-        ) : (
-          <>
-            <main className="center-stage" aria-label="inquiry card">
-              <InquiryCard />
-            </main>
-            <LocusPeek onExpandMap={() => setMode("map")} />
-          </>
-        )}
-      </div>
+      <div className="workspace-main">{renderMain()}</div>
       {/* Permanent chrome entry — focus / empty / demo / map */}
       <button
         type="button"
@@ -253,6 +347,7 @@ export default function AppShell() {
         ⚙
       </button>
       <CommandPalette open={paletteOpen} onClose={closePalette} />
+      <OpenDocPopover open={openDocOpen} onClose={closeOpenDoc} />
       <SettingsPanel
         open={settingsOpen}
         onClose={closeSettings}

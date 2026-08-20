@@ -15,6 +15,24 @@ type Props = {
   onClose: () => void;
 };
 
+type PaletteRow =
+  | { kind: "action"; id: "open-doc"; title: string; hint: string }
+  | {
+      kind: "card";
+      id: string;
+      title: string;
+      glyph: string;
+      unread: boolean;
+      current: boolean;
+    };
+
+function actionMatches(query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const hay = "打开文档 open doc document md pdf";
+  return hay.includes(q) || "打开文档".includes(q) || q.includes("文档");
+}
+
 export default function CommandPalette({ open, onClose }: Props) {
   const nodes = useWorkspace((s) => s.nodes);
   const focusId = useWorkspace((s) => s.focusId);
@@ -38,6 +56,29 @@ export default function CommandPalette({ open, onClose }: Props) {
     return { ranked: items, totalMatched: total };
   }, [nodes, query, focusId, recentIds]);
 
+  const rows: PaletteRow[] = useMemo(() => {
+    const out: PaletteRow[] = [];
+    if (actionMatches(query)) {
+      out.push({
+        kind: "action",
+        id: "open-doc",
+        title: "打开文档…",
+        hint: "陪读",
+      });
+    }
+    for (const n of ranked) {
+      out.push({
+        kind: "card",
+        id: n.id,
+        title: n.title,
+        glyph: kindGlyph(n.kind),
+        unread: Boolean(n.unread),
+        current: n.id === focusId,
+      });
+    }
+    return out;
+  }, [query, ranked, focusId]);
+
   useEffect(() => {
     if (!open) return;
     setQuery("");
@@ -56,15 +97,32 @@ export default function CommandPalette({ open, onClose }: Props) {
       `[data-idx="${active}"]`,
     );
     el?.scrollIntoView({ block: "nearest" });
-  }, [active, open]);
+  }, [active, open, rows.length]);
 
-  const pick = useCallback(
+  const runOpenDoc = useCallback(() => {
+    onClose();
+    window.dispatchEvent(new CustomEvent("soit:open-doc"));
+  }, [onClose]);
+
+  const pickCard = useCallback(
     (id: string) => {
       focusNode(id);
       setMode("focus");
       onClose();
     },
     [focusNode, setMode, onClose],
+  );
+
+  const activate = useCallback(
+    (row: PaletteRow | undefined) => {
+      if (!row) return;
+      if (row.kind === "action" && row.id === "open-doc") {
+        runOpenDoc();
+        return;
+      }
+      if (row.kind === "card") pickCard(row.id);
+    },
+    [runOpenDoc, pickCard],
   );
 
   const onKeyDown = (e: ReactKeyboardEvent) => {
@@ -80,7 +138,7 @@ export default function CommandPalette({ open, onClose }: Props) {
     }
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActive((i) => Math.min(i + 1, Math.max(0, ranked.length - 1)));
+      setActive((i) => Math.min(i + 1, Math.max(0, rows.length - 1)));
       return;
     }
     if (e.key === "ArrowUp") {
@@ -90,8 +148,7 @@ export default function CommandPalette({ open, onClose }: Props) {
     }
     if (e.key === "Enter") {
       e.preventDefault();
-      const n = ranked[active];
-      if (n) pick(n.id);
+      activate(rows[active]);
     }
   };
 
@@ -117,33 +174,49 @@ export default function CommandPalette({ open, onClose }: Props) {
             className="cmd-palette-input"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="跳转到卡片…"
-            aria-label="搜索卡片标题"
+            placeholder="跳转卡片或打开文档…"
+            aria-label="搜索卡片或命令"
             autoComplete="off"
             spellCheck={false}
           />
           <kbd className="cmd-palette-kbd">Esc</kbd>
         </div>
         <ul className="cmd-palette-list" ref={listRef} role="listbox">
-          {ranked.length === 0 ? (
+          {rows.length === 0 ? (
             <li className="cmd-palette-empty">没有匹配的卡片</li>
           ) : (
-            ranked.map((n, i) => (
-              <li key={n.id} role="option" aria-selected={i === active}>
+            rows.map((row, i) => (
+              <li
+                key={`${row.kind}-${row.id}`}
+                role="option"
+                aria-selected={i === active}
+              >
                 <button
                   type="button"
                   data-idx={i}
-                  className={`cmd-palette-item${i === active ? " on" : ""}${n.id === focusId ? " current" : ""}`}
+                  className={`cmd-palette-item${i === active ? " on" : ""}${row.kind === "card" && row.current ? " current" : ""}`}
                   onMouseEnter={() => setActive(i)}
-                  onClick={() => pick(n.id)}
+                  onClick={() => activate(row)}
                 >
-                  <span className="cmd-kind" aria-hidden>
-                    {kindGlyph(n.kind)}
-                  </span>
-                  <span className="cmd-title">{n.title}</span>
-                  {n.unread && <span className="cmd-unread">未读</span>}
-                  {n.id === focusId && (
-                    <span className="cmd-current">当前</span>
+                  {row.kind === "action" ? (
+                    <>
+                      <span className="cmd-kind" aria-hidden>
+                        ⌎
+                      </span>
+                      <span className="cmd-title">{row.title}</span>
+                      <span className="cmd-current">{row.hint}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="cmd-kind" aria-hidden>
+                        {row.glyph}
+                      </span>
+                      <span className="cmd-title">{row.title}</span>
+                      {row.unread && <span className="cmd-unread">未读</span>}
+                      {row.current && (
+                        <span className="cmd-current">当前</span>
+                      )}
+                    </>
                   )}
                 </button>
               </li>

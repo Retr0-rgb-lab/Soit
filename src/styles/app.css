@@ -413,6 +413,92 @@ button:focus-visible,
   overflow: visible;
 }
 
+/* Card | Doc companion split (PEL-156) */
+.workspace-split {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.workspace-split .center-stage {
+  flex: 1 1 58%;
+  min-width: 0;
+}
+
+.workspace-split .doc-pane {
+  flex: 1 1 42%;
+  min-width: 280px;
+  border-inline-start: 1px solid var(--line);
+}
+
+.workspace-split.is-doc-wide .center-stage {
+  flex-basis: 32%;
+}
+
+.workspace-split.is-doc-wide .doc-pane {
+  flex-basis: 68%;
+}
+
+/* Empty + full-width doc (no card) */
+.workspace-main > .doc-pane {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  border-inline-start: none;
+}
+
+/* Composer open-doc tool row (PEL-156 D4) */
+.ic-dock-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  min-height: 28px;
+}
+
+.ic-dock-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.ic-tool-btn {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-soft);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+}
+
+.ic-tool-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ic-tool-btn:hover:not(:disabled) {
+  background: var(--bg-muted);
+  color: var(--ink);
+}
+
+.ic-tool-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ic-dock-toolbar .hint {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Locus peek — page-margin annotation; collapsed until proximity/hover */
 .locus-peek {
   --locus-expanded-w: var(--locus-w, 168px);

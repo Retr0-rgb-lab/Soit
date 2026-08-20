@@ -6,7 +6,7 @@ import {
 } from "../../lib/chat";
 import { getChatConfig } from "../../lib/host";
 import { useWorkspace } from "../../state/workspaceStore";
-import { IconSend, IconX } from "./icons";
+import { IconDoc, IconSend, IconX } from "./icons";
 
 interface Props {
   draft: string;
@@ -146,12 +146,28 @@ export default function Composer({
               }
             }}
           />
-          <div className="hint">
-            {generating
-              ? runtimeBusy
-                ? "本地 Agent 执行中"
-                : "Inquiry 生成中"
-              : "Enter 换行 · Ctrl+Enter 发送"}
+          <div className="ic-dock-toolbar">
+            <div className="ic-dock-tools">
+              <button
+                type="button"
+                className="ic-tool-btn"
+                data-tip="打开文档"
+                aria-label="打开文档"
+                disabled={inputLocked}
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent("soit:open-doc"));
+                }}
+              >
+                <IconDoc />
+              </button>
+            </div>
+            <div className="hint">
+              {generating
+                ? runtimeBusy
+                  ? "本地 Agent 执行中"
+                  : "Inquiry 生成中"
+                : "Enter 换行 · Ctrl+Enter 发送"}
+            </div>
           </div>
         </div>
         {generating ? (
