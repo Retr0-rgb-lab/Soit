@@ -34,6 +34,25 @@ export {
   readChatConfigFromLocalStorage,
   writeChatConfigToLocalStorage,
 } from "./config";
+export type {
+  ModelEntry,
+  ModelSettings,
+  Provider,
+} from "./modelSettings";
+export {
+  MODEL_SETTINGS_LS_KEY,
+  MODEL_SETTINGS_VERSION,
+  activeModelLabel,
+  emptyModelSettings,
+  migrateChatConfigToSettings,
+  newEntityId,
+  normalizeModelSettings,
+  providerNameFromBaseUrl,
+  readModelSettingsFromLocalStorage,
+  resolveChatConfig,
+  upsertFromChatConfig,
+  writeModelSettingsToLocalStorage,
+} from "./modelSettings";
 export { createMockChat, MockChat } from "./mockChat";
 export {
   createOpenAICompatChat,

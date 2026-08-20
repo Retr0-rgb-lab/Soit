@@ -123,13 +123,43 @@ export interface SkillInfo {
 }
 
 /**
- * Wave C — BYOK chat provider config.
+ * Wave C — BYOK chat provider config (projection of active model).
  * Stored in app config dir / localStorage — never universe.db.
+ * Authoritative multi-provider shape: ModelSettings (see lib/chat/modelSettings).
  */
 export interface ChatConfig {
   baseUrl: string;
   model: string;
   apiKey: string;
+}
+
+/** Supplier = credentials + OpenAI-compatible endpoint. */
+export interface Provider {
+  id: string;
+  name: string;
+  baseUrl: string;
+  apiKey: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Model catalog entry under a provider. */
+export interface ModelEntry {
+  id: string;
+  providerId: string;
+  modelId: string;
+  label?: string;
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Authoritative multi-provider BYOK settings (version 1). */
+export interface ModelSettings {
+  version: 1;
+  providers: Provider[];
+  models: ModelEntry[];
+  activeModelId: string | null;
 }
 
 /** Host `append_turn` args (camelCase JSON). */
