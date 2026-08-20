@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { getModelSettings } from "../../../lib/host";
+import ModelsPanel from "./ModelsPanel";
 import ProvidersPanel from "./ProvidersPanel";
 
 type ModelTab = "providers" | "models";
 
 /**
  * Settings · 模型 — section shell with sub-tabs 供应商 | 可用模型.
- * ModelsPanel (M3) not present yet → stub.
  */
 export default function ModelSettingsForm() {
   const [tab, setTab] = useState<ModelTab | null>(null);
@@ -60,21 +60,9 @@ export default function ModelSettingsForm() {
         {active === "providers" ? (
           <ProvidersPanel />
         ) : (
-          <ModelsPanelStub onGoProviders={() => setTab("providers")} />
+          <ModelsPanel onNeedProviders={() => setTab("providers")} />
         )}
       </div>
-    </div>
-  );
-}
-
-/** M3 placeholder until ModelsPanel lands. */
-function ModelsPanelStub({ onGoProviders }: { onGoProviders: () => void }) {
-  return (
-    <div className="settings-models-stub" aria-label="可用模型">
-      <p>可用模型即将推出。请先在「供应商」中配置密钥与端点。</p>
-      <button type="button" className="settings-btn primary" onClick={onGoProviders}>
-        前往添加供应商
-      </button>
     </div>
   );
 }
