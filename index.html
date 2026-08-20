@@ -8,6 +8,40 @@
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="/soit-icon.svg" />
     <meta name="theme-color" content="#8b5e34" />
+    <!-- FOUC-safe appearance boot: data-* + critical bg before CSS/module (spec v1.1 §2.3) -->
+    <script>
+      (function () {
+        var THEMES = { paper: 1, matcha: 1, celadon: 1, ink: 1, cinnabar: 1 };
+        var FONTS = { system: 1, song: 1, hei: 1, kai: 1, mono: 1 };
+        var SIZES = { sm: 1, md: 1, lg: 1, xl: 1 };
+        var BG = {
+          paper: "#f3ebe0",
+          matcha: "#e8efe3",
+          celadon: "#e6eeec",
+          ink: "#1c1916",
+          cinnabar: "#f3e8e2",
+        };
+        var theme = "paper";
+        var font = "system";
+        var fontSize = "md";
+        try {
+          var raw = localStorage.getItem("soit-appearance");
+          if (raw) {
+            var o = JSON.parse(raw);
+            if (o && typeof o === "object") {
+              if (THEMES[o.theme]) theme = o.theme;
+              if (FONTS[o.font]) font = o.font;
+              if (SIZES[o.fontSize]) fontSize = o.fontSize;
+            }
+          }
+        } catch (e) {}
+        var el = document.documentElement;
+        el.dataset.theme = theme;
+        el.dataset.font = font;
+        el.dataset.fontSize = fontSize;
+        el.style.backgroundColor = BG[theme];
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
