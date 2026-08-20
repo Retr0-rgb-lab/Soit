@@ -1,0 +1,204 @@
+/* Settings shell — modal + left nav + section body */
+
+.settings-gear {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 40;
+  width: 36px;
+  height: 36px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  color: var(--ink-soft);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  backdrop-filter: blur(8px);
+  box-shadow: var(--e1);
+}
+
+.settings-gear:hover {
+  background: var(--bg-card);
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.settings-gear.on {
+  background: var(--ink);
+  color: var(--bg-card);
+  border-color: var(--ink);
+  backdrop-filter: none;
+}
+
+/* Keep map chrome clear of the permanent gear */
+.mode-map .map-stage-actions {
+  margin-right: 44px;
+}
+
+.settings-panel-root {
+  position: fixed;
+  inset: 0;
+  z-index: 84;
+  background: rgb(42 36 28 / 28%);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: min(12vh, 96px) 16px 24px;
+  animation: cmd-fade var(--motion-fade) var(--ease-out) both;
+}
+
+.settings-panel {
+  width: min(720px, calc(100vw - 32px));
+  max-height: min(80vh, 640px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  box-shadow:
+    0 4px 12px rgb(40 30 18 / 10%),
+    0 24px 48px rgb(40 30 18 / 18%);
+  overflow: hidden;
+  animation: cmd-pop var(--motion-pop) var(--ease-out) both;
+}
+
+.settings-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.settings-panel-title {
+  margin: 2px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.settings-panel-close {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.settings-panel-close:hover {
+  background: var(--bg-muted);
+}
+
+.settings-panel-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.settings-nav {
+  flex: 0 0 132px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 10px;
+  border-right: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg-panel) 70%, var(--bg-card));
+}
+
+.settings-nav-item {
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 13px;
+  padding: 8px 10px;
+}
+
+.settings-nav-item:hover {
+  background: color-mix(in srgb, var(--bg-muted) 80%, transparent);
+  color: var(--ink);
+}
+
+.settings-nav-item.on {
+  background: var(--bg-card);
+  border-color: var(--line);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: var(--e1);
+}
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 16px 18px 18px;
+}
+
+.settings-placeholder {
+  margin: 24px 8px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.settings-about-title {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.settings-about-version {
+  margin: 0 0 16px;
+  font-size: 12px;
+  color: var(--ink-faint);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.settings-about-copy {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-about-copy li {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-panel) 60%, var(--bg-card));
+}
+
+@media (max-width: 560px) {
+  .settings-panel-body {
+    flex-direction: column;
+  }
+
+  .settings-nav {
+    flex: none;
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    width: 100%;
+  }
+
+  .settings-nav-item {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+}
