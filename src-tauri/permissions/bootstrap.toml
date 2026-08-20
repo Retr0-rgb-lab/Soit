@@ -84,6 +84,16 @@ description = "Allow get_enabled_skills_text command"
 commands.allow = ["get_enabled_skills_text"]
 
 [[permission]]
+identifier = "allow-get-model-settings"
+description = "Allow get_model_settings command (BYOK multi-provider; not universe.db)"
+commands.allow = ["get_model_settings"]
+
+[[permission]]
+identifier = "allow-set-model-settings"
+description = "Allow set_model_settings command (BYOK multi-provider; not universe.db)"
+commands.allow = ["set_model_settings"]
+
+[[permission]]
 identifier = "allow-get-chat-config"
 description = "Allow get_chat_config command (BYOK; not universe.db)"
 commands.allow = ["get_chat_config"]

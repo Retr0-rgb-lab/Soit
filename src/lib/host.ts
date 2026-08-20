@@ -9,6 +9,7 @@ import type {
   ImportVaultMaterialResult,
   ListVaultMaterialsResult,
   MaterialsEntry,
+  ModelSettings,
   OpenUniverseResult,
   PrecipitateConceptResult,
   ReadVaultTextResult,
@@ -24,8 +25,14 @@ import type {
 import {
   normalizeChatConfig,
   readChatConfigFromLocalStorage,
-  writeChatConfigToLocalStorage,
 } from "./chat/config";
+import {
+  normalizeModelSettings,
+  readModelSettingsFromLocalStorage,
+  resolveChatConfig,
+  upsertFromChatConfig,
+  writeModelSettingsToLocalStorage,
+} from "./chat/modelSettings";
 import type {
   CancelHandoffResult,
   HandoffResult,
@@ -469,26 +476,60 @@ export async function getEnabledSkillsText(): Promise<string> {
 }
 
 /**
- * BYOK chat config — never universe.db.
- * Tauri: `{app_config_dir}/soit-chat.json`. Browser: localStorage only.
+ * Authoritative multi-provider BYOK settings — never universe.db.
+ * Tauri: `{app_config_dir}/soit-chat.json` (versioned ModelSettings).
+ * Browser: localStorage (`soit-model-settings`, migrates legacy chat config).
+ */
+export async function getModelSettings(): Promise<ModelSettings> {
+  if (!hasTauri()) {
+    return readModelSettingsFromLocalStorage();
+  }
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const raw = await invoke<unknown>("get_model_settings");
+    return normalizeModelSettings(raw);
+  } catch {
+    return readModelSettingsFromLocalStorage();
+  }
+}
+
+export async function setModelSettings(settings: ModelSettings): Promise<void> {
+  const s = normalizeModelSettings(settings);
+  // Mirror LS + projected ChatConfig for browser/dev and legacy readers.
+  writeModelSettingsToLocalStorage(s);
+  if (!hasTauri()) return;
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("set_model_settings", { settings: s });
+  } catch {
+    // localStorage already written
+  }
+}
+
+/**
+ * BYOK chat config projection of active model — never universe.db.
+ * Tauri: projects from ModelSettings in `soit-chat.json`.
+ * Browser: resolve from model settings (legacy chat key migrates on read).
  */
 export async function getChatConfig(): Promise<ChatConfig> {
   if (!hasTauri()) {
-    return readChatConfigFromLocalStorage();
+    return resolveChatConfig(readModelSettingsFromLocalStorage());
   }
   try {
     const { invoke } = await import("@tauri-apps/api/core");
     const raw = await invoke<Partial<ChatConfig>>("get_chat_config");
     return normalizeChatConfig(raw);
   } catch {
-    return readChatConfigFromLocalStorage();
+    return resolveChatConfig(readModelSettingsFromLocalStorage());
   }
 }
 
+/** Legacy path: upsert single provider+model (or clear active when key empty). */
 export async function setChatConfig(config: ChatConfig): Promise<void> {
   const cfg = normalizeChatConfig(config);
-  // Always mirror to localStorage so browser/dev and resolvePort stay in sync.
-  writeChatConfigToLocalStorage(cfg);
+  // Always upsert model settings + mirror projected ChatConfig in LS.
+  const next = upsertFromChatConfig(readModelSettingsFromLocalStorage(), cfg);
+  writeModelSettingsToLocalStorage(next);
   if (!hasTauri()) return;
   try {
     const { invoke } = await import("@tauri-apps/api/core");

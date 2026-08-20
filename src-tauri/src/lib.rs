@@ -444,6 +444,8 @@ pub fn run() {
       list_skills,
       set_skill_enabled,
       get_enabled_skills_text,
+      chat_config::get_model_settings,
+      chat_config::set_model_settings,
       chat_config::get_chat_config,
       chat_config::set_chat_config,
       session_config::get_last_vault,

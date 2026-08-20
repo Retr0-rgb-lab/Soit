@@ -21,6 +21,8 @@
     "allow-list-skills",
     "allow-set-skill-enabled",
     "allow-get-enabled-skills-text",
+    "allow-get-model-settings",
+    "allow-set-model-settings",
     "allow-get-chat-config",
     "allow-set-chat-config",
     "allow-get-last-vault",

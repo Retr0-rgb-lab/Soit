@@ -36,7 +36,7 @@ Parent: `src/AGENTS.md`.
   - vault docs (PEL-156): `resolve_vault_doc` / `read_vault_text` — path sandbox under open vault; reject `..` / outside vault / `vault/.soit/**`; browser mock fixtures `demo/*.md` (e.g. `demo/welcome.md`)
   - materials (materials-rail SPE): `list_vault_materials` / `import_vault_material` — vault `materials/` only; import ≤2MB decoded; **not** bootstrap; browser mock list includes `demo/welcome.md` + in-memory imports
   - skills: `list_skills`, `set_skill_enabled`, `get_enabled_skills_text`
-  - BYOK: `get_chat_config` / `set_chat_config` (app config / localStorage — never `universe.db`)
+  - BYOK: `get_model_settings` / `set_model_settings` (authoritative); `get_chat_config` / `set_chat_config` (active projection / legacy upsert); app config / localStorage — never `universe.db`
   - Runtime (dual-track): `list_runtimes` / `get_runtime_prefs` / `set_runtime_prefs` / `start_runtime_handoff` / `cancel_runtime_handoff` — app config + `vault/.soit/runs/`; never treat external session as universe source; browser mock-only
 - **DocSession FSM** (`docSession.ts`): statuses `closed|loading|ready|error|closing`; events include `open` / `load_ok|load_err` / `set_layout` / `retry` / `close|closed` / **`force_close`** (map + `loadSnapshot` — skip anim, bump epoch). Store owns IO + epoch guards (`state/workspaceStore.ts`); this module stays pure.
 - **SplitRatio** (`splitRatio.ts`): `--doc-fraction` ∈ [0.28, 0.72], default 0.42, wide display 0.68; localStorage only. UI host is `components/shell/SplitSash.tsx`.
