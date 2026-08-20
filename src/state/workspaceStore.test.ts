@@ -164,6 +164,56 @@ describe("workspaceStore", () => {
     expect(s.highlightSpan?.turnId).toBe("c2_t0");
   });
 
+  it("spawnInquiry keeps full text and doc anchors on edge source", async () => {
+    const parent = useWorkspaceStore.getState().focusId;
+    const full =
+      "这是一段超过四十八个字符的文档选区全文，用于确认不会被 spawnDeepen 便利封装截断 —— 保留全文。";
+    expect(full.length).toBeGreaterThan(48);
+    const id = await useWorkspaceStore.getState().spawnInquiry({
+      kind: "deepen",
+      source: {
+        turnId: "t_last",
+        text: full,
+        docPath: "demo/welcome.md",
+        docKind: "md",
+        docPage: 2,
+      },
+      actor: "user",
+    });
+    const edge = useWorkspaceStore.getState().edges.find((e) => e.toCardId === id)!;
+    expect(edge.fromCardId).toBe(parent);
+    expect(edge.source.text).toBe(full);
+    expect(edge.source.docPath).toBe("demo/welcome.md");
+    expect(edge.source.docKind).toBe("md");
+    expect(edge.source.docPage).toBe(2);
+    expect(edge.source.turnId).toBe("t_last");
+  });
+
+  it("returnToSource with docPath focuses parent and opens doc", async () => {
+    const parent = useWorkspaceStore.getState().focusId;
+    const id = await useWorkspaceStore.getState().spawnInquiry({
+      kind: "deepen",
+      source: {
+        turnId: "t_doc",
+        text: "锚点句",
+        docPath: "demo/welcome.md",
+        docKind: "md",
+        docPage: 1,
+      },
+    });
+    expect(useWorkspaceStore.getState().focusId).toBe(id);
+    useWorkspaceStore.getState().returnToSource();
+    const s = useWorkspaceStore.getState();
+    expect(s.focusId).toBe(parent);
+    // openDoc is async — wait a tick for mock resolve/read
+    await vi.waitFor(() => {
+      const doc = useWorkspaceStore.getState().docSession;
+      expect(doc.status).toBe("ready");
+      expect(doc.ref?.pathRel).toBe("demo/welcome.md");
+      expect(doc.cursor.page).toBe(1);
+    });
+  });
+
   it("regenerateTurn does not add nodes", async () => {
     const s0 = useWorkspaceStore.getState();
     const card = s0.focusId;

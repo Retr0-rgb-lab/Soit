@@ -179,8 +179,13 @@
   transition: background 0.12s;
 }
 
-.ic-chooser button:hover {
+.ic-chooser button:hover:not(:disabled) {
   background: #2d2924;
+}
+
+.ic-chooser button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 @keyframes ic-pop-in {

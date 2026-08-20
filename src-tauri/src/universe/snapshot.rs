@@ -140,5 +140,8 @@ fn parse_source_span(raw: Option<&str>) -> SourceSpanDto {
     mark_id: None,
     start: None,
     end: None,
+    doc_path: None,
+    doc_page: None,
+    doc_kind: None,
   }
 }

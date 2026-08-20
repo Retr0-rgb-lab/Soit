@@ -121,6 +121,8 @@ export interface WorkspaceState {
   /** Complete close anim (closing → closed). */
   confirmDocClosed: () => void;
   setDocLayout: (layout: DocLayout) => void;
+  /** Restore scroll/page cursor after return-to-source (PEL-156). */
+  setDocCursor: (cursor: DocSessionState["cursor"]) => void;
   rebindDoc: (boundCardId: string | null) => void;
   retryDoc: () => Promise<void>;
   pinLive: (id: string) => void;
@@ -420,6 +422,15 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       });
     },
 
+    setDocCursor: (cursor) => {
+      set({
+        docSession: reduceDocSession(get().docSession, {
+          type: "set_cursor",
+          cursor,
+        }),
+      });
+    },
+
     rebindDoc: (boundCardId) => {
       set({
         docSession: reduceDocSession(get().docSession, {
@@ -544,9 +555,23 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       const focused = afterFocus(s, parentId);
       set({
         ...focused,
+        // Card-origin: flash turn. Doc-origin with empty turnId: parent only.
         highlightSpan: target,
         workspaceMode: "focus",
       });
+
+      // PEL-156: doc-anchored spawn reopens companion after parent focus.
+      const docPath = target?.docPath?.trim() || "";
+      if (docPath) {
+        const page = target?.docPage;
+        void get()
+          .openDoc(docPath, parentId)
+          .then(() => {
+            if (page == null) return;
+            if (get().docSession.status !== "ready") return;
+            get().setDocCursor({ page });
+          });
+      }
     },
 
     clearHighlight: () => set({ highlightSpan: null }),

@@ -6,6 +6,8 @@ interface Props {
   sourceLabel: string;
   /** Richer source span when available (selection / mark). */
   sourceSpan?: Pick<SourceSpan, "turnId" | "markId" | "start" | "end">;
+  /** Spec §2.6: no turns on focus card → disable deepen/diverge. */
+  disabled?: boolean;
   onDeepen: (label: string, span?: Props["sourceSpan"]) => void;
   onDiverge: (label: string, span?: Props["sourceSpan"]) => void;
 }
@@ -20,6 +22,7 @@ export default function DirectionChooser({
   y,
   sourceLabel,
   sourceSpan,
+  disabled = false,
   onDeepen,
   onDiverge,
 }: Props) {
@@ -31,14 +34,22 @@ export default function DirectionChooser({
       <button
         type="button"
         role="menuitem"
-        onClick={() => onDeepen(sourceLabel, sourceSpan)}
+        disabled={disabled}
+        onClick={() => {
+          if (disabled) return;
+          onDeepen(sourceLabel, sourceSpan);
+        }}
       >
         深挖
       </button>
       <button
         type="button"
         role="menuitem"
-        onClick={() => onDiverge(sourceLabel, sourceSpan)}
+        disabled={disabled}
+        onClick={() => {
+          if (disabled) return;
+          onDiverge(sourceLabel, sourceSpan);
+        }}
       >
         发散
       </button>

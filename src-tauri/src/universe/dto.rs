@@ -37,12 +37,19 @@ pub struct TurnDto {
 pub struct SourceSpanDto {
   pub turn_id: String,
   pub text: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
+  #[serde(default, skip_serializing_if = "Option::is_none")]
   pub mark_id: Option<String>,
-  #[serde(skip_serializing_if = "Option::is_none")]
+  #[serde(default, skip_serializing_if = "Option::is_none")]
   pub start: Option<i64>,
-  #[serde(skip_serializing_if = "Option::is_none")]
+  #[serde(default, skip_serializing_if = "Option::is_none")]
   pub end: Option<i64>,
+  /// Optional doc-companion anchor (PEL-156).
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub doc_path: Option<String>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub doc_page: Option<i64>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub doc_kind: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -20,7 +20,7 @@ Parent: `src/AGENTS.md`. Spec: `docs/superpowers/specs/2026-08-20-doc-companion-
 - AppShell owns the center-stage matrix; **never** mount Doc with Orbit (map force-closes session).
 - Open entry: Composer tool + command palette → `soit:open-doc` → `OpenDocPopover`. No `window.prompt`; no `<input type="file">` as main path.
 - P0 pdf = guide only. Embedded pdfjs is out of scope here.
-- Selection / spawn / return-to-source wiring is D5 — this folder may host selection later; do not invent a second SelectionBar stack.
+- **Selection (D5):** DocPane owns selBar/chooser/float; reuse `SelectionBar` / `DirectionChooser` / `TermFloat`. Quote → `formatDocAnchorQuote` → `soit:set-composer-quote` (InquiryCard sets composer chip). Spawn via **`spawnInquiry` full text** + `docPath`/`docKind`/`docPage?`; disable deepen/diverge when focus card has no turns (toast「先在卡内有一轮对话」).
 
 ## Do not
 

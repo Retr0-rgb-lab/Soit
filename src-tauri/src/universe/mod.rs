@@ -129,6 +129,9 @@ mod tests {
           mark_id: Some("函子".into()),
           start: None,
           end: None,
+          doc_path: None,
+          doc_page: None,
+          doc_kind: None,
         },
         why: Some("why".into()),
         actor: Some("user".into()),
@@ -160,6 +163,9 @@ mod tests {
           mark_id: None,
           start: None,
           end: None,
+          doc_path: None,
+          doc_page: None,
+          doc_kind: None,
         },
         why: None,
         actor: Some("agent".into()),
@@ -274,6 +280,9 @@ mod tests {
           mark_id: None,
           start: None,
           end: None,
+          doc_path: None,
+          doc_page: None,
+          doc_kind: None,
         },
         why: None,
         actor: None,
@@ -306,6 +315,9 @@ mod tests {
             mark_id: None,
             start: None,
             end: None,
+            doc_path: None,
+            doc_page: None,
+            doc_kind: None,
           },
           why: None,
           actor: None,
@@ -415,6 +427,9 @@ mod tests {
           mark_id: None,
           start: None,
           end: None,
+          doc_path: None,
+          doc_page: None,
+          doc_kind: None,
         },
         why: None,
         actor: None,
@@ -427,6 +442,50 @@ mod tests {
     assert!(turns[0].ai_html.contains("&lt;img"));
     assert!(!turns[0].ai_html.contains("<img"));
     assert!(turns[0].user.contains("&lt;img"));
+
+    let _ = fs::remove_dir_all(&dir);
+  }
+
+  #[test]
+  fn spawn_source_span_round_trips_doc_anchors() {
+    let dir = temp_vault("doc_anchor");
+    let mut u = Universe::open(&dir).unwrap();
+    let root = u.create_root_inquiry("根", None).unwrap();
+    let root_id = root.nodes[0].id.clone();
+
+    let deep = u
+      .spawn_inquiry(&SpawnInquiryArgs {
+        kind: "deepen".into(),
+        from_card_id: root_id,
+        source: SourceSpanDto {
+          turn_id: "t_src".into(),
+          text: "选中全文".into(),
+          mark_id: None,
+          start: None,
+          end: None,
+          doc_path: Some("notes/a.md".into()),
+          doc_page: Some(3),
+          doc_kind: Some("md".into()),
+        },
+        why: None,
+        actor: Some("user".into()),
+      })
+      .unwrap();
+
+    let edge = &deep.edges[0];
+    assert_eq!(edge.source.doc_path.as_deref(), Some("notes/a.md"));
+    assert_eq!(edge.source.doc_page, Some(3));
+    assert_eq!(edge.source.doc_kind.as_deref(), Some("md"));
+    assert_eq!(edge.source.text, "选中全文");
+
+    // Old edges without doc* still parse.
+    let legacy = r#"{"turnId":"t1","text":"旧"}"#;
+    let parsed: SourceSpanDto = serde_json::from_str(legacy).unwrap();
+    assert_eq!(parsed.turn_id, "t1");
+    assert_eq!(parsed.text, "旧");
+    assert!(parsed.doc_path.is_none());
+    assert!(parsed.doc_page.is_none());
+    assert!(parsed.doc_kind.is_none());
 
     let _ = fs::remove_dir_all(&dir);
   }

@@ -21,7 +21,8 @@ Spec: `知识库/specs/2026-08-20-host-hardening-and-durability.md` §6.
 
 ## Rules
 
-- Public mutation surface lives on `WorkspaceState` in `workspaceStore.ts` (`loadSnapshot`, `focusNode`, `setWorkspaceMode` / map scope, `spawnInquiry`, turn ops, live pin, re-entry dismiss). Prefer extending these over ad-hoc parallel stores.
+- Public mutation surface lives on `WorkspaceState` in `workspaceStore.ts` (`loadSnapshot`, `focusNode`, `setWorkspaceMode` / map scope, `spawnInquiry`, `returnToSource`, doc session (`openDoc` / `setDocCursor`…), turn ops, live pin, re-entry dismiss). Prefer extending these over ad-hoc parallel stores.
+- **`returnToSource`:** focus parent + highlightSpan; when `span.docPath` set, also `openDoc(docPath)` and restore `docPage` via `setDocCursor` (PEL-156).
 - **Unified spawn:** `spawnInquiry({ kind, source, … })`. `spawnDeepen` / `spawnDiverge` are thin wrappers.
 - **Fork kinds only:** `deepen` | `diverge`. Never introduce a third node kind for “regenerate” or “merge”.
 - **`regenerateTurn`:** rewrite the current turn in place; **must not** add a graph node.

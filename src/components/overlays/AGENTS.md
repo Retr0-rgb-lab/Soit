@@ -18,7 +18,8 @@ Parent: `src/AGENTS.md`. Card mark flow: `知识库/docs/对象模型.md` (下�
 
 - Short explain is optional and **does not** create a card or write db/turns. Parent (`InquiryCard`) calls **`explainSpan`**; overlays stay presentational (status/body/actions only).
 - Clicking a mark or choosing 解释 opens TermFloat; **spawn still requires** explicit deepen/diverge — never silent default-deepen.
-- Spawn goes through store `spawnDeepen` / `spawnDiverge` with full **`span`** text as `sourceLabel` / SourceSpan (not a truncated UI title).
+- Spawn goes through store `spawnDeepen` / `spawnDiverge` with full **`span`** text as `sourceLabel` / SourceSpan (not a truncated UI title). Doc companion uses **`spawnInquiry`** directly with full selection + optional `docPath`/`docKind`/`docPage` (never the 48-char wrappers).
+- `DirectionChooser` may receive `disabled` when focus card has no turns (PEL-156).
 - Keep overlays presentational + thin event wiring; ranking/layout math stays in `lib/`.
 
 ## Do not

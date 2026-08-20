@@ -1,6 +1,7 @@
 /* Doc companion pane — tokens only (PEL-156). */
 
 .doc-pane {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -138,6 +139,24 @@
 
 .doc-pane__primary:hover {
   background: var(--bg-muted);
+}
+
+.doc-pane__toast {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 6;
+  margin: 0;
+  max-width: min(90%, 320px);
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg-panel) 92%, var(--ink));
+  color: var(--ink);
+  font-size: 12px;
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--ink) 12%, transparent);
+  pointer-events: none;
 }
 
 /* md / text body */

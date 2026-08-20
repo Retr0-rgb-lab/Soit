@@ -225,6 +225,24 @@ export default function InquiryCard() {
     return () => window.clearTimeout(t);
   }, [enterOn, focusId]);
 
+  // DocPane quote → same composer chip as card selection (PEL-156 D5).
+  useEffect(() => {
+    const onQuote = (e: Event) => {
+      const detail = (e as CustomEvent<{ quote?: string }>).detail;
+      const q = detail?.quote?.trim();
+      if (!q) return;
+      setQuote(q);
+      requestAnimationFrame(() => {
+        const el = document.querySelector<HTMLTextAreaElement>(
+          ".ic-dock textarea",
+        );
+        el?.focus();
+      });
+    };
+    window.addEventListener("soit:set-composer-quote", onQuote);
+    return () => window.removeEventListener("soit:set-composer-quote", onQuote);
+  }, []);
+
   const sourceLabel = focus?.title || "概念";
 
   const runSpawn = useCallback(
