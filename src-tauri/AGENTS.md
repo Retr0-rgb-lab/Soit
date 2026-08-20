@@ -14,6 +14,7 @@ Project-wide: root `AGENTS.md`. IPC types mirrored in `../src/types.ts` and `../
 | `src/skills.rs` | SKILL.md index, seed, enable/disable, inject text (soft cap 32768) |
 | `src/chat_config.rs` | BYOK JSON under app config dir (not universe.db) |
 | `src/session_config.rs` | `soit-session.json` lastVault (app config; not universe.db) |
+| `src/runtime/` | External runtime detect / `soit-runtime.json` prefs / mock handoff (P0; no shell plugin) |
 | `src/main.rs` | Binary entry |
 | `tauri.conf.json` | Window title **Soit**, id `lab.soit.app`, devUrl `5173`; non-null CSP |
 | `capabilities/default.json` | Allowed permissions for main window |
@@ -41,6 +42,10 @@ Project-wide: root `AGENTS.md`. IPC types mirrored in `../src/types.ts` and `../
 | `get_enabled_skills_text` | Concat enabled skill bodies for chat inject (soft cap 32768 bytes) |
 | `get_chat_config` / `set_chat_config` | BYOK in app config dir — **not** universe.db |
 | `get_last_vault` / `set_last_vault` | Remembered vault path in app config (`soit-session.json`) — **not** universe.db; bootstrap never opens DB |
+| `list_runtimes` | Detect known bins on PATH/overrides; **always** includes `mock` available; not called from bootstrap |
+| `get_runtime_prefs` / `set_runtime_prefs` | `soit-runtime.json` in app config — **not** universe.db; default `enableSpawn: false`, `defaultRuntimeId: "mock"` |
+| `start_runtime_handoff` | P0 **mock only** (~800ms); non-mock → Err when `enableSpawn` false or CLI not implemented; optional `brief.md` under `vault/.soit/runs/<runId>/` |
+| `cancel_runtime_handoff` | Cancel in-flight mock handoff (`{ ok }`) |
 | `select_vault` | Thin wrapper → `open_universe` (compat) |
 | `ping` | Health `"pong"` |
 | `list_runtimes` | *(planned dual-track)* detect mock + optional CLIs; no process spawn on list |
@@ -60,7 +65,7 @@ Runtime commands are foreshadowed by dual-track spec v1.1 (`docs/superpowers/spe
 
 ## Rules
 
-- Keep startup path light: no heavy work in `setup`; bootstrap never opens DB.
+- Keep startup path light: no heavy work in `setup`; bootstrap never opens DB / never `list_runtimes`.
 - New commands need **all three**: handler, permission toml, capabilities entry, plus frontend `host.ts` (+ types).
 - Prefer `camelCase` JSON fields (`#[serde(rename_all = "camelCase")]`).
 - Host generates ids for DB writes (`c_*`, `t_*`, `d_*`/`v_*` children, `e_*` edges).
@@ -68,6 +73,7 @@ Runtime commands are foreshadowed by dual-track spec v1.1 (`docs/superpowers/spe
 - Multi-row writes (`create_root_inquiry`, `spawn_inquiry`, turn/card mutations): SQLite immediate transaction.
 - Deepen seed `ai_html` / user text: HTML-escape selection label before store.
 - `open_universe`: reject relative paths; store canonical vault path; schema_version > app → Err.
+- Runtime: `enableSpawn` Host-enforced default false; handoff cwd/files only under `vault/.soit/runs/<runId>/` (canonicalize prefix); reject `run_id` with `..` or path seps; at most one concurrent handoff.
 - Production source files ≤800 LOC (`universe/` split enforces this).
 - Run `cargo test` / `cargo check` from this directory.
 
@@ -78,3 +84,6 @@ Runtime commands are foreshadowed by dual-track spec v1.1 (`docs/superpowers/spe
 - Widen capabilities “just in case.”
 - Persist per-card markdown transcripts.
 - Fall back to FE memory when a universe mutation command fails (frontend contract).
+- Add `tauri-plugin-shell` or expose free-form argv/shell to the frontend.
+- Treat external agent session dirs as card ids or universe source.
+- Spawn real CLI in P0 (mock handoff only; P1 adapter later).

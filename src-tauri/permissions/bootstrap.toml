@@ -102,3 +102,28 @@ commands.allow = ["get_last_vault"]
 identifier = "allow-set-last-vault"
 description = "Allow set_last_vault command (app config session; not universe.db)"
 commands.allow = ["set_last_vault"]
+
+[[permission]]
+identifier = "allow-list-runtimes"
+description = "Allow list_runtimes command (detect known runtimes; not bootstrap)"
+commands.allow = ["list_runtimes"]
+
+[[permission]]
+identifier = "allow-get-runtime-prefs"
+description = "Allow get_runtime_prefs command (app config soit-runtime.json; not universe.db)"
+commands.allow = ["get_runtime_prefs"]
+
+[[permission]]
+identifier = "allow-set-runtime-prefs"
+description = "Allow set_runtime_prefs command (app config soit-runtime.json; not universe.db)"
+commands.allow = ["set_runtime_prefs"]
+
+[[permission]]
+identifier = "allow-start-runtime-handoff"
+description = "Allow start_runtime_handoff command (mock P0; CLI gated by enableSpawn)"
+commands.allow = ["start_runtime_handoff"]
+
+[[permission]]
+identifier = "allow-cancel-runtime-handoff"
+description = "Allow cancel_runtime_handoff command"
+commands.allow = ["cancel_runtime_handoff"]

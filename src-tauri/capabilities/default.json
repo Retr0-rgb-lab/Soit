@@ -25,6 +25,11 @@
     "allow-set-chat-config",
     "allow-get-last-vault",
     "allow-set-last-vault",
+    "allow-list-runtimes",
+    "allow-get-runtime-prefs",
+    "allow-set-runtime-prefs",
+    "allow-start-runtime-handoff",
+    "allow-cancel-runtime-handoff",
     "allow-ping"
   ]
 }

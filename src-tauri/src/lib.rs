@@ -1,5 +1,6 @@
 mod chat_config;
 mod obsidian;
+mod runtime;
 mod session_config;
 mod skills;
 mod universe;
@@ -12,15 +13,18 @@ use universe::{
   Universe, WorkspaceSnapshotDto,
 };
 
-struct AppState {
+pub(crate) struct AppState {
   /// Open universe (vault + db). None = unbound.
-  universe: Mutex<Option<Universe>>,
+  pub(crate) universe: Mutex<Option<Universe>>,
+  /// At most one external runtime handoff (mock/CLI).
+  pub(crate) runtime_handoff: runtime::HandoffControl,
 }
 
 impl Default for AppState {
   fn default() -> Self {
     Self {
       universe: Mutex::new(None),
+      runtime_handoff: runtime::HandoffControl::default(),
     }
   }
 }
@@ -443,6 +447,11 @@ pub fn run() {
       chat_config::set_chat_config,
       session_config::get_last_vault,
       session_config::set_last_vault,
+      runtime::list_runtimes,
+      runtime::get_runtime_prefs,
+      runtime::set_runtime_prefs,
+      runtime::start_runtime_handoff,
+      runtime::cancel_runtime_handoff,
       ping
     ])
     .setup(|app| {
