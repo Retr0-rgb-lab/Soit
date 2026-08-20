@@ -14,6 +14,9 @@ const nodes: InquiryNode[] = [
     kind: "root",
     unread: false,
     status: "active",
+    question: "父问题是什么？",
+    stuck: "卡在定义",
+    next: "先写例子",
   },
   {
     id: "c2",
@@ -70,18 +73,35 @@ const edges: Edge[] = [
 ];
 
 describe("buildDeepenScope", () => {
-  it("returns span, why, parentStatus, and child recent turns only", () => {
+  it("returns parent fields, span, why, and child recent turns only", () => {
     const scope = buildDeepenScope("c2", "e1", { nodes, turnsByCardId, edges });
     expect(scope).not.toBeNull();
+    expect(scope!.parent.title).toBe("父");
+    expect(scope!.parent.status).toBe("active");
+    expect(scope!.parent.question).toBe("父问题是什么？");
+    expect(scope!.parent.stuck).toBe("卡在定义");
+    expect(scope!.parent.next).toBe("先写例子");
     expect(scope!.span.text).toBe("函子");
     expect(scope!.span.turnId).toBe("t-parent");
     expect(scope!.span.markId).toBe("m1");
     expect(scope!.why).toBe("想弄清定义");
-    expect(scope!.parentStatus).toBe("active");
     expect(scope!.recentTurns).toHaveLength(1);
     expect(scope!.recentTurns[0]!.id).toBe("t-child-0");
     // must not include parent turns
     expect(scope!.recentTurns.every((t) => t.id !== "t-parent")).toBe(true);
+  });
+
+  it("scope JSON never embeds parent transcript text", () => {
+    const scope = buildDeepenScope("c2", "e1", { nodes, turnsByCardId, edges });
+    const json = JSON.stringify(scope);
+    // span.turnId may point at parent turn — body/user/ai of parent must not dump
+    expect(json).not.toContain("parent full transcript");
+    expect(scope!.recentTurns.every((t) => t.id !== "t-parent")).toBe(true);
+    expect(scope!.recentTurns.map((t) => t.aiHtml).join("")).not.toContain(
+      "parent full transcript",
+    );
+    // no top-level dump of parent turns array
+    expect(json).not.toMatch(/"user":"q"/);
   });
 
   it("returns null for missing / mismatched edge", () => {

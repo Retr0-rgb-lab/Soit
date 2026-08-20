@@ -36,3 +36,18 @@
 | 3 | [map-06-polish](./2026-08-19-map-06-polish.md) |
 
 已合入分支 `feature/tauri-workspace-scaffold` @ map-scale commit。
+
+---
+
+## Host hardening & durability（G 波）
+
+> **Spec:** `知识库/specs/2026-08-20-host-hardening-and-durability.md` v1.0  
+
+| Plan | 文件 | 并行 |
+|------|------|------|
+| [G1 universe turns](./2026-08-20-g1-universe-turns.md) | `universe*` + turn/card commands | ‖ G2 G3 |
+| [G2 obsidian](./2026-08-20-g2-obsidian-harden.md) | `obsidian*` | ‖ |
+| [G3 session+CSP](./2026-08-20-g3-session-csp.md) | session config, CSP, App restore | ‖ |
+| [G4 FE write-through](./2026-08-20-g4-fe-write-through.md) | store/host/types/deepenScope | ‖（契约对齐 G1） |
+
+**冲突规则：** G3 与 G4 均可能改 `App.tsx`/`host.ts` — G3 只做 lastVault/epoch/CSP 相关；G4 做 turn API 与 store。合并时以 Spec 为准。

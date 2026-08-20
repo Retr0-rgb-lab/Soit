@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Soit">
+  <title>Soit</title>
+  <!-- 16–32px friendly: thicker joins, same Forked Card story -->
+  <rect width="32" height="32" rx="7" fill="#8b5e34"/>
+  <rect x="9" y="6" width="14" height="17" rx="2.5" fill="#fffdf8"/>
+  <g
+    fill="none"
+    stroke="#2a241c"
+    stroke-width="2.4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M16 12 V21"/>
+    <path d="M16 16.5 L21.5 21"/>
+  </g>
+  <circle cx="16" cy="12" r="1.7" fill="#2a241c"/>
+  <circle cx="16" cy="21" r="1.55" fill="#2a241c"/>
+  <circle cx="21.5" cy="21" r="1.55" fill="#2a241c"/>
+</svg>

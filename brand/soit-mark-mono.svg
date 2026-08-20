@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Soit mark">
+  <title>Soit mark (mono)</title>
+  <!-- Single-color template: set color via CSS color / currentColor -->
+  <rect
+    x="16"
+    y="10"
+    width="32"
+    height="40"
+    rx="6"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="3"
+  />
+  <g
+    fill="none"
+    stroke="currentColor"
+    stroke-width="4.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M32 22 V44"/>
+    <path d="M32 33 L45 44"/>
+  </g>
+  <circle cx="32" cy="22" r="3.4" fill="currentColor"/>
+  <circle cx="32" cy="44" r="3.1" fill="currentColor"/>
+  <circle cx="45" cy="44" r="3.1" fill="currentColor"/>
+</svg>

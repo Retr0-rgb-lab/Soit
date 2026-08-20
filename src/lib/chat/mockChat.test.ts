@@ -35,6 +35,17 @@ describe("MockChat", () => {
     expect(html).toContain("&lt;script&gt;");
     expect(html).toContain('data-term="函子"');
   });
+
+  it("completeResultToHtml never trusts raw class=mark substrings", () => {
+    const html = completeResultToHtml({
+      text: 'hi <img src=x onerror=alert(1) class="mark">',
+      marks: undefined,
+    });
+    expect(html).not.toContain("<img");
+    expect(html).toContain("&lt;img");
+    // Attribute quotes are escaped — no executable markup path.
+    expect(html).toContain("class=&quot;mark&quot;");
+  });
 });
 
 describe("openaiCompat parse", () => {

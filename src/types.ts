@@ -14,6 +14,10 @@ export interface InquiryNode {
   /** Host/DB field; optional on demo seeds */
   status?: InquiryStatus | string;
   question?: string | null;
+  /** Inquiry stuck note (Host `stuck` column). */
+  stuck?: string | null;
+  /** Next step (Host `next_step` → FE `next`). */
+  next?: string | null;
 }
 
 export interface Turn {
@@ -57,7 +61,13 @@ export interface WorkspaceSnapshot {
 
 export interface BootstrapState {
   phase: "ready_ui";
+  /** Currently open vault (null when unbound). */
   vault: string | null;
+  /**
+   * Last successfully opened vault path from app config.
+   * Bootstrap never opens DB — FE may call openUniverse(lastVault) to restore.
+   */
+  lastVault?: string | null;
   version: string;
 }
 
@@ -116,4 +126,54 @@ export interface ChatConfig {
   baseUrl: string;
   model: string;
   apiKey: string;
+}
+
+/** Host `append_turn` args (camelCase JSON). */
+export interface AppendTurnArgs {
+  cardId: string;
+  title?: string;
+  user: string;
+  quote?: string;
+}
+
+/** Host `append_turn` result. */
+export interface AppendTurnResult {
+  turn: Turn;
+  snapshot?: WorkspaceSnapshot;
+}
+
+/** Host `update_turn` args — only provided fields are patched. */
+export interface UpdateTurnArgs {
+  cardId: string;
+  turnId: string;
+  aiHtml?: string;
+  think?: string;
+  thinkOpen?: boolean;
+  collapsed?: boolean;
+  title?: string;
+  user?: string;
+}
+
+/** Host `update_turn` / `delete_turn` / `update_card` ack. */
+export interface HostMutationResult {
+  ok: true;
+  snapshot?: WorkspaceSnapshot;
+}
+
+/** Host `delete_turn` args. */
+export interface DeleteTurnArgs {
+  cardId: string;
+  turnId: string;
+}
+
+/** Host `update_card` args — only provided fields are patched. */
+export interface UpdateCardArgs {
+  cardId: string;
+  title?: string;
+  status?: InquiryStatus;
+  question?: string | null;
+  stuck?: string | null;
+  /** Maps to Host `next_step`. */
+  next?: string | null;
+  unread?: boolean;
 }

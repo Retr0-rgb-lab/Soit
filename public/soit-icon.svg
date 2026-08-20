@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <!-- Offset Ledger v2.1 — denser stack, filled fork (not diagram strokes) -->
+  <rect width="64" height="64" rx="14" fill="#2a241c"/>
+  <!-- Rear sheet -->
+  <rect
+    x="22"
+    y="16"
+    width="26"
+    height="36"
+    rx="4"
+    fill="#c4a574"
+    transform="rotate(-6 35 34)"
+  />
+  <!-- Mid sheet hint -->
+  <rect
+    x="20"
+    y="14.5"
+    width="26"
+    height="36"
+    rx="4"
+    fill="#e8d5bc"
+    transform="rotate(-2.5 33 32.5)"
+  />
+  <!-- Front sheet -->
+  <rect x="16" y="12" width="26" height="36" rx="4" fill="#fffdf8"/>
+  <!-- Filled asymmetric fork: deepen bar + diverge wedge, one mass -->
+  <path
+    fill="#2a241c"
+    d="M27.2 20h3.6v14.2l7.1 7.4-2.7 2.6-6.2-6.45V44h-3.6V20z"
+  />
+</svg>

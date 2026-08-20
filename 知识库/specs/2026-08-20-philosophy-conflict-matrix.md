@@ -27,10 +27,13 @@ Merge order after Wave 1: **F → D → B** (B largest; F least conflict; D befo
 
 ### Wave 2 — after Wave 1 on main branch
 
-| Plan | Notes |
-|------|-------|
-| C | needs B spawn/scope |
-| E | parallel with C if E avoids store append and only hooks port |
+| Plan | Notes | Status |
+|------|-------|--------|
+| C | ChatPort + Mock + BYOK | merged `plan-c/chatport-byok` |
+| E | SKILL.md seed + panel | merged `plan-e/skills` |
+| glue | store injects `getEnabledSkillsText` into complete | done on feature branch |
+
+Merge order Wave 2: **E → C** then resolve shared host/lib/caps; skills→chat glue in store.
 
 ## Shared-file rule
 

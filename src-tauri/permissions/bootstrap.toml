@@ -34,6 +34,26 @@ description = "Allow spawn_inquiry command"
 commands.allow = ["spawn_inquiry"]
 
 [[permission]]
+identifier = "allow-append-turn"
+description = "Allow append_turn command"
+commands.allow = ["append_turn"]
+
+[[permission]]
+identifier = "allow-update-turn"
+description = "Allow update_turn command"
+commands.allow = ["update_turn"]
+
+[[permission]]
+identifier = "allow-delete-turn"
+description = "Allow delete_turn command"
+commands.allow = ["delete_turn"]
+
+[[permission]]
+identifier = "allow-update-card"
+description = "Allow update_card command"
+commands.allow = ["update_card"]
+
+[[permission]]
 identifier = "allow-ping"
 description = "Allow ping command"
 commands.allow = ["ping"]
@@ -72,3 +92,13 @@ commands.allow = ["get_chat_config"]
 identifier = "allow-set-chat-config"
 description = "Allow set_chat_config command (BYOK; not universe.db)"
 commands.allow = ["set_chat_config"]
+
+[[permission]]
+identifier = "allow-get-last-vault"
+description = "Allow get_last_vault command (app config session; not universe.db)"
+commands.allow = ["get_last_vault"]
+
+[[permission]]
+identifier = "allow-set-last-vault"
+description = "Allow set_last_vault command (app config session; not universe.db)"
+commands.allow = ["set_last_vault"]

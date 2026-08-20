@@ -12,6 +12,10 @@
     "allow-close-universe",
     "allow-create-root-inquiry",
     "allow-spawn-inquiry",
+    "allow-append-turn",
+    "allow-update-turn",
+    "allow-delete-turn",
+    "allow-update-card",
     "allow-precipitate-concept",
     "allow-append-residue",
     "allow-list-skills",
@@ -19,6 +23,8 @@
     "allow-get-enabled-skills-text",
     "allow-get-chat-config",
     "allow-set-chat-config",
+    "allow-get-last-vault",
+    "allow-set-last-vault",
     "allow-ping"
   ]
 }

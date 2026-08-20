@@ -63,8 +63,11 @@ export default function AppShell() {
         setPaletteOpen((v) => !v);
         return;
       }
-      // Ctrl+\ — toggle map
+      // Ctrl+\ — toggle map (skip when card overlays own the surface)
       if (mod && (e.key === "\\" || e.code === "Backslash")) {
+        if (document.querySelector(".ic-float, .ic-selbar, .ic-chooser")) {
+          return;
+        }
         e.preventDefault();
         setPaletteOpen(false);
         setSkillsOpen(false);
@@ -88,14 +91,15 @@ export default function AppShell() {
           return;
         }
       }
-      // M toggles map when not typing
+      // M toggles map when not typing and no card overlay is open
       if (
         !mod &&
         !e.altKey &&
         (e.key === "m" || e.key === "M") &&
         !isTypingTarget(e.target) &&
         !paletteOpen &&
-        !skillsOpen
+        !skillsOpen &&
+        !document.querySelector(".ic-float, .ic-selbar, .ic-chooser")
       ) {
         e.preventDefault();
         toggleMap();

@@ -18,11 +18,17 @@ function clamp(n: number, a: number, b: number) {
 }
 
 export default function SelectionBar({ bar, onPreview, onQuote, onCopy }: Props) {
-  const left = clamp(bar.x, 8, window.innerWidth - 48);
+  // Center bar on selection midpoint (bar.x is already mid-x of the range).
+  const left = clamp(bar.x, 48, window.innerWidth - 48);
   const top = clamp(bar.y, 8, window.innerHeight - 120);
 
   return (
-    <div className="ic-selbar" style={{ left, top }} role="toolbar" aria-label="选区操作">
+    <div
+      className="ic-selbar"
+      style={{ left, top, transform: "translateX(-50%)" }}
+      role="toolbar"
+      aria-label="选区操作"
+    >
       <button
         type="button"
         className="ic-round"

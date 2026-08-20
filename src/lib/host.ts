@@ -1,12 +1,18 @@
 import type {
   AppendResidueResult,
+  AppendTurnArgs,
+  AppendTurnResult,
   BootstrapState,
   ChatConfig,
+  DeleteTurnArgs,
+  HostMutationResult,
   OpenUniverseResult,
   PrecipitateConceptResult,
   SelectVaultResult,
   SkillInfo,
   SpawnInquiryHostArgs,
+  UpdateCardArgs,
+  UpdateTurnArgs,
   WorkspaceSnapshot,
 } from "../types";
 import {
@@ -22,10 +28,29 @@ function hasTauri(): boolean {
 
 export async function getBootstrapState(): Promise<BootstrapState> {
   if (!hasTauri()) {
-    return { phase: "ready_ui", vault: null, version: "dev-mock" };
+    return {
+      phase: "ready_ui",
+      vault: null,
+      lastVault: null,
+      version: "dev-mock",
+    };
   }
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<BootstrapState>("get_bootstrap_state");
+}
+
+/** App-config last vault path (not universe.db). Bootstrap-safe. */
+export async function getLastVault(): Promise<string | null> {
+  if (!hasTauri()) return null;
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<string | null>("get_last_vault");
+}
+
+/** Persist or clear last vault in app config. closeUniverse does not clear. */
+export async function setLastVault(path: string | null): Promise<void> {
+  if (!hasTauri()) return;
+  const { invoke } = await import("@tauri-apps/api/core");
+  await invoke("set_last_vault", { path });
 }
 
 /**
@@ -96,6 +121,75 @@ export async function spawnInquiry(
     source: args.source,
     why: args.why ?? null,
     actor: args.actor ?? null,
+  });
+}
+
+/** Host `append_turn` — Host generates `t_*` id (Spec §5.1). */
+export async function appendTurn(
+  args: AppendTurnArgs,
+): Promise<AppendTurnResult> {
+  if (!hasTauri()) {
+    throw new Error("append_turn requires tauri");
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<AppendTurnResult>("append_turn", {
+    cardId: args.cardId,
+    title: args.title,
+    user: args.user,
+    quote: args.quote,
+  });
+}
+
+/** Host `update_turn` — patch only provided fields; never creates nodes. */
+export async function updateTurn(
+  args: UpdateTurnArgs,
+): Promise<HostMutationResult> {
+  if (!hasTauri()) {
+    throw new Error("update_turn requires tauri");
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<HostMutationResult>("update_turn", {
+    cardId: args.cardId,
+    turnId: args.turnId,
+    aiHtml: args.aiHtml,
+    think: args.think,
+    thinkOpen: args.thinkOpen,
+    collapsed: args.collapsed,
+    title: args.title,
+    user: args.user,
+  });
+}
+
+/** Host `delete_turn`. */
+export async function deleteTurn(
+  args: DeleteTurnArgs,
+): Promise<HostMutationResult> {
+  if (!hasTauri()) {
+    throw new Error("delete_turn requires tauri");
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<HostMutationResult>("delete_turn", {
+    cardId: args.cardId,
+    turnId: args.turnId,
+  });
+}
+
+/** Host `update_card` — title/status/question/stuck/next/unread. */
+export async function updateCard(
+  args: UpdateCardArgs,
+): Promise<HostMutationResult> {
+  if (!hasTauri()) {
+    throw new Error("update_card requires tauri");
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<HostMutationResult>("update_card", {
+    cardId: args.cardId,
+    title: args.title,
+    status: args.status,
+    question: args.question,
+    stuck: args.stuck,
+    next: args.next,
+    unread: args.unread,
   });
 }
 

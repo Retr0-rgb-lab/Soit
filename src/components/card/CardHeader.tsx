@@ -4,7 +4,7 @@ import {
   ELLIPSIS_CRUMB_ID,
 } from "../../lib/treeNav";
 import type { InquiryNode } from "../../types";
-import { IconDeepen, IconTrash } from "./icons";
+import { IconDeepen } from "./icons";
 
 interface Crumb {
   id: string;
@@ -14,6 +14,10 @@ interface Crumb {
 interface Props {
   crumbs: Crumb[];
   title: string;
+  /** Inquiry status — read-only chip when present. */
+  status?: string | null;
+  /** Guiding question — read-only under title when present. */
+  question?: string | null;
   onDeepen: () => void;
   onCrumb: (id: string) => void;
   /** Source chip: return to parent and highlight source span. */
@@ -30,6 +34,8 @@ interface Props {
 export default function CardHeader({
   crumbs,
   title,
+  status,
+  question,
   onDeepen,
   onCrumb,
   onReturnToSource,
@@ -124,6 +130,16 @@ export default function CardHeader({
           )}
         </nav>
         <h1>{title}</h1>
+        {(status || question) && (
+          <div className="ic-meta">
+            {status ? (
+              <span className="ic-status" data-status={status}>
+                {status}
+              </span>
+            ) : null}
+            {question ? <p className="ic-question">{question}</p> : null}
+          </div>
+        )}
         {parent && (
           <p className="ic-source-chip">
             <span className="ic-source-label">来自</span>
@@ -205,17 +221,7 @@ export default function CardHeader({
         >
           {busy === "residue" ? "记录中…" : "记下残渣"}
         </button>
-        <button
-          type="button"
-          className="ic-round danger"
-          data-tip="删除卡片（demo 不删）"
-          aria-label="删除卡片（demo 不删）"
-          onClick={() => {
-            /* noop — demo tip only */
-          }}
-        >
-          <IconTrash />
-        </button>
+
       </div>
     </div>
   );

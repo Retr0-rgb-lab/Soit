@@ -72,10 +72,7 @@ export function applyMarksHtml(
 export function completeResultToHtml(result: ChatCompleteResult): string {
   const raw = result.text.trim();
   if (!raw) return "";
-  // If caller already returned HTML with marks, keep it.
-  if (raw.includes('class="mark"') || raw.includes("class='mark'")) {
-    return raw;
-  }
+  // Always escape — never trust model text as HTML (XSS via dangerouslySetInnerHTML).
   const withMarks = applyMarksHtml(raw, result.marks);
   // Preserve newlines as <br> for simple multi-line replies.
   return withMarks.replace(/\n/g, "<br>");

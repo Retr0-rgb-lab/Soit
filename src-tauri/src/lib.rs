@@ -1,13 +1,15 @@
 mod chat_config;
 mod obsidian;
+mod session_config;
 mod skills;
 mod universe;
 
 use serde::Serialize;
 use std::sync::Mutex;
-use tauri::State;
+use tauri::{AppHandle, State};
 use universe::{
-  OpenUniverseResult, SpawnInquiryArgs, SourceSpanDto, Universe, WorkspaceSnapshotDto,
+  AppendTurnResult, MutationResult, OpenUniverseResult, SourceSpanDto, SpawnInquiryArgs,
+  Universe, WorkspaceSnapshotDto,
 };
 
 struct AppState {
@@ -24,9 +26,13 @@ impl Default for AppState {
 }
 
 #[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 struct BootstrapState {
   phase: &'static str,
+  /// Currently open vault path (None when unbound).
   vault: Option<String>,
+  /// Remembered path from app config — never opens DB.
+  last_vault: Option<String>,
   version: String,
 }
 
@@ -38,12 +44,11 @@ struct SelectVaultResult {
   error: Option<String>,
 }
 
-
-
-fn bootstrap_from(vault: Option<String>) -> BootstrapState {
+fn bootstrap_from(vault: Option<String>, last_vault: Option<String>) -> BootstrapState {
   BootstrapState {
     phase: "ready_ui",
     vault,
+    last_vault,
     version: env!("CARGO_PKG_VERSION").to_string(),
   }
 }
@@ -58,10 +63,15 @@ fn demo_shaped_empty_snapshot() -> WorkspaceSnapshotDto {
   }
 }
 
-fn open_universe_impl(path: String, state: &AppState) -> OpenUniverseResult {
+fn open_universe_impl(
+  path: String,
+  state: &AppState,
+  app: Option<&AppHandle>,
+) -> OpenUniverseResult {
   let p = std::path::Path::new(&path);
   match Universe::open(p) {
     Ok(u) => {
+      let bound_path = u.vault_path.to_string_lossy().to_string();
       // Wave E — seed/index skills + plugins placeholder (non-fatal if fails).
       if let Err(e) = skills::ensure_on_open(&u.vault_path) {
         log::warn!("skills ensure_on_open: {e}");
@@ -71,20 +81,33 @@ fn open_universe_impl(path: String, state: &AppState) -> OpenUniverseResult {
         Err(e) => {
           return OpenUniverseResult {
             ok: false,
-            path,
+            path: bound_path,
             error: Some(e),
             snapshot: None,
           };
         }
       };
-      if let Ok(mut g) = state.universe.lock() {
-        *g = Some(u);
-      }
-      OpenUniverseResult {
-        ok: true,
-        path,
-        error: None,
-        snapshot: Some(snap),
+      match state.universe.lock() {
+        Ok(mut g) => {
+          *g = Some(u);
+          if let Some(app) = app {
+            if let Err(e) = session_config::write_last_vault(app, Some(&bound_path)) {
+              log::warn!("set last_vault after open: {e}");
+            }
+          }
+          OpenUniverseResult {
+            ok: true,
+            path: bound_path,
+            error: None,
+            snapshot: Some(snap),
+          }
+        }
+        Err(_) => OpenUniverseResult {
+          ok: false,
+          path: bound_path,
+          error: Some("universe lock poisoned".into()),
+          snapshot: None,
+        },
       }
     }
     Err(e) => OpenUniverseResult {
@@ -133,14 +156,16 @@ fn get_enabled_skills_text(state: State<'_, AppState>) -> Result<String, String>
 }
 
 /// Instant UI-ready bootstrap — no vault walk, no DB, no network.
+/// `lastVault` comes from app config only; does not open universe.db.
 #[tauri::command]
-fn get_bootstrap_state(state: State<'_, AppState>) -> BootstrapState {
+fn get_bootstrap_state(app: AppHandle, state: State<'_, AppState>) -> BootstrapState {
   let vault = state
     .universe
     .lock()
     .ok()
     .and_then(|g| g.as_ref().map(|u| u.vault_path.to_string_lossy().to_string()));
-  bootstrap_from(vault)
+  let last_vault = session_config::read_last_vault(&app);
+  bootstrap_from(vault, last_vault)
 }
 
 /// Read snapshot from open universe, or demo-shaped empty when unbound.
@@ -157,12 +182,17 @@ fn get_workspace_snapshot(state: State<'_, AppState>) -> Result<WorkspaceSnapsho
 }
 
 /// Open vault → ensure .soit/universe.db → return snapshot (empty|universe).
+/// On success, persists lastVault in app config (close does not clear it).
 #[tauri::command]
-fn open_universe(path: String, state: State<'_, AppState>) -> OpenUniverseResult {
-  open_universe_impl(path, &state)
+fn open_universe(
+  path: String,
+  app: AppHandle,
+  state: State<'_, AppState>,
+) -> OpenUniverseResult {
+  open_universe_impl(path, &state, Some(&app))
 }
 
-/// Close DB and clear vault binding.
+/// Close DB and clear vault binding. Does **not** clear lastVault.
 #[tauri::command]
 fn close_universe(state: State<'_, AppState>) -> Result<(), String> {
   let mut g = state
@@ -175,8 +205,12 @@ fn close_universe(state: State<'_, AppState>) -> Result<(), String> {
 
 /// Thin compat wrapper: bind vault by opening universe.
 #[tauri::command]
-fn select_vault(path: String, state: State<'_, AppState>) -> SelectVaultResult {
-  let r = open_universe_impl(path, &state);
+fn select_vault(
+  path: String,
+  app: AppHandle,
+  state: State<'_, AppState>,
+) -> SelectVaultResult {
+  let r = open_universe_impl(path, &state, Some(&app));
   SelectVaultResult {
     ok: r.ok,
     path: r.path,
@@ -225,6 +259,116 @@ fn spawn_inquiry(
     why,
     actor,
   })
+}
+
+/// Host append turn (universe path durability).
+#[tauri::command]
+fn append_turn(
+  card_id: String,
+  title: Option<String>,
+  user: String,
+  quote: Option<String>,
+  state: State<'_, AppState>,
+) -> Result<AppendTurnResult, String> {
+  let mut g = state
+    .universe
+    .lock()
+    .map_err(|_| "universe lock poisoned".to_string())?;
+  let u = g
+    .as_mut()
+    .ok_or_else(|| "no universe open — bind a vault first".to_string())?;
+  u.append_turn(
+    &card_id,
+    title.as_deref(),
+    &user,
+    quote.as_deref(),
+  )
+}
+
+/// Patch turn fields (aiHtml / think / collapse / …).
+#[tauri::command]
+fn update_turn(
+  card_id: String,
+  turn_id: String,
+  ai_html: Option<String>,
+  think: Option<String>,
+  think_open: Option<bool>,
+  collapsed: Option<bool>,
+  title: Option<String>,
+  user: Option<String>,
+  state: State<'_, AppState>,
+) -> Result<MutationResult, String> {
+  let mut g = state
+    .universe
+    .lock()
+    .map_err(|_| "universe lock poisoned".to_string())?;
+  let u = g
+    .as_mut()
+    .ok_or_else(|| "no universe open — bind a vault first".to_string())?;
+  u.update_turn(
+    &card_id,
+    &turn_id,
+    ai_html.as_deref(),
+    think.as_deref(),
+    think_open,
+    collapsed,
+    title.as_deref(),
+    user.as_deref(),
+  )
+}
+
+/// Delete one turn on a card.
+#[tauri::command]
+fn delete_turn(
+  card_id: String,
+  turn_id: String,
+  state: State<'_, AppState>,
+) -> Result<MutationResult, String> {
+  let mut g = state
+    .universe
+    .lock()
+    .map_err(|_| "universe lock poisoned".to_string())?;
+  let u = g
+    .as_mut()
+    .ok_or_else(|| "no universe open — bind a vault first".to_string())?;
+  u.delete_turn(&card_id, &turn_id)
+}
+
+/// Patch card fields (title/status/question/stuck/next/unread).
+/// For `question`/`stuck`/`next`: omit = no change; empty string clears to SQL NULL.
+#[tauri::command]
+fn update_card(
+  card_id: String,
+  title: Option<String>,
+  status: Option<String>,
+  question: Option<String>,
+  stuck: Option<String>,
+  next: Option<String>,
+  unread: Option<bool>,
+  state: State<'_, AppState>,
+) -> Result<MutationResult, String> {
+  let mut g = state
+    .universe
+    .lock()
+    .map_err(|_| "universe lock poisoned".to_string())?;
+  let u = g
+    .as_mut()
+    .ok_or_else(|| "no universe open — bind a vault first".to_string())?;
+  u.update_card(
+    &card_id,
+    title.as_deref(),
+    status.as_deref(),
+    question
+      .as_ref()
+      .map(|s| if s.is_empty() { None } else { Some(s.as_str()) }),
+    stuck
+      .as_ref()
+      .map(|s| if s.is_empty() { None } else { Some(s.as_str()) }),
+    next
+      .as_ref()
+      .map(|s| if s.is_empty() { None } else { Some(s.as_str()) }),
+    unread,
+  )
 }
 
 #[tauri::command]
@@ -286,6 +430,10 @@ pub fn run() {
       select_vault,
       create_root_inquiry,
       spawn_inquiry,
+      append_turn,
+      update_turn,
+      delete_turn,
+      update_card,
       precipitate_concept,
       append_residue,
       list_skills,
@@ -293,6 +441,8 @@ pub fn run() {
       get_enabled_skills_text,
       chat_config::get_chat_config,
       chat_config::set_chat_config,
+      session_config::get_last_vault,
+      session_config::set_last_vault,
       ping
     ])
     .setup(|app| {
@@ -315,10 +465,22 @@ mod tests {
 
   #[test]
   fn bootstrap_returns_ready_immediately() {
-    let boot = bootstrap_from(None);
+    let boot = bootstrap_from(None, None);
     assert_eq!(boot.phase, "ready_ui");
     assert!(boot.vault.is_none());
+    assert!(boot.last_vault.is_none());
     assert!(!boot.version.is_empty());
+  }
+
+  #[test]
+  fn bootstrap_carries_last_vault_without_open() {
+    let boot = bootstrap_from(None, Some("E:\\vaults\\remembered".into()));
+    assert_eq!(boot.phase, "ready_ui");
+    assert!(boot.vault.is_none());
+    assert_eq!(boot.last_vault.as_deref(), Some("E:\\vaults\\remembered"));
+    let json = serde_json::to_string(&boot).unwrap();
+    assert!(json.contains("lastVault"));
+    assert!(!json.contains("last_vault"));
   }
 
   #[test]
@@ -327,6 +489,7 @@ mod tests {
     let missing = open_universe_impl(
       "Z:\\this-path-should-not-exist-soit-test-xyz".into(),
       &state,
+      None,
     );
     assert!(!missing.ok);
     assert!(missing.error.is_some());
@@ -345,7 +508,7 @@ mod tests {
     ));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.to_string_lossy().to_string();
-    let ok = open_universe_impl(path.clone(), &state);
+    let ok = open_universe_impl(path.clone(), &state, None);
     assert!(ok.ok, "{:?}", ok.error);
     assert!(state.universe.lock().unwrap().is_some());
     let snap = ok.snapshot.expect("snapshot");
@@ -377,7 +540,7 @@ mod tests {
     ));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.to_string_lossy().to_string();
-    let ok = open_universe_impl(path, &state);
+    let ok = open_universe_impl(path, &state, None);
     assert!(ok.ok, "{:?}", ok.error);
     assert!(dir.join(".soit/skills/organize-cards/SKILL.md").is_file());
     assert!(dir.join(".soit/skills/organize-obsidian/SKILL.md").is_file());

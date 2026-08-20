@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Soit logo v2 — directions</title>
+    <style>
+      :root {
+        color: #2a241c;
+        background: #ddd4c6;
+        font-family: Georgia, "Songti SC", "Times New Roman", serif;
+      }
+      body {
+        margin: 0;
+        padding: 36px 40px 64px;
+      }
+      h1 {
+        font-size: 22px;
+        font-weight: 600;
+        margin: 0 0 6px;
+        letter-spacing: 0.02em;
+      }
+      .lede {
+        margin: 0 0 28px;
+        max-width: 52rem;
+        font-size: 14px;
+        line-height: 1.55;
+        color: #5c5348;
+        font-family: system-ui, "Segoe UI", sans-serif;
+      }
+      h2 {
+        font-size: 13px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #8a8074;
+        margin: 32px 0 14px;
+        font-family: system-ui, sans-serif;
+        font-weight: 600;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 16px;
+      }
+      figure {
+        margin: 0;
+        background: #faf6ef;
+        border: 1px solid #c4b7a4;
+        border-radius: 14px;
+        padding: 22px 16px 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+      }
+      figure.pick {
+        outline: 2px solid #8b5e34;
+        outline-offset: 2px;
+      }
+      figure.dark {
+        background: #2a241c;
+        border-color: #2a241c;
+        color: #faf6ef;
+      }
+      img.hero {
+        width: 112px;
+        height: 112px;
+      }
+      img.sm {
+        width: 28px;
+        height: 28px;
+      }
+      img.xs {
+        width: 16px;
+        height: 16px;
+      }
+      .sizes {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      figcaption {
+        font-family: system-ui, sans-serif;
+        font-size: 12px;
+        line-height: 1.45;
+        text-align: center;
+        color: inherit;
+        opacity: 0.9;
+      }
+      figcaption strong {
+        display: block;
+        font-size: 13px;
+        margin-bottom: 4px;
+        opacity: 1;
+      }
+      .old {
+        opacity: 0.75;
+      }
+      .wm {
+        width: min(280px, 100%);
+        height: auto;
+      }
+      .compare-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      @media (max-width: 720px) {
+        .compare-row {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Soit mark — redesign directions</h1>
+    <p class="lede">
+      旧版 Forked Card 被否：太像通用流程图图标。下面三套是完整体系重做（非微调）。
+      设计师主推 <strong>Offset Ledger</strong>；备选 Spine S / Blotter Seal。
+      选一套后即可替换应用图标与左栏品牌。
+    </p>
+
+    <h2>Was — retired</h2>
+    <div class="grid old">
+      <figure>
+        <img class="hero" src="../soit-icon-app.svg" alt="" />
+        <div class="sizes">
+          <img class="sm" src="../soit-mark.svg" alt="" />
+          <img class="xs" src="../soit-mark.svg" alt="" />
+        </div>
+        <figcaption>
+          <strong>Forked Card (v1)</strong>
+          等粗 Y + 三圆点 + 单卡 — 廉价、像 Lucide
+        </figcaption>
+      </figure>
+    </div>
+
+    <h2>Proposed — pick one</h2>
+    <div class="grid">
+      <figure class="pick">
+        <img class="hero" src="soit-offset-ledger-app.svg" alt="" />
+        <div class="sizes">
+          <img class="sm" src="soit-offset-ledger-mark.svg" alt="" />
+          <img class="xs" src="soit-offset-ledger-mark.svg" alt="" />
+        </div>
+        <figcaption>
+          <strong>A · Offset Ledger ★</strong>
+          叠纸 + 非对称分叉（深挖粗 / 发散细），无节点圆点
+        </figcaption>
+      </figure>
+      <figure>
+        <img class="hero" src="soit-spine-s-app.svg" alt="" />
+        <div class="sizes">
+          <img class="sm" src="soit-spine-s-mark.svg" alt="" />
+          <img class="xs" src="soit-spine-s-mark.svg" alt="" />
+        </div>
+        <figcaption>
+          <strong>B · Spine S</strong>
+          字标 monogram：脊柱=深挖，下端剥离=发散
+        </figcaption>
+      </figure>
+      <figure>
+        <img class="hero" src="soit-blotter-seal-app.svg" alt="" />
+        <div class="sizes">
+          <img class="sm" src="soit-blotter-seal-mark.svg" alt="" />
+          <img class="xs" src="soit-blotter-seal-mark.svg" alt="" />
+        </div>
+        <figcaption>
+          <strong>C · Blotter Seal</strong>
+          实心印记，负形挖出分叉 — 任务栏冲击力强
+        </figcaption>
+      </figure>
+    </div>
+
+    <h2>Offset Ledger on paper / dark</h2>
+    <div class="compare-row">
+      <figure>
+        <img class="hero" src="soit-offset-ledger-mark.svg" alt="" />
+        <figcaption><strong>UI mark</strong> 左栏 / 浅色界面</figcaption>
+      </figure>
+      <figure class="dark">
+        <img class="hero" src="soit-offset-ledger-app.svg" alt="" />
+        <figcaption><strong>App icon</strong> 墨色底板 + 暖纸叠层</figcaption>
+      </figure>
+    </div>
+
+    <h2>Wordmark sketch</h2>
+    <div class="grid">
+      <figure style="grid-column: span 2">
+        <img class="wm" src="soit-offset-ledger-wordmark.svg" alt="Soit" />
+        <figcaption>Offset Ledger + 衬线 Soit（营销向；应用内仍可用系统字体）</figcaption>
+      </figure>
+    </div>
+  </body>
+</html>

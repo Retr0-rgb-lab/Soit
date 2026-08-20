@@ -1,10 +1,55 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { demoSnapshot } from "../lib/demoSeed";
 import { layoutGraph } from "../lib/graphLayout";
+import type { Turn, WorkspaceSnapshot } from "../types";
 import { useWorkspace, useWorkspaceStore } from "./workspaceStore";
+
+const hostMocks = vi.hoisted(() => ({
+  spawnInquiry: vi.fn(),
+  appendTurn: vi.fn(),
+  updateTurn: vi.fn(),
+  deleteTurn: vi.fn(),
+  updateCard: vi.fn(),
+  getEnabledSkillsText: vi.fn(async () => ""),
+}));
+
+vi.mock("../lib/host", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/host")>();
+  return {
+    ...actual,
+    spawnInquiry: hostMocks.spawnInquiry,
+    appendTurn: hostMocks.appendTurn,
+    updateTurn: hostMocks.updateTurn,
+    deleteTurn: hostMocks.deleteTurn,
+    updateCard: hostMocks.updateCard,
+    getEnabledSkillsText: hostMocks.getEnabledSkillsText,
+  };
+});
+
+function universeSnap(partial?: Partial<WorkspaceSnapshot>): WorkspaceSnapshot {
+  const demo = demoSnapshot();
+  return {
+    ...demo,
+    source: "universe",
+    nodes: demo.nodes.map((n) => ({ ...n })),
+    edges: (demo.edges ?? []).map((e) => ({ ...e, source: { ...e.source } })),
+    turnsByCardId: Object.fromEntries(
+      Object.entries(demo.turnsByCardId).map(([k, turns]) => [
+        k,
+        turns.map((t) => ({ ...t })),
+      ]),
+    ),
+    ...partial,
+  };
+}
 
 describe("workspaceStore", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
+    hostMocks.getEnabledSkillsText.mockResolvedValue("");
+    hostMocks.updateCard.mockResolvedValue({ ok: true as const });
+    hostMocks.updateTurn.mockResolvedValue({ ok: true as const });
+    hostMocks.deleteTurn.mockResolvedValue({ ok: true as const });
     useWorkspaceStore.getState().loadSnapshot(demoSnapshot());
   });
 
@@ -66,7 +111,7 @@ describe("workspaceStore", () => {
     const s = useWorkspace.getState();
     expect(s.focusId).toBe("c2");
     expect(s.highlightSpan?.text).toBe("函子");
-    expect(s.highlightSpan?.turnId).toBe("t0");
+    expect(s.highlightSpan?.turnId).toBe("c2_t0");
   });
 
   it("regenerateTurn does not add nodes", async () => {
@@ -75,11 +120,47 @@ describe("workspaceStore", () => {
     const turnId = s0.turnsByCardId[card][0].id;
     const n0 = s0.nodes.length;
     const turns0 = s0.turnsByCardId[card].length;
-    await s0.regenerateTurn(turnId);
+    await s0.regenerateTurn(turnId, card);
     const s1 = useWorkspaceStore.getState();
     expect(s1.nodes.length).toBe(n0);
     expect(s1.turnsByCardId[card].length).toBe(turns0);
     expect(s1.turnsByCardId[card].find((t) => t.id === turnId)?.aiHtml).toBeTruthy();
+  });
+
+  it("toggle/delete turn is scoped to the focused card only", async () => {
+    const s = useWorkspaceStore.getState();
+    // Ensure unique ids across cards (regression guard for old shared t0).
+    const allIds = Object.values(s.turnsByCardId).flatMap((ts) => ts.map((t) => t.id));
+    expect(new Set(allIds).size).toBe(allIds.length);
+
+    s.focusNode("c3");
+    const c3First = s.turnsByCardId.c3![0]!;
+    const c1Collapsed = s.turnsByCardId.c1![0]!.collapsed;
+    const c2Collapsed = s.turnsByCardId.c2![0]!.collapsed;
+    await s.toggleTurnCollapsed(c3First.id, "c3");
+    expect(useWorkspaceStore.getState().turnsByCardId.c3![0]!.collapsed).toBe(
+      !c3First.collapsed,
+    );
+    expect(useWorkspaceStore.getState().turnsByCardId.c1![0]!.collapsed).toBe(
+      c1Collapsed,
+    );
+    expect(useWorkspaceStore.getState().turnsByCardId.c2![0]!.collapsed).toBe(
+      c2Collapsed,
+    );
+
+    await s.deleteTurn(c3First.id, "c3");
+    expect(
+      useWorkspaceStore.getState().turnsByCardId.c3!.find((t) => t.id === c3First.id),
+    ).toBeUndefined();
+    expect(useWorkspaceStore.getState().turnsByCardId.c1!.length).toBe(1);
+    expect(useWorkspaceStore.getState().turnsByCardId.c2!.length).toBe(1);
+  });
+
+  it("spawnInquiry leaves focused child unread=false", async () => {
+    const id = await useWorkspaceStore.getState().spawnDeepen("未读检查");
+    const n = useWorkspaceStore.getState().nodes.find((x) => x.id === id)!;
+    expect(n.unread).toBe(false);
+    expect(useWorkspaceStore.getState().focusId).toBe(id);
   });
 
   it("appendUserMessage completes via ChatPort with mark HTML", async () => {
@@ -96,6 +177,7 @@ describe("workspaceStore", () => {
     expect(useWorkspaceStore.getState().nodes.length).toBe(
       demoSnapshot().nodes.length,
     );
+    expect(hostMocks.appendTurn).not.toHaveBeenCalled();
   });
 
   it("focusNode clears unread on target", () => {
@@ -103,6 +185,7 @@ describe("workspaceStore", () => {
     const n = useWorkspace.getState().nodes.find((x) => x.id === "c4")!;
     expect(n.unread).toBe(false);
     expect(useWorkspace.getState().focusId).toBe("c4");
+    expect(hostMocks.updateCard).not.toHaveBeenCalled();
   });
 
   it("toggleMapMode switches focus and map", () => {
@@ -150,6 +233,186 @@ describe("workspaceStore", () => {
     const edges = useWorkspaceStore.getState().edges;
     expect(edges.length).toBeGreaterThanOrEqual(4);
     expect(edges.every((e) => e.source.turnId && e.source.text)).toBe(true);
+  });
+
+  it("bootEpoch ignores stale loadSnapshot", () => {
+    const epoch = useWorkspaceStore.getState().beginBootLoad();
+    useWorkspaceStore.getState().beginBootLoad(); // newer load wins
+    useWorkspaceStore.getState().loadSnapshot(universeSnap({ focusId: "c1" }), epoch);
+    // stale epoch must not apply
+    expect(useWorkspaceStore.getState().focusId).not.toBe("c1");
+    const fresh = useWorkspaceStore.getState().bootEpoch;
+    useWorkspaceStore.getState().loadSnapshot(universeSnap({ focusId: "c1" }), fresh);
+    expect(useWorkspaceStore.getState().focusId).toBe("c1");
+    expect(useWorkspaceStore.getState().source).toBe("universe");
+  });
+});
+
+describe("workspaceStore universe write-through", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    hostMocks.getEnabledSkillsText.mockResolvedValue("");
+    hostMocks.updateCard.mockResolvedValue({ ok: true as const });
+    hostMocks.updateTurn.mockResolvedValue({ ok: true as const });
+    hostMocks.deleteTurn.mockResolvedValue({ ok: true as const });
+    useWorkspaceStore.getState().loadSnapshot(universeSnap());
+  });
+
+  it("spawnInquiry host failure adds no node", async () => {
+    const before = useWorkspaceStore.getState().nodes.length;
+    hostMocks.spawnInquiry.mockRejectedValueOnce(new Error("db down"));
+    const id = await useWorkspaceStore.getState().spawnInquiry({
+      kind: "deepen",
+      source: { turnId: "c3_t0", text: "x" },
+    });
+    expect(id).toBe("");
+    expect(useWorkspaceStore.getState().nodes.length).toBe(before);
+    expect(hostMocks.spawnInquiry).toHaveBeenCalled();
+  });
+
+  it("spawnInquiry never falls back to memory on universe", async () => {
+    hostMocks.spawnInquiry.mockRejectedValueOnce(new Error("fail"));
+    const n0 = useWorkspaceStore.getState().nodes.length;
+    const e0 = useWorkspaceStore.getState().edges.length;
+    await useWorkspaceStore.getState().spawnDeepen("ghost");
+    expect(useWorkspaceStore.getState().nodes.length).toBe(n0);
+    expect(useWorkspaceStore.getState().edges.length).toBe(e0);
+  });
+
+  it("appendUserMessage goes through host append_turn then update_turn", async () => {
+    const card = useWorkspaceStore.getState().focusId;
+    const hostTurn: Turn = {
+      id: "t_host_1",
+      title: "新消息",
+      collapsed: false,
+      user: "hello host",
+      aiHtml: "",
+      think: "",
+      thinkOpen: false,
+    };
+    hostMocks.appendTurn.mockResolvedValueOnce({ turn: hostTurn });
+    hostMocks.updateTurn.mockResolvedValueOnce({ ok: true as const });
+
+    await useWorkspaceStore.getState().appendUserMessage("hello host");
+
+    expect(hostMocks.appendTurn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cardId: card,
+        user: "hello host",
+      }),
+    );
+    expect(hostMocks.updateTurn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cardId: card,
+        turnId: "t_host_1",
+        aiHtml: expect.any(String),
+      }),
+    );
+    const turns = useWorkspaceStore.getState().turnsByCardId[card]!;
+    const last = turns[turns.length - 1]!;
+    expect(last.id).toBe("t_host_1");
+    expect(last.aiHtml).toBeTruthy();
+  });
+
+  it("append_turn failure does not add a ghost turn", async () => {
+    const card = useWorkspaceStore.getState().focusId;
+    const before = useWorkspaceStore.getState().turnsByCardId[card]!.length;
+    hostMocks.appendTurn.mockRejectedValueOnce(new Error("no db"));
+    await useWorkspaceStore.getState().appendUserMessage("should fail");
+    expect(useWorkspaceStore.getState().turnsByCardId[card]!.length).toBe(before);
+    expect(hostMocks.updateTurn).not.toHaveBeenCalled();
+  });
+
+  it("deleteTurn uses host delete_turn", async () => {
+    const card = useWorkspaceStore.getState().focusId;
+    const turnId = useWorkspaceStore.getState().turnsByCardId[card]![0]!.id;
+    hostMocks.deleteTurn.mockResolvedValueOnce({ ok: true as const });
+    await useWorkspaceStore.getState().deleteTurn(turnId, card);
+    expect(hostMocks.deleteTurn).toHaveBeenCalledWith({ cardId: card, turnId });
+    expect(
+      useWorkspaceStore.getState().turnsByCardId[card]!.find((t) => t.id === turnId),
+    ).toBeUndefined();
+  });
+
+  it("delete_turn host failure keeps the turn", async () => {
+    const card = useWorkspaceStore.getState().focusId;
+    const turnId = useWorkspaceStore.getState().turnsByCardId[card]![0]!.id;
+    hostMocks.deleteTurn.mockRejectedValueOnce(new Error("locked"));
+    await useWorkspaceStore.getState().deleteTurn(turnId, card);
+    expect(
+      useWorkspaceStore.getState().turnsByCardId[card]!.find((t) => t.id === turnId),
+    ).toBeDefined();
+  });
+
+  it("toggleTurnCollapsed uses host update_turn", async () => {
+    const card = useWorkspaceStore.getState().focusId;
+    const turn = useWorkspaceStore.getState().turnsByCardId[card]![0]!;
+    const next = !turn.collapsed;
+    hostMocks.updateTurn.mockResolvedValueOnce({ ok: true as const });
+    await useWorkspaceStore.getState().toggleTurnCollapsed(turn.id, card);
+    expect(hostMocks.updateTurn).toHaveBeenCalledWith({
+      cardId: card,
+      turnId: turn.id,
+      collapsed: next,
+    });
+    expect(
+      useWorkspaceStore.getState().turnsByCardId[card]!.find((t) => t.id === turn.id)!
+        .collapsed,
+    ).toBe(next);
+  });
+
+  it("regenerateTurn updates via host without new nodes", async () => {
+    const card = useWorkspaceStore.getState().focusId;
+    const turnId = useWorkspaceStore.getState().turnsByCardId[card]![0]!.id;
+    const n0 = useWorkspaceStore.getState().nodes.length;
+    hostMocks.updateTurn.mockResolvedValueOnce({ ok: true as const });
+    await useWorkspaceStore.getState().regenerateTurn(turnId, card);
+    expect(useWorkspaceStore.getState().nodes.length).toBe(n0);
+    expect(hostMocks.updateTurn).toHaveBeenCalledWith(
+      expect.objectContaining({ cardId: card, turnId }),
+    );
+    expect(hostMocks.spawnInquiry).not.toHaveBeenCalled();
+  });
+
+  it("focusNode clears unread via update_card", async () => {
+    useWorkspaceStore.getState().loadSnapshot(
+      universeSnap({
+        nodes: demoSnapshot().nodes.map((n) =>
+          n.id === "c4" ? { ...n, unread: true } : { ...n },
+        ),
+      }),
+    );
+    expect(useWorkspaceStore.getState().source).toBe("universe");
+    expect(useWorkspaceStore.getState().nodes.find((n) => n.id === "c4")!.unread).toBe(
+      true,
+    );
+    useWorkspaceStore.getState().focusNode("c4");
+    expect(useWorkspaceStore.getState().nodes.find((n) => n.id === "c4")!.unread).toBe(
+      false,
+    );
+    await vi.waitFor(() => {
+      expect(hostMocks.updateCard).toHaveBeenCalledWith({
+        cardId: "c4",
+        unread: false,
+      });
+    });
+  });
+
+  it("markThreadRead clears unread via update_card", async () => {
+    useWorkspaceStore.getState().loadSnapshot(
+      universeSnap({
+        nodes: demoSnapshot().nodes.map((n) =>
+          n.id === "c4" ? { ...n, unread: true } : { ...n, unread: false },
+        ),
+      }),
+    );
+    useWorkspaceStore.getState().markThreadRead("c4");
+    await vi.waitFor(() => {
+      expect(hostMocks.updateCard).toHaveBeenCalledWith({
+        cardId: "c4",
+        unread: false,
+      });
+    });
   });
 });
 

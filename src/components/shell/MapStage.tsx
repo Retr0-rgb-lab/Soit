@@ -104,12 +104,31 @@ export default function MapStage({ onClose }: Props) {
     setFitToken((n) => n + 1);
   }, [focusId, mapScopeMode, views.length]);
 
-  // Map keyboard: move among visible real nodes
+  // Map keyboard: move among visible real nodes (skip when typing or modal open)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLElement) {
-        const t = e.target.tagName;
-        if (t === "INPUT" || t === "TEXTAREA") return;
+        const t = e.target;
+        const tag = t.tagName;
+        if (
+          tag === "INPUT" ||
+          tag === "TEXTAREA" ||
+          tag === "SELECT" ||
+          t.isContentEditable ||
+          t.closest("[contenteditable='true']") ||
+          t.closest("[role='dialog']") ||
+          t.closest(".cmd-palette") ||
+          t.closest(".skills-panel")
+        ) {
+          return;
+        }
+      }
+      // Palette/skills may be open without focus inside dialog yet
+      if (
+        document.querySelector(".cmd-palette-root, [data-cmd-palette]") ||
+        document.querySelector(".skills-panel-root")
+      ) {
+        return;
       }
       if (e.key === "f" || e.key === "F") {
         if (!e.ctrlKey && !e.metaKey) {
@@ -244,11 +263,11 @@ export default function MapStage({ onClose }: Props) {
           <button type="button" className="map-btn ghost" onClick={onClose}>
             返回卡片
           </button>
-          {focus && (
+          {highlightId && !isAggregateId(highlightId) && (
             <button
               type="button"
               className="map-btn primary"
-              onClick={() => openCard(focus.id)}
+              onClick={() => openCard(highlightId)}
             >
               打开当前
             </button>

@@ -54,6 +54,21 @@ describe("mapWorkingNodes", () => {
       true,
     );
   });
+
+  it("hardClamp keeps full deep path even when path exceeds hardCap", () => {
+    const snap = stressDeep(90);
+    const views = mapWorkingNodes(
+      snap.nodes,
+      snap.focusId,
+      [],
+      { ...DEFAULT_MAP_CAPS, hardCap: 80 },
+    );
+    expect(views.some((v) => v.id === snap.focusId)).toBe(true);
+    // Path length is 91 (sd-0 root + 90); clamp must not drop focus/path tail.
+    const pathish = views.filter((v) => v.role === "path" || v.role === "focus");
+    expect(pathish.length).toBeGreaterThanOrEqual(80);
+    expect(views.some((v) => v.id === "sd-0")).toBe(true);
+  });
 });
 
 describe("mapAtlasNodes", () => {

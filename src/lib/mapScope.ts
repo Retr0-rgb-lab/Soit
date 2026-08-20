@@ -126,7 +126,7 @@ export function mapConeNodes(
     }
   }
 
-  // children of focus
+  // children of focus (prefer unread under cap, same as siblings)
   {
     const kids = nodes
       .filter((n) => n.parentId === focusId)
@@ -134,8 +134,9 @@ export function mapConeNodes(
       .sort((a, b) => a.title.localeCompare(b.title, "zh"));
     const key = `${focusId}:child`;
     const limit = effectiveCap(caps.childCap, key, expanded);
-    const visible = kids.slice(0, limit);
-    const hidden = kids.slice(limit);
+    const visible = pickPreferring(kids, focusId, limit);
+    const visibleIds = new Set(visible.map((n) => n.id));
+    const hidden = kids.filter((n) => !visibleIds.has(n.id));
     for (const n of visible) {
       if (!views.has(n.id)) views.set(n.id, cloneAs(n, "context"));
     }
@@ -278,7 +279,29 @@ function hardClamp(
     }
   }
 
-  return list.slice(0, hardCap);
+  // Never slice away focus/path. If path alone exceeds hardCap, keep protected set.
+  if (list.length <= hardCap) return list;
+  const protectedList: MapNodeView[] = [];
+  const rest: MapNodeView[] = [];
+  for (const v of list) {
+    if (protectedIds.has(v.id)) protectedList.push(v);
+    else rest.push(v);
+  }
+  // Prefer focus first, then path order, then remaining protected.
+  const pathOrder = new Map(pathIds.map((id, i) => [id, i]));
+  protectedList.sort((a, b) => {
+    if (a.id === focusId) return -1;
+    if (b.id === focusId) return 1;
+    const pa = pathOrder.has(a.id) ? pathOrder.get(a.id)! : 9999;
+    const pb = pathOrder.has(b.id) ? pathOrder.get(b.id)! : 9999;
+    if (pa !== pb) return pa - pb;
+    return a.title.localeCompare(b.title, "zh");
+  });
+  if (protectedList.length >= hardCap) {
+    return protectedList.slice(0, Math.max(hardCap, pathIds.length));
+  }
+  const room = hardCap - protectedList.length;
+  return [...protectedList, ...rest.slice(0, room)];
 }
 
 /**

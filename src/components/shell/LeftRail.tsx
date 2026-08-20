@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LIVE_MAX } from "../../lib/liveSet";
 import {
   closeUniverse,
+  getBootstrapState,
   openUniverse,
 } from "../../lib/host";
 import { demoSnapshot } from "../../lib/demoSeed";
@@ -35,8 +36,28 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
   const vaultPath = useWorkspace((s) => s.vaultPath);
   const loadSnapshot = useWorkspace((s) => s.loadSnapshot);
   const setVaultPath = useWorkspace((s) => s.setVaultPath);
+  const beginBootLoad = useWorkspace((s) => s.beginBootLoad);
   const [vaultBusy, setVaultBusy] = useState(false);
   const [vaultError, setVaultError] = useState<string | null>(null);
+  /** Prompt suggestion after unbind; host lastVault is also kept (close ≠ clear). */
+  const [rememberedVault, setRememberedVault] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const boot = await getBootstrapState();
+        if (cancelled) return;
+        const last = boot.lastVault?.trim() || boot.vault?.trim() || null;
+        if (last) setRememberedVault((prev) => prev ?? last);
+      } catch {
+        // ignore — prompt can stay empty
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
 
@@ -84,7 +105,7 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
   };
 
   const bindVault = async () => {
-    const suggested = vaultPath ?? "";
+    const suggested = vaultPath ?? rememberedVault ?? "";
     const path = window.prompt(
       "绑定 Obsidian vault 目录（绝对路径）",
       suggested,
@@ -94,14 +115,17 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
     if (!trimmed) return;
     setVaultBusy(true);
     setVaultError(null);
+    const epoch = beginBootLoad();
     try {
       const res = await openUniverse(trimmed);
       if (!res.ok || !res.snapshot) {
         setVaultError(res.error ?? "打开本库失败");
         return;
       }
+      // Host persists lastVault on success; keep local memory for re-bind UX.
+      setRememberedVault(res.path);
       setVaultPath(res.path);
-      loadSnapshot(res.snapshot);
+      loadSnapshot(res.snapshot, epoch);
     } catch (e) {
       setVaultError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -112,10 +136,13 @@ export default function LeftRail({ collapsed = false, onToggleCollapse }: Props)
   const unbindVault = async () => {
     setVaultBusy(true);
     setVaultError(null);
+    const epoch = beginBootLoad();
     try {
+      // Remember path for prompt; Host lastVault is intentionally not cleared.
+      if (vaultPath) setRememberedVault(vaultPath);
       await closeUniverse();
       setVaultPath(null);
-      loadSnapshot(demoSnapshot());
+      loadSnapshot(demoSnapshot(), epoch);
     } catch (e) {
       setVaultError(e instanceof Error ? e.message : String(e));
     } finally {

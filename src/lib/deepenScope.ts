@@ -6,8 +6,21 @@ export interface DeepenScopeState {
   edges: Edge[];
 }
 
+/** Parent inquiry fields for deepen complete — never parent turns. */
+export interface DeepenScopeParent {
+  title: string;
+  status?: InquiryStatus | string;
+  question?: string | null;
+  stuck?: string | null;
+  next?: string | null;
+}
+
+/**
+ * Deepen scope v2 (Spec §6.4 / I3):
+ * parent title/status/question/stuck/next + span + why + **child** recentTurns.
+ */
 export interface DeepenScope {
-  parentStatus?: InquiryStatus | string;
+  parent: DeepenScopeParent;
   span: SourceSpan;
   why?: string;
   /** Recent turns on the child card only — never full parent transcript. */
@@ -18,7 +31,7 @@ const RECENT_TURN_CAP = 8;
 
 /**
  * Build deepen context for a child card from its inbound edge.
- * Scope = parent status + source span + why + this card's recent turns.
+ * Scope = parent fields + source span + why + this card's recent turns.
  * Does not dump the parent transcript.
  */
 export function buildDeepenScope(
@@ -30,12 +43,18 @@ export function buildDeepenScope(
   if (!edge || edge.toCardId !== cardId) return null;
   if (edge.kind !== "deepen") return null;
 
-  const parent = state.nodes.find((n) => n.id === edge.fromCardId);
+  const parentNode = state.nodes.find((n) => n.id === edge.fromCardId);
   const turns = state.turnsByCardId[cardId] ?? [];
   const recentTurns = turns.slice(-RECENT_TURN_CAP).map((t) => ({ ...t }));
 
   return {
-    parentStatus: parent?.status,
+    parent: {
+      title: parentNode?.title ?? "",
+      status: parentNode?.status,
+      question: parentNode?.question ?? null,
+      stuck: parentNode?.stuck ?? null,
+      next: parentNode?.next ?? null,
+    },
     span: { ...edge.source },
     why: edge.why,
     recentTurns,

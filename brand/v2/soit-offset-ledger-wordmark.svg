@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="64" viewBox="0 0 220 64" fill="none">
+  <g transform="translate(4 0)">
+    <rect x="22" y="16" width="26" height="36" rx="4" fill="#d9cfc0" transform="rotate(-6 35 34)"/>
+    <rect x="20" y="14.5" width="26" height="36" rx="4" fill="#efe6d8" transform="rotate(-2.5 33 32.5)"/>
+    <rect x="16" y="12" width="26" height="36" rx="4" fill="#ffffff" stroke="#c4b7a4" stroke-width="1"/>
+    <path fill="#2a241c" d="M27.2 20h3.6v14.2l7.1 7.4-2.7 2.6-6.2-6.45V44h-3.6V20z"/>
+  </g>
+  <text
+    x="58"
+    y="42"
+    fill="#2a241c"
+    font-family="Georgia, 'Times New Roman', 'Songti SC', serif"
+    font-size="32"
+    font-weight="600"
+    letter-spacing="0.03em"
+  >Soit</text>
+</svg>

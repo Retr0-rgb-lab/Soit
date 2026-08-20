@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Soit logo preview</title>
+    <style>
+      :root {
+        font-family: system-ui, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: #2a241c;
+        background: #e8dfd2;
+      }
+      body {
+        margin: 0;
+        padding: 32px;
+      }
+      h1 {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0 0 8px;
+      }
+      p {
+        margin: 0 0 24px;
+        color: #5c5348;
+        font-size: 13px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 20px;
+      }
+      figure {
+        margin: 0;
+        background: #faf6ef;
+        border: 1px solid #d9cfc0;
+        border-radius: 12px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+      }
+      figure.dark {
+        background: #2a241c;
+        border-color: #2a241c;
+        color: #fffdf8;
+      }
+      figcaption {
+        font-size: 12px;
+        color: inherit;
+        opacity: 0.85;
+        text-align: center;
+      }
+      img.lg {
+        width: 128px;
+        height: 128px;
+      }
+      img.md {
+        width: 64px;
+        height: 64px;
+      }
+      img.sm {
+        width: 32px;
+        height: 32px;
+      }
+      img.xs {
+        width: 16px;
+        height: 16px;
+      }
+      img.wm {
+        width: 240px;
+        height: auto;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .mono-swatch {
+        color: #8b5e34;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Soit — Forked Card logo set</h1>
+    <p>Primary concept: inquiry card + deepen (vertical) + diverge (right). Palette from product tokens.</p>
+    <div class="grid">
+      <figure>
+        <img class="lg" src="soit-icon-app.svg" alt="app icon large" />
+        <div class="row">
+          <img class="md" src="soit-icon-app.svg" alt="" />
+          <img class="sm" src="soit-icon-simple.svg" alt="" />
+          <img class="xs" src="soit-icon-simple.svg" alt="" />
+        </div>
+        <figcaption>soit-icon-app / simple · 128 → 16</figcaption>
+      </figure>
+      <figure>
+        <img class="lg" src="soit-mark.svg" alt="mark" />
+        <figcaption>soit-mark.svg · light UI</figcaption>
+      </figure>
+      <figure>
+        <img class="lg" src="soit-mark-on-paper.svg" alt="paper" />
+        <figcaption>soit-mark-on-paper.svg · marketing</figcaption>
+      </figure>
+      <figure class="dark">
+        <div class="mono-swatch">
+          <img class="lg" src="soit-mark-mono.svg" alt="mono" />
+        </div>
+        <figcaption>soit-mark-mono.svg · currentColor on dark</figcaption>
+      </figure>
+      <figure style="grid-column: span 2">
+        <img class="wm" src="soit-wordmark.svg" alt="wordmark" />
+        <figcaption>soit-wordmark.svg</figcaption>
+      </figure>
+    </div>
+  </body>
+</html>

@@ -7,7 +7,7 @@ const demoEdges: Edge[] = [
     kind: "deepen",
     fromCardId: "c1",
     toCardId: "c2",
-    source: { turnId: "t0", text: "范畴论", markId: undefined },
+    source: { turnId: "c1_t0", text: "范畴论", markId: undefined },
     actor: "user",
   },
   {
@@ -15,7 +15,7 @@ const demoEdges: Edge[] = [
     kind: "deepen",
     fromCardId: "c2",
     toCardId: "c3",
-    source: { turnId: "t0", text: "函子", markId: "函子" },
+    source: { turnId: "c2_t0", text: "函子", markId: "函子" },
     actor: "user",
   },
   {
@@ -23,7 +23,7 @@ const demoEdges: Edge[] = [
     kind: "diverge",
     fromCardId: "c2",
     toCardId: "c4",
-    source: { turnId: "t0", text: "自然变换", markId: "自然变换" },
+    source: { turnId: "c2_t0", text: "自然变换", markId: "自然变换" },
     actor: "user",
   },
   {
@@ -31,7 +31,7 @@ const demoEdges: Edge[] = [
     kind: "diverge",
     fromCardId: "c2",
     toCardId: "c5",
-    source: { turnId: "t0", text: "伴随" },
+    source: { turnId: "c2_t0", text: "伴随" },
     actor: "user",
   },
 ];
@@ -52,7 +52,7 @@ export function demoSnapshot(): WorkspaceSnapshot {
     turnsByCardId: {
       c1: [
         {
-          id: "t0",
+          id: "c1_t0",
           title: "根卡",
           collapsed: false,
           user: "从线性代数开始。",
@@ -63,7 +63,7 @@ export function demoSnapshot(): WorkspaceSnapshot {
       ],
       c2: [
         {
-          id: "t0",
+          id: "c2_t0",
           title: "入门",
           collapsed: false,
           user: "范畴论怎么接上线性代数？",
@@ -75,7 +75,7 @@ export function demoSnapshot(): WorkspaceSnapshot {
       ],
       c3: [
         {
-          id: "t0",
+          id: "c3_t0",
           title: "开场",
           collapsed: true,
           user: "从线性代数过来，先对一下词。",
@@ -84,7 +84,7 @@ export function demoSnapshot(): WorkspaceSnapshot {
           aiHtml: "先把对象和态射分开。后面的「函子」只在这两个词站稳之后再谈。",
         },
         {
-          id: "t1",
+          id: "c3_t1",
           title: "函子在保什么",
           collapsed: false,
           user: "函子到底在保什么结构？",

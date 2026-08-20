@@ -68,9 +68,13 @@ export default function CommandPalette({ open, onClose }: Props) {
   );
 
   const onKeyDown = (e: ReactKeyboardEvent) => {
+    // Let AppShell still toggle closed via Ctrl/Cmd+K
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && (e.key === "k" || e.key === "K")) return;
+    // Keep map/shell window handlers from double-handling while open
+    e.stopPropagation();
     if (e.key === "Escape") {
       e.preventDefault();
-      e.stopPropagation();
       onClose();
       return;
     }

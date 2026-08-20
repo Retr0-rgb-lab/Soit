@@ -236,10 +236,21 @@ pub fn list_skills(vault: &Path) -> Result<Vec<SkillDto>, String> {
   )
 }
 
+/// Safe skill id slug: letters, digits, `_`, `-` only (no path separators / `..`).
+fn is_safe_skill_id(id: &str) -> bool {
+  !id.is_empty()
+    && id
+      .bytes()
+      .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+}
+
 pub fn set_skill_enabled(vault: &Path, id: &str, enabled: bool) -> Result<Vec<SkillDto>, String> {
   let id = id.trim();
   if id.is_empty() {
     return Err("skill id is required".into());
+  }
+  if !is_safe_skill_id(id) {
+    return Err(format!("invalid skill id: {id}"));
   }
   // Must exist on disk
   let skill_path = skills_root(vault).join(id).join("SKILL.md");
@@ -253,7 +264,22 @@ pub fn set_skill_enabled(vault: &Path, id: &str, enabled: bool) -> Result<Vec<Sk
   list_skills(vault)
 }
 
+/// Soft cap on total inject text (bytes / UTF-8 len). Spec H-security §8.
+const SKILLS_TEXT_SOFT_CAP: usize = 32_768;
+
+fn truncate_utf8(s: &str, max_bytes: usize) -> String {
+  if s.len() <= max_bytes {
+    return s.to_string();
+  }
+  let mut end = max_bytes;
+  while end > 0 && !s.is_char_boundary(end) {
+    end -= 1;
+  }
+  s[..end].to_string()
+}
+
 /// Concatenate enabled skill bodies for chat system inject (Wave C consumes later).
+/// Total length soft-capped at [`SKILLS_TEXT_SOFT_CAP`]; overflow truncates + logs.
 pub fn get_enabled_skills_text(vault: &Path) -> Result<String, String> {
   let state = read_state(&state_path(vault));
   let docs = index_skills(vault)?;
@@ -270,7 +296,16 @@ pub fn get_enabled_skills_text(vault: &Path) -> Result<String, String> {
     };
     parts.push(format!("{header}\n{body}"));
   }
-  Ok(parts.join("\n\n"))
+  let mut out = parts.join("\n\n");
+  if out.len() > SKILLS_TEXT_SOFT_CAP {
+    log::warn!(
+      "skills inject text truncated from {} to {} bytes",
+      out.len(),
+      SKILLS_TEXT_SOFT_CAP
+    );
+    out = truncate_utf8(&out, SKILLS_TEXT_SOFT_CAP);
+  }
+  Ok(out)
 }
 
 #[cfg(test)]
@@ -355,5 +390,44 @@ mod tests {
     let err = set_skill_enabled(&vault, "no-such-skill", true).unwrap_err();
     assert!(err.contains("not found"));
     let _ = fs::remove_dir_all(&vault);
+  }
+
+  #[test]
+  fn set_enabled_rejects_path_traversal_ids() {
+    let vault = tmp_vault("trav");
+    ensure_on_open(&vault).unwrap();
+    for bad in ["../etc", "a/b", "a\\b", "..", "/abs", "foo.bar"] {
+      let err = set_skill_enabled(&vault, bad, true).unwrap_err();
+      assert!(err.contains("invalid skill id"), "id={bad} err={err}");
+    }
+    let _ = fs::remove_dir_all(&vault);
+  }
+
+  #[test]
+  fn enabled_skills_text_soft_cap() {
+    let vault = tmp_vault("cap");
+    ensure_on_open(&vault).unwrap();
+    let big = "x".repeat(40_000);
+    let path = vault.join(".soit/skills/organize-cards/SKILL.md");
+    fs::write(
+      &path,
+      format!("---\nname: organize-cards\ndescription: big\n---\n\n{big}\n"),
+    )
+    .unwrap();
+    // Disable the other seed so only the oversized body is injected.
+    set_skill_enabled(&vault, "organize-obsidian", false).unwrap();
+    let text = get_enabled_skills_text(&vault).unwrap();
+    assert!(text.len() <= SKILLS_TEXT_SOFT_CAP);
+    assert!(text.contains("skill:organize-cards"));
+    let _ = fs::remove_dir_all(&vault);
+  }
+
+  #[test]
+  fn truncate_utf8_respects_char_boundary() {
+    let s = "ab你好cd";
+    // mid-codepoint cut should not panic and stay under max
+    let t = truncate_utf8(s, 4);
+    assert!(t.len() <= 4);
+    assert!(t.is_char_boundary(t.len()));
   }
 }

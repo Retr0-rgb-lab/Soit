@@ -87,4 +87,4 @@ Acceptance:
 
 - [x] Spec A 矩阵可指证
 - [x] `cargo test` + `npm test` + `npm run build` 通过
-- [ ] 至少 1 个 commit 覆盖 Host+FE
+- [x] 至少 1 个 commit 覆盖 Host+FE (`02cc3ac`)

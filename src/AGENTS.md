@@ -9,7 +9,7 @@ Project-wide constraints: root `AGENTS.md`. Product rules: `知识库/AGENTS.md`
 | Path | Role |
 |------|------|
 | `main.tsx` | Mount + import global CSS only |
-| `App.tsx` | First paint `AppShell`, then async bootstrap/snapshot in `useEffect` |
+| `App.tsx` | First paint `AppShell`, then async bootstrap/snapshot; boot epoch + optional `lastVault` restore via `openUniverse` |
 | `types.ts` | Shared DTO shapes (`InquiryNode`, `Turn`, snapshots) |
 | `components/shell/` | Three-pane chrome + map |
 | `components/card/` | Focused inquiry card |
