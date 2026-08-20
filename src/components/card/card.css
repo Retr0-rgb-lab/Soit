@@ -75,6 +75,8 @@
   display: flex;
   flex-direction: column;
   z-index: 2;
+  /* Allow external history dock to paint outside the card box */
+  overflow: visible;
 }
 
 .inquiry-card {
@@ -89,6 +91,8 @@
   flex-direction: column;
   overflow: hidden;
   transform-origin: 50% 40%;
+  /* Full width of wrap — history docks outside, no grid squeeze */
+  width: 100%;
 }
 
 /* Card switch — short, directional */
@@ -296,6 +300,35 @@
   line-height: 1.2;
 }
 
+.ic-meta {
+  margin: 6px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+}
+
+.ic-status {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+  color: var(--ink-soft);
+  background: var(--bg-muted);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.ic-question {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-soft);
+  max-width: 52ch;
+}
+
 .ic-source-chip {
   margin: 8px 0 0;
   display: inline-flex;
@@ -431,140 +464,104 @@
   box-shadow: none;
 }
 
-/* Body + turns */
+/* Body + turns — full width; history docks outside card */
 .ic-body {
   position: relative;
   flex: 1;
   min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 22px;
-  transition: grid-template-columns 0.32s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
-}
-
-/* Hover right edge or focus rail → expand history titles (PEL-148 / Explore). */
-.ic-body:hover,
-.ic-body.rail-open,
-.ic-body:focus-within {
-  grid-template-columns: minmax(0, 1fr) 156px;
+  display: flex;
 }
 
 .ic-msgs {
+  flex: 1;
   min-width: 0;
   overflow: auto;
-  padding: 2px 12px 20px 22px;
+  padding: 2px 18px 20px 22px;
   scrollbar-width: thin;
   scrollbar-color: rgb(90 80 65 / 28%) transparent;
 }
 
-/* --- Turn history rail (card-internal, not workspace graph) --- */
-.ic-turn-rail {
-  overflow: hidden;
-  min-width: 0;
-  border-left: 1px solid rgb(90 80 65 / 8%);
-  background: linear-gradient(90deg, transparent, rgb(255 252 246 / 45%));
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  padding: 10px 0;
-}
-
-.ic-turn-rail-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-}
-
-.ic-turn-rail-item {
-  display: block;
-  width: 100%;
-  border: 0;
-  background: transparent;
-  text-align: right;
-  padding: 8px 10px;
-  color: var(--ink-soft, #6b645c);
-  font: inherit;
-  font-size: 11px;
-  line-height: 1.35;
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition:
-    color 0.15s,
-    background 0.15s,
-    padding 0.25s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
-}
-
-.ic-turn-rail-item:hover {
-  color: var(--ink);
-  background: rgb(255 252 246 / 55%);
-}
-
-.ic-turn-rail-item:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--focus, #8a7a5c) 55%, transparent);
-  outline-offset: -2px;
-}
-
-.ic-turn-rail-item.on {
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.ic-turn-rail-hint {
-  display: block;
-  font-size: 10px;
-  opacity: 0.55;
-  margin-bottom: 2px;
-  transition: opacity 0.2s;
-}
-
-.ic-turn-rail-title {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Collapsed rail: dots only */
-.ic-body:not(:hover):not(.rail-open):not(:focus-within) .ic-turn-rail-item {
-  font-size: 0;
-  line-height: 0;
-  padding: 12px 0;
-  text-align: center;
-}
-
-.ic-body:not(:hover):not(.rail-open):not(:focus-within) .ic-turn-rail-hint,
-.ic-body:not(:hover):not(.rail-open):not(:focus-within) .ic-turn-rail-title {
-  opacity: 0;
-  height: 0;
-  margin: 0;
-  overflow: hidden;
+/*
+ * External history dock (PEL-148 + React Bits Line Sidebar).
+ * Positioned on the card's right border — does not shrink the card.
+ */
+.ic-history-dock {
   position: absolute;
-  width: 1px;
-  clip: rect(0 0 0 0);
+  top: 52px;
+  bottom: 12px;
+  left: 100%;
+  /* sit flush on the outer right border */
+  margin-left: -1px;
+  z-index: 6;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  pointer-events: none;
 }
 
-.ic-body:not(:hover):not(.rail-open):not(:focus-within) .ic-turn-rail-item::after {
+.ic-history-hit {
+  pointer-events: auto;
+  width: 14px;
+  flex-shrink: 0;
+  /* invisible grip on the card edge */
+  cursor: ew-resize;
+  background: transparent;
+}
+
+.ic-history-hit::after {
   content: "";
   display: block;
-  width: 7px;
-  height: 7px;
+  width: 3px;
+  height: 40%;
+  min-height: 48px;
+  margin: auto;
+  margin-top: 28%;
   border-radius: 999px;
-  background: #b7aea2;
-  margin: 0 auto;
-  transition:
-    transform 0.18s,
-    background 0.18s;
+  background: color-mix(in srgb, var(--line-strong) 70%, transparent);
+  opacity: 0.35;
+  transition: opacity 0.18s var(--ease-soft), background 0.18s, height 0.18s;
 }
 
-.ic-body:not(:hover):not(.rail-open):not(:focus-within) .ic-turn-rail-item.on::after {
-  background: var(--ink);
-  transform: scale(1.2);
+.ic-history-dock:hover .ic-history-hit::after,
+.ic-history-dock.is-open .ic-history-hit::after {
+  opacity: 0.85;
+  height: 52%;
+  background: color-mix(in srgb, var(--accent) 55%, var(--line-strong));
+}
+
+.ic-history-panel {
+  pointer-events: none;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: 176px;
+  max-width: 176px;
+  height: 100%;
+  min-height: 0;
+  opacity: 0;
+  transform: translateX(-8px);
+  transition:
+    opacity 0.2s var(--ease-soft),
+    transform 0.28s var(--ease-out);
+  /* paper chip floating outside the card */
+  background: color-mix(in srgb, var(--bg-card) 94%, var(--bg-app));
+  border: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  border-left: 1px solid color-mix(in srgb, var(--line-strong) 55%, transparent);
+  border-radius: 0 14px 14px 0;
+  box-shadow: var(--e2);
+  overflow: hidden;
+}
+
+.ic-history-dock.is-open .ic-history-panel,
+.ic-history-dock:hover .ic-history-panel,
+.ic-history-dock:focus-within .ic-history-panel {
+  pointer-events: auto;
+  opacity: 1;
+  transform: none;
+}
+
+.ic-history-panel .line-sidebar {
+  height: 100%;
+  padding-left: 4px;
 }
 
 .ic-turn.rail-target {

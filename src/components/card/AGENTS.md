@@ -11,7 +11,8 @@ Parent: `src/AGENTS.md`. Interaction reference: `知识库/docs/explore-card-int
 | `InquiryCard.tsx` | Focused card composition |
 | `CardHeader.tsx` | Title / path / header actions |
 | `TurnItem.tsx` | One turn; collapse; hover affordances |
-| `TurnHistoryRail.tsx` | Card-right multi-turn history (PEL-148 / Explore rail) |
+| `TurnHistoryRail.tsx` | External right-edge multi-turn history dock (PEL-148) |
+| `LineSidebar.tsx` | React Bits proximity sidebar used by the history dock |
 | `EdgeActions.tsx` | Card-edge **深挖 / 发散** only |
 | `Composer.tsx` | Outside-card composer |
 | `icons.tsx` / `card.css` | Icons + motion/layout for the card column |
@@ -23,7 +24,7 @@ Parent: `src/AGENTS.md`. Interaction reference: `知识库/docs/explore-card-int
 - Turn ops (`regenerateTurn`, `deleteTurn`, collapse) stay **on the current card**; regenerate must not spawn nodes.
 - Assistant HTML may include marks (`class="mark" data-term=...`); click handling opens overlays — do not silent-deepen.
 - Wire mutations through `useWorkspace`, not local fake graphs.
-- **Turn history rail** lives on the **card body right edge** (narrow dots → expand titles on hover). It is **not** the workspace graph. Click expands/jumps to that turn.
+- **Turn history** docks **outside** the card, flush on the right border (hover edge strip → Line Sidebar). Must not squeeze card width. Wheel scrolls the list. Not the workspace graph.
 
 ## Do not
 

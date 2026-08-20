@@ -283,7 +283,7 @@ button:focus-visible,
   font-size: 11px;
 }
 
-/* Focus: card centered; leave room for locus chip on the right. */
+/* Focus: card centered; leave room for locus chip + external history dock. */
 .center-stage {
   position: relative;
   z-index: 1;
@@ -294,6 +294,8 @@ button:focus-visible,
   gap: 10px;
   background: transparent;
   min-height: 0;
+  /* history Line Sidebar docks outside the card on the right */
+  overflow: visible;
 }
 
 /* Locus peek — page-margin annotation; collapsed until proximity/hover */

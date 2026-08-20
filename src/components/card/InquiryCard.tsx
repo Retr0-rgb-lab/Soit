@@ -86,7 +86,8 @@ export default function InquiryCard() {
   const [spawnError, setSpawnError] = useState<string | null>(null);
   /** PEL-148: which turn the history rail treats as current / jumped-to */
   const [activeTurnId, setActiveTurnId] = useState<string | null>(null);
-  const [railPinned, setRailPinned] = useState(false);
+  /** External right-edge history dock open (hover hit strip / panel). */
+  const [historyOpen, setHistoryOpen] = useState(false);
   const prevFocusRef = useRef(focusId);
   const msgsRef = useRef<HTMLDivElement | null>(null);
 
@@ -99,7 +100,7 @@ export default function InquiryCard() {
     setChooser(null);
     setSpawnError(null);
     setActiveTurnId(null);
-    setRailPinned(false);
+    setHistoryOpen(false);
     if (!focusId) return;
 
     const prev = prevFocusRef.current;
@@ -409,7 +410,7 @@ export default function InquiryCard() {
     (turnId: string) => {
       if (!focusId) return;
       setActiveTurnId(turnId);
-      setRailPinned(true);
+      setHistoryOpen(true);
       const turn = turns.find((t) => t.id === turnId);
       if (turn?.collapsed) {
         toggleTurnCollapsed(turnId, focusId);
@@ -456,6 +457,8 @@ export default function InquiryCard() {
               <CardHeader
                 crumbs={crumbs}
                 title={focus.title}
+                status={focus.status ?? null}
+                question={focus.question ?? null}
                 parent={parent}
                 vaultBound={Boolean(vaultPath)}
                 onPrecipitateConcept={onPrecipitateConcept}
@@ -475,13 +478,7 @@ export default function InquiryCard() {
                   window.dispatchEvent(new CustomEvent("soit:open-palette"))
                 }
               />
-              <div
-                className={`ic-body${railPinned ? " rail-open" : ""}`}
-                onMouseLeave={() => {
-                  // Keep expanded while pinned after a selection; clear pin on leave.
-                  setRailPinned(false);
-                }}
-              >
+              <div className="ic-body">
                 <div className="ic-msgs" ref={msgsRef}>
                   {turns.length === 0 ? (
                     <p className="inquiry-empty" style={{ padding: "12px 0" }}>
@@ -513,13 +510,16 @@ export default function InquiryCard() {
                     ))
                   )}
                 </div>
-                <TurnHistoryRail
-                  turns={turns}
-                  activeTurnId={railActiveId}
-                  onSelect={onSelectHistoryTurn}
-                />
               </div>
             </article>
+            {/* Outside card — flush right edge; does not squeeze card width */}
+            <TurnHistoryRail
+              turns={turns}
+              activeTurnId={railActiveId}
+              onSelect={onSelectHistoryTurn}
+              open={historyOpen}
+              onOpenChange={setHistoryOpen}
+            />
           </div>
         </div>
       </div>
