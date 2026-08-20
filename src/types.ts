@@ -37,6 +37,10 @@ export interface SourceSpan {
   markId?: string;
   start?: number;
   end?: number;
+  /** Optional doc-companion anchor (PEL-156). */
+  docPath?: string;
+  docPage?: number;
+  docKind?: string;
 }
 
 /** First-class edge between inquiry cards (deepen | diverge). */
