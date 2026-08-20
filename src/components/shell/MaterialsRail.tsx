@@ -42,9 +42,14 @@ export default function MaterialsList({
   const refreshMaterials = useWorkspace((s) => s.refreshMaterials);
   const selectMaterial = useWorkspace((s) => s.selectMaterial);
   const importMaterials = useWorkspace((s) => s.importMaterials);
+  const leave = useWorkspace((s) => s.leave);
+  const spaceBusy = useWorkspace((s) => s.spaceBusy);
+  const shellPhase = useWorkspace((s) => s.shellPhase);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const unbound = !vaultPath && source !== "demo";
+  const leaveBusy =
+    spaceBusy || shellPhase === "entering" || shellPhase === "leaving";
 
   const onImportClick = useCallback(() => {
     if (importBusy || unbound) return;
@@ -129,22 +134,17 @@ export default function MaterialsList({
       <div className="materials-pane__body">
         {unbound ? (
           <div className="materials-pane__empty">
-            <p>尚未绑定 Obsidian vault。</p>
+            <p>尚未进入工作区。</p>
             <p className="materials-pane__hint">
-              请先在设置 · 空间绑定本机路径，再浏览 materials/。
+              请先退出到门厅，选择本机 Obsidian 库后再浏览 materials/。
             </p>
             <button
               type="button"
               className="materials-pane__btn is-primary"
-              onClick={() => {
-                window.dispatchEvent(
-                  new CustomEvent("soit:open-settings", {
-                    detail: { section: "space" },
-                  }),
-                );
-              }}
+              disabled={leaveBusy}
+              onClick={() => void leave()}
             >
-              打开设置 · 空间
+              {shellPhase === "leaving" ? "退出中…" : "退出工作区"}
             </button>
           </div>
         ) : listStatus === "loading" && entries.length === 0 ? (

@@ -4,20 +4,26 @@ import type { SkillInfo } from "../../../types";
 import { useWorkspace } from "../../../state/workspaceStore";
 
 type Props = {
-  /** Prefer jumping to space tab inside the open settings modal. */
+  /** @deprecated Prefer leave → hall; kept for SettingsPanel optional prop. */
   onNeedVault?: () => void;
 };
 
 /**
  * Settings · 技能 — list/toggle/refresh only (no fullscreen root, no Esc).
- * Spec v1.1 §2.4
+ * Unbound CTA → 门厅 / leave，not settings·空间 as hall (workspace-hall §2.6).
  */
-export default function SkillsList({ onNeedVault }: Props) {
+export default function SkillsList({ onNeedVault: _onNeedVault }: Props) {
   const vaultPath = useWorkspace((s) => s.vaultPath);
+  const leave = useWorkspace((s) => s.leave);
+  const spaceBusy = useWorkspace((s) => s.spaceBusy);
+  const shellPhase = useWorkspace((s) => s.shellPhase);
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const leaveBusy =
+    spaceBusy || shellPhase === "entering" || shellPhase === "leaving";
 
   const refresh = useCallback(async () => {
     if (!vaultPath) {
@@ -42,16 +48,8 @@ export default function SkillsList({ onNeedVault }: Props) {
     void refresh();
   }, [refresh]);
 
-  const goBindVault = () => {
-    if (onNeedVault) {
-      onNeedVault();
-      return;
-    }
-    window.dispatchEvent(
-      new CustomEvent("soit:open-settings", {
-        detail: { section: "space" },
-      }),
-    );
+  const goHall = () => {
+    void leave();
   };
 
   const toggle = async (skill: SkillInfo) => {
@@ -79,13 +77,14 @@ export default function SkillsList({ onNeedVault }: Props) {
 
       {!vaultPath ? (
         <div className="settings-empty-block">
-          <p>请先绑定本库，才能管理该库下的技能。</p>
+          <p>请先在门厅选择工作区，才能管理该库下的技能。</p>
           <button
             type="button"
             className="settings-btn primary"
-            onClick={goBindVault}
+            disabled={leaveBusy}
+            onClick={goHall}
           >
-            去绑定本库
+            {shellPhase === "leaving" ? "退出中…" : "退出工作区"}
           </button>
         </div>
       ) : loading && skills.length === 0 ? (

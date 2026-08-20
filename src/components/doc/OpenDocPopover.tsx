@@ -47,6 +47,9 @@ export default function OpenDocPopover({ open, onClose }: Props) {
   const openDoc = useWorkspace((s) => s.openDoc);
   const vaultPath = useWorkspace((s) => s.vaultPath);
   const source = useWorkspace((s) => s.source);
+  const leave = useWorkspace((s) => s.leave);
+  const spaceBusy = useWorkspace((s) => s.spaceBusy);
+  const shellPhase = useWorkspace((s) => s.shellPhase);
 
   const [path, setPath] = useState("");
   const [recent, setRecent] = useState<string[]>([]);
@@ -54,6 +57,8 @@ export default function OpenDocPopover({ open, onClose }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const unbound = !vaultPath && source !== "demo";
+  const leaveBusy =
+    spaceBusy || shellPhase === "entering" || shellPhase === "leaving";
 
   useEffect(() => {
     if (!open) return;
@@ -111,7 +116,7 @@ export default function OpenDocPopover({ open, onClose }: Props) {
         <h2 className="open-doc-pop__title">打开文档</h2>
         {unbound ? (
           <p className="open-doc-pop__hint">
-            尚未绑定 Obsidian vault。请先在设置 · 空间绑定本机路径，再打开库内文档。
+            尚未进入工作区。请先退出到门厅，选择本机 Obsidian 库后再打开文档。
           </p>
         ) : (
           <p className="open-doc-pop__hint">
@@ -133,16 +138,13 @@ export default function OpenDocPopover({ open, onClose }: Props) {
             <button
               type="button"
               className="open-doc-pop__btn is-primary"
+              disabled={leaveBusy}
               onClick={() => {
                 onClose();
-                window.dispatchEvent(
-                  new CustomEvent("soit:open-settings", {
-                    detail: { section: "space" },
-                  }),
-                );
+                void leave();
               }}
             >
-              打开设置 · 空间
+              {shellPhase === "leaving" ? "退出中…" : "退出工作区"}
             </button>
           </div>
         ) : (
