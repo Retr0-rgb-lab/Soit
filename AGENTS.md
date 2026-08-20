@@ -9,6 +9,7 @@ Soit is a **local Agent Host** (Tauri 2 + React): session/inquiry cards in-app, 
 - Cold start must stay fast: no blocking vault walk, no multi-DB open, **no model/auth network**, **no first-paint CDN fonts** (`fonts.googleapis.com` / remote CSS).
 - Product decisions live in `知识库/docs/` — change consensus docs before code when behavior/identity shifts.
 - v1 forks are only **深挖 (deepen)** and **发散 (diverge)**; **重生/regenerate stays on the same card** (no third node kind, no merge of inquiries).
+- **Agent dual-track** (主轨 Inquiry Assistant + 副轨 External Runtime handoff): see `知识库/docs/共识.md` §6.1; implementation contract `docs/superpowers/specs/2026-08-20-agent-dual-track-spec.md` v1.1.
 - App code lives under `src/` and `src-tauri/` — never under `知识库/`.
 
 ## Commands

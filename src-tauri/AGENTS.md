@@ -43,6 +43,12 @@ Project-wide: root `AGENTS.md`. IPC types mirrored in `../src/types.ts` and `../
 | `get_last_vault` / `set_last_vault` | Remembered vault path in app config (`soit-session.json`) — **not** universe.db; bootstrap never opens DB |
 | `select_vault` | Thin wrapper → `open_universe` (compat) |
 | `ping` | Health `"pong"` |
+| `list_runtimes` | *(planned dual-track)* detect mock + optional CLIs; no process spawn on list |
+| `get_runtime_preferences` / `set_runtime_preferences` | *(planned)* `soit-runtime.json` in app config — **not** universe.db |
+| `start_runtime_handoff` | *(planned)* stage brief under `vault/.soit/runs/<runId>/`; mock path required for acceptance |
+| `get_runtime_run` / `cancel_runtime_run` | *(planned)* poll/cancel handoff; runs sandbox ≠ card source |
+
+Runtime commands are foreshadowed by dual-track spec v1.1 (`docs/superpowers/specs/2026-08-20-agent-dual-track-spec.md`); handlers may not exist yet — add permission + capability when implementing.
 
 ## Load matrix
 
