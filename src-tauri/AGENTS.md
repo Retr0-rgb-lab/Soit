@@ -14,7 +14,7 @@ Project-wide: root `AGENTS.md`. IPC types mirrored in `../src/types.ts` and `../
 | `src/obsidian/` | `concepts/` precipitate + `inquiry/` residue (no full transcripts) |
 | `src/skills.rs` | SKILL.md index, seed, enable/disable, inject text (soft cap 32768) |
 | `src/chat_config.rs` | BYOK JSON under app config dir (not universe.db) |
-| `src/session_config.rs` | `soit-session.json` lastVault (app config; not universe.db) |
+| `src/session_config.rs` | `soit-session.json` SessionConfig v1: lastVault + recentVaults≤8 (app config; not universe.db) |
 | `src/runtime/` | External runtime detect / `soit-runtime.json` prefs / mock handoff (P0; no shell plugin) |
 | `src/main.rs` | Binary entry |
 | `tauri.conf.json` | Window title **Soit**, id `lab.soit.app`, devUrl `5173`; non-null CSP |
@@ -27,8 +27,8 @@ Project-wide: root `AGENTS.md`. IPC types mirrored in `../src/types.ts` and `../
 | Command | Contract |
 |---------|----------|
 | `get_bootstrap_state` | Instant `{ phase: "ready_ui", vault, lastVault, version }` — **no** DB open / network; `lastVault` from app config only |
-| `open_universe(path)` | Absolute path only + canonicalize; ensure `vault/.soit/`, open `universe.db`, seed skills; on success write `lastVault`; `{ ok, path, snapshot? }` with `source: empty\|universe` |
-| `close_universe` | Drop DB handle; clear vault bind — **does not** clear `lastVault` |
+| `open_universe(path)` | Absolute path only + canonicalize; ensure `vault/.soit/`, open `universe.db`, seed skills; on success write `lastVault` + `push_recent`; `{ ok, path, snapshot? }` with `source: empty\|universe` |
+| `close_universe` | Drop DB handle; clear vault bind — **does not** clear `lastVault` / recents |
 | `get_workspace_snapshot` | Open universe → DB snapshot (stuck/next + last_focus_id); unbound → `source: "demo"` nodes `[]` |
 | `create_root_inquiry(title, question?)` | Host ids; insert root card + seed turn; return snapshot |
 | `spawn_inquiry(kind, fromCardId, source, why?, actor?)` | `deepen` \| `diverge` child + SourceSpan edge (+ deepen seed turn); host ids; focus → child (`last_focus_id`) |
@@ -42,7 +42,8 @@ Project-wide: root `AGENTS.md`. IPC types mirrored in `../src/types.ts` and `../
 | `set_skill_enabled(id, enabled)` | Toggle; id must exist on disk; returns refreshed list |
 | `get_enabled_skills_text` | Concat enabled skill bodies for chat inject (soft cap 32768 bytes) |
 | `get_chat_config` / `set_chat_config` | BYOK in app config dir — **not** universe.db |
-| `get_last_vault` / `set_last_vault` | Remembered vault path in app config (`soit-session.json`) — **not** universe.db; bootstrap never opens DB |
+| `get_session_config` / `set_session_config` | Full SessionConfig v1 (`lastVault` + `recentVaults`≤8); migrate legacy `{lastVault}` on read; **not** universe.db |
+| `get_last_vault` / `set_last_vault` | Compat: get last only; `set(Some)` → last + push_recent; `set(None)` → clear last only (recents kept); bootstrap never opens DB |
 | `list_runtimes` | Detect known bins on PATH/overrides; **always** includes `mock` available; not called from bootstrap |
 | `get_runtime_prefs` / `set_runtime_prefs` | `soit-runtime.json` in app config — **not** universe.db; default `enableSpawn: false`, `defaultRuntimeId: "mock"` |
 | `start_runtime_handoff` | P0 **mock only** (~800ms); non-mock → Err when `enableSpawn` false or CLI not implemented; optional `brief.md` under `vault/.soit/runs/<runId>/` |

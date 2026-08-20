@@ -104,6 +104,16 @@ description = "Allow set_chat_config command (BYOK; not universe.db)"
 commands.allow = ["set_chat_config"]
 
 [[permission]]
+identifier = "allow-get-session-config"
+description = "Allow get_session_config command (app config session; not universe.db)"
+commands.allow = ["get_session_config"]
+
+[[permission]]
+identifier = "allow-set-session-config"
+description = "Allow set_session_config command (app config session; not universe.db)"
+commands.allow = ["set_session_config"]
+
+[[permission]]
 identifier = "allow-get-last-vault"
 description = "Allow get_last_vault command (app config session; not universe.db)"
 commands.allow = ["get_last_vault"]

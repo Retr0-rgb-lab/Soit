@@ -41,6 +41,7 @@ Parent: `src/AGENTS.md`.
   - skills: `list_skills`, `set_skill_enabled`, `get_enabled_skills_text`
   - BYOK multi-provider: `get_model_settings` / `set_model_settings` (authoritative `ModelSettings`); `get_chat_config` / `set_chat_config` (project active → flat `ChatConfig` / legacy upsert); app config JSON / localStorage — **never** `universe.db`
   - Runtime (dual-track): `list_runtimes` / `get_runtime_prefs` / `set_runtime_prefs` / `start_runtime_handoff` / `cancel_runtime_handoff` — app config + `vault/.soit/runs/`; never treat external session as universe source; browser mock-only
+  - Session: `get_session_config` / `set_session_config` / `get_last_vault` / `set_last_vault` — app config `soit-session.json` (browser LS `soit-session`); open success Host writes last+recent; set last null keeps recents
 - **ModelSettings contract** (`chat/modelSettings.ts`; Rust mirror `src-tauri/src/chat_config.rs`):
   - Shape: `{ version:1, providers[], models[], activeModelId }` — provider = name + baseUrl + apiKey; model = providerId + modelId + optional label + enabled
   - Migrate: legacy flat `ChatConfig` with non-empty key → 1 provider + 1 model + active; empty key → empty catalog

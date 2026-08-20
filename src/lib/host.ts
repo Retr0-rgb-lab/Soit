@@ -15,6 +15,7 @@ import type {
   ReadVaultTextResult,
   ResolveVaultDocResult,
   SelectVaultResult,
+  SessionConfig,
   SkillInfo,
   SpawnInquiryHostArgs,
   UpdateCardArgs,
@@ -30,6 +31,12 @@ import {
   upsertFromChatConfig,
   writeModelSettingsToLocalStorage,
 } from "./chat/modelSettings";
+import {
+  normalizeSessionConfig,
+  pushRecentVault,
+  readSessionConfigFromLocalStorage,
+  writeSessionConfigToLocalStorage,
+} from "./sessionConfig";
 import type {
   CancelHandoffResult,
   HandoffResult,
@@ -248,16 +255,54 @@ export async function getBootstrapState(): Promise<BootstrapState> {
   return invoke<BootstrapState>("get_bootstrap_state");
 }
 
+/** Full session config (lastVault + recentVaults). Host / browser LS authority. */
+export async function getSessionConfig(): Promise<SessionConfig> {
+  if (!hasTauri()) {
+    return readSessionConfigFromLocalStorage();
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  const raw = await invoke<SessionConfig>("get_session_config");
+  return normalizeSessionConfig(raw);
+}
+
+/** Write full session config (normalized). */
+export async function setSessionConfig(config: SessionConfig): Promise<void> {
+  const normalized = normalizeSessionConfig(config);
+  if (!hasTauri()) {
+    writeSessionConfigToLocalStorage(normalized);
+    return;
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  await invoke("set_session_config", { config: normalized });
+}
+
 /** App-config last vault path (not universe.db). Bootstrap-safe. */
 export async function getLastVault(): Promise<string | null> {
-  if (!hasTauri()) return null;
+  if (!hasTauri()) {
+    return readSessionConfigFromLocalStorage().lastVault;
+  }
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<string | null>("get_last_vault");
 }
 
-/** Persist or clear last vault in app config. closeUniverse does not clear. */
+/**
+ * Persist or clear last vault in app config.
+ * Some(path) → last + push_recent; null → last only (recents unchanged).
+ * closeUniverse does not clear lastVault.
+ */
 export async function setLastVault(path: string | null): Promise<void> {
-  if (!hasTauri()) return;
+  if (!hasTauri()) {
+    const cur = readSessionConfigFromLocalStorage();
+    if (path != null && path.trim()) {
+      const t = path.trim();
+      writeSessionConfigToLocalStorage(
+        pushRecentVault({ ...cur, lastVault: t }, t),
+      );
+    } else {
+      writeSessionConfigToLocalStorage({ ...cur, lastVault: null });
+    }
+    return;
+  }
   const { invoke } = await import("@tauri-apps/api/core");
   await invoke("set_last_vault", { path });
 }

@@ -25,6 +25,8 @@
     "allow-set-model-settings",
     "allow-get-chat-config",
     "allow-set-chat-config",
+    "allow-get-session-config",
+    "allow-set-session-config",
     "allow-get-last-vault",
     "allow-set-last-vault",
     "allow-list-runtimes",

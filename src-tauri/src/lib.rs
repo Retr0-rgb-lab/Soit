@@ -187,7 +187,7 @@ fn get_workspace_snapshot(state: State<'_, AppState>) -> Result<WorkspaceSnapsho
 }
 
 /// Open vault → ensure .soit/universe.db → return snapshot (empty|universe).
-/// On success, persists lastVault in app config (close does not clear it).
+/// On success, persists lastVault + push_recent in app config (close does not clear them).
 #[tauri::command]
 fn open_universe(
   path: String,
@@ -448,6 +448,8 @@ pub fn run() {
       chat_config::set_model_settings,
       chat_config::get_chat_config,
       chat_config::set_chat_config,
+      session_config::get_session_config,
+      session_config::set_session_config,
       session_config::get_last_vault,
       session_config::set_last_vault,
       runtime::list_runtimes,
