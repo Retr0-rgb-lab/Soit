@@ -75,6 +75,17 @@ export interface BootstrapState {
   version: string;
 }
 
+/**
+ * App-config session (Host `soit-session.json` / browser LS `soit-session`).
+ * Not universe.db. Spec: workspace-hall §2.2.
+ */
+export interface SessionConfig {
+  version: 1;
+  lastVault: string | null;
+  /** Newest first, ≤8, absolute paths, deduped. */
+  recentVaults: string[];
+}
+
 export interface SelectVaultResult {
   ok: boolean;
   path: string;

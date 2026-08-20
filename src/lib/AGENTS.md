@@ -28,6 +28,7 @@ Parent: `src/AGENTS.md`.
 | `chat/modelSettings.ts` | `ModelSettings` v1 types, migrate flat `ChatConfig`, `resolveChatConfig` / `activeModelLabel`, LS read/write + legacy key migrate |
 | `math/tex.ts` | Shared KaTeX protect/render (`protectAndRenderMath`) for assistant + doc md; same PH alphabet as code slots; fallback `<code class="soit-math-fallback">` |
 | `runtime/` | RuntimeId/info/prefs types + localStorage prefs mirror — spec §2.5; host wrappers in `host.ts` |
+| `sessionConfig.ts` | SessionConfig v1 normalize/migrate/push/remove recentVaults (≤8); LS `soit-session`; Host authority via `host.ts` |
 
 ## Rules
 
