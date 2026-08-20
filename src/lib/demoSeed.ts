@@ -37,6 +37,20 @@ const demoEdges: Edge[] = [
   },
 ];
 
+/**
+ * Hall / unbound empty graph — source demo + zero nodes.
+ * Spec workspace-hall §2.1: picker must not inject product demo cards.
+ */
+export function unboundEmptySnapshot(): WorkspaceSnapshot {
+  return {
+    source: "demo",
+    focusId: "",
+    nodes: [],
+    edges: [],
+    turnsByCardId: {},
+  };
+}
+
 /** In-memory demo universe (mirrors prototype B seed). */
 export function demoSnapshot(): WorkspaceSnapshot {
   return {

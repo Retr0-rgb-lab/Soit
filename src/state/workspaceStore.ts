@@ -23,6 +23,7 @@ import { rootOf, subtreeIds } from "../lib/threadDebt";
 import type {
   Edge,
   InquiryNode,
+  SessionConfig,
   SourceSpan,
   Turn,
   VaultDocKind,
@@ -30,6 +31,10 @@ import type {
 } from "../types";
 import { createChatActions } from "./chatActions";
 import { createRuntimeActions } from "./runtimeActions";
+import {
+  createSpaceNavActions,
+  type ShellPhase,
+} from "./spaceNav";
 import {
   afterFocus,
   cloneEdges,
@@ -44,7 +49,7 @@ import {
   type StoreSet,
 } from "./turnHelpers";
 
-export type { MaterialsRailState };
+export type { MaterialsRailState, ShellPhase };
 
 export type WorkspaceMode = "focus" | "map";
 
@@ -86,6 +91,17 @@ export interface WorkspaceState {
   source: WorkspaceSnapshot["source"] | null;
   /** Bound vault path from host bootstrap / open_universe */
   vaultPath: string | null;
+  /**
+   * Top-level hall vs workspace (orthogonal to workspaceMode focus/map).
+   * Default picker — workspace-hall §2.1.
+   */
+  shellPhase: ShellPhase;
+  /** True while shellPhase is entering|leaving. */
+  spaceBusy: boolean;
+  /** Last enter/switch failure message; cleared on success / dismiss. */
+  enterError: string | null;
+  /** Host session mirror (lastVault + recents); null until refresh. */
+  sessionConfig: SessionConfig | null;
   workspaceMode: WorkspaceMode;
   mapScopeMode: MapScopeMode;
   recentIds: string[];
@@ -101,6 +117,7 @@ export interface WorkspaceState {
   /**
    * Monotonic boot/load generation (Spec §6.3).
    * Stale `loadSnapshot(snap, epoch)` is ignored when epoch !== bootEpoch.
+   * Also used as navEpoch for enter/leave/switch.
    */
   bootEpoch: number;
   /** Active Inquiry complete; null when idle. */
@@ -120,6 +137,16 @@ export interface WorkspaceState {
   beginBootLoad: () => number;
   loadSnapshot: (snap: WorkspaceSnapshot, epoch?: number) => void;
   setVaultPath: (path: string | null) => void;
+  /** Open vault → workspace (hall §2.5). */
+  enter: (path: string) => Promise<void>;
+  /** Close vault → picker; does not clear lastVault. */
+  leave: () => Promise<void>;
+  /** Close then open another vault in one nav transaction. */
+  switch: (path: string) => Promise<void>;
+  /** Remove path from session recents (and lastVault if match). */
+  forget: (path: string) => Promise<void>;
+  /** error → picker; clear enterError. */
+  dismissEnterError: () => void;
   focusNode: (id: string) => void;
   setWorkspaceMode: (mode: WorkspaceMode) => void;
   setMapScopeMode: (mode: MapScopeMode) => void;
@@ -333,6 +360,7 @@ async function finishDocLoad(
 export const useWorkspace = create<WorkspaceState>((set, get) => {
   const chat = createChatActions(set as StoreSet, get as StoreGet);
   const runtime = createRuntimeActions(set as StoreSet, get as StoreGet);
+  const space = createSpaceNavActions(set as StoreSet, get as StoreGet);
 
   return {
     nodes: [],
@@ -341,6 +369,10 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     focusId: "",
     source: null,
     vaultPath: null,
+    shellPhase: "picker",
+    spaceBusy: false,
+    enterError: null,
+    sessionConfig: null,
     workspaceMode: "focus",
     mapScopeMode: "working",
     recentIds: [],
@@ -364,6 +396,12 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     },
 
     setVaultPath: (path) => set({ vaultPath: path }),
+
+    enter: space.enter,
+    leave: space.leave,
+    switch: space.switch,
+    forget: space.forget,
+    dismissEnterError: space.dismissEnterError,
 
     loadSnapshot: (snap, epoch) => {
       if (epoch !== undefined && epoch !== get().bootEpoch) return;
