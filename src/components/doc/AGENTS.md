@@ -10,7 +10,7 @@ Parent: `src/AGENTS.md`. Spec SSoT: `docs/superpowers/specs/2026-08-20-doc-compa
 | File | Role |
 |------|------|
 | `DocPane.tsx` | Chrome: title, close, split/doc-wide/peek layout, loading/error/retry; body host; owns selection UI state. **加宽** toggles layout only (fraction law in shell `SplitSash`) |
-| `MdTextView.tsx` | md/text body; text=`<pre>`; md=escaped lightweight subset (**no** `wrapMarks`) |
+| `MdTextView.tsx` | md/text body; text=`<pre>`; md=escaped lightweight subset (**no** `wrapMarks`); pipeline **escape → code put → `protectAndRenderMath` → md subset → restore** (math-katex §2.5); host `.md-text-view` |
 | `PdfGuide.tsx` | pdf/unsupported guide — path, size, copy; **no** iframe/base64 |
 | `OpenDocPopover.tsx` | Path input + recent 5 (`soit-doc-recent`); submit → `openDoc`; unbound → guide to 设置·空间 |
 | `doc.css` | Tokens only (`--bg-panel` / `--ink` / …); no hard-coded cream/white fills |
@@ -24,6 +24,7 @@ Parent: `src/AGENTS.md`. Spec SSoT: `docs/superpowers/specs/2026-08-20-doc-compa
 - P0 pdf = guide only. Embedded pdfjs is out of scope here.
 - **Selection:** DocPane owns selBar/chooser/float; reuse `SelectionBar` / `DirectionChooser` / `TermFloat`. Quote → `formatDocAnchorQuote` → `soit:set-composer-quote` (InquiryCard sets composer chip). Spawn via **`spawnInquiry` full text** + `docPath`/`docKind`/`docPage?`; disable deepen/diverge when focus card has no turns (toast「先在卡内有一轮对话」).
 - **Return-to-source:** when edge `SourceSpan.docPath` set, focus parent then `openDoc(docPath)` (+ page clue); else existing turn highlight.
+- **Math (P0):** `$…$` / `$$…$$` via shared `lib/math/tex.ts` (same PH as code). Styles under `.md-text-view .soit-math*`; `.katex { color: inherit }`. Spec: `docs/superpowers/specs/2026-08-20-math-katex-spec.md`. No CDN KaTeX/fonts.
 
 ## Do not
 
@@ -32,3 +33,4 @@ Parent: `src/AGENTS.md`. Spec SSoT: `docs/superpowers/specs/2026-08-20-doc-compa
 - Hard-code `#fff` / cream panel fills (breaks 墨夜).
 - Persist DocSession into universe.db.
 - Share reducer/state with CardPip.
+- Load KaTeX/CSS from CDN; invent a second PH namespace for math.

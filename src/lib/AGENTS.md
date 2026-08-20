@@ -26,6 +26,7 @@ Parent: `src/AGENTS.md`.
 | `marks.ts` | Mark DOM helpers for assistant HTML (no static term-explanation dictionary) |
 | `chat/` | ChatPort + MockChat + OpenAI-compat BYOK + config + **`modelSettings`** + systemPrompt + `assistantHtml` / `explain` (Inquiry main track) |
 | `chat/modelSettings.ts` | `ModelSettings` v1 types, migrate flat `ChatConfig`, `resolveChatConfig` / `activeModelLabel`, LS read/write + legacy key migrate |
+| `math/tex.ts` | Shared KaTeX protect/render (`protectAndRenderMath`) for assistant + doc md; same PH alphabet as code slots; fallback `<code class="soit-math-fallback">` |
 | `runtime/` | RuntimeId/info/prefs types + localStorage prefs mirror — spec §2.5; host wrappers in `host.ts` |
 
 ## Rules
@@ -50,7 +51,8 @@ Parent: `src/AGENTS.md`.
 - **SplitRatio** (`splitRatio.ts`): `--doc-fraction` ∈ [0.28, 0.72], default 0.42, wide display 0.68; localStorage only. UI host is `components/shell/SplitSash.tsx`.
 - **`formatDocAnchorQuote`** (`composerPayload.ts`): `{ path, text, page? }` → `（path [p.N]）\ntext` single quote string for composer; no multi-chip `docQuotes[]` in v1.
 - Chat secrets: app config / localStorage only — never `universe.db`; UI lists show 已配置/未配置 only, never plaintext keys.
-- **`renderAssistantHtml`** (`chat/assistantHtml.ts`): safe subset pipeline order — **escapeHtml → code protect → wrapMarks → md-subset** (paragraphs/lists/headings/bold/code). Whitelist tags only from the pipeline; **never trust model HTML**. `completeResultToHtml` delegates here.
+- **`renderAssistantHtml`** (`chat/assistantHtml.ts`): safe subset pipeline order — **escapeHtml → code protect → math (`protectAndRenderMath`) → wrapMarks → md-subset** (paragraphs/lists/headings/bold/code). Whitelist tags only from the pipeline; **never trust model HTML**. `completeResultToHtml` delegates here. Math SSoT: `docs/superpowers/specs/2026-08-20-math-katex-spec.md` (bundled `katex` only; no CDN).
+- **`protectAndRenderMath`** (`math/tex.ts`): runs on already-escaped text after code PH; `$…$` inline / `$$…$$` block; tex body `htmlUnescape` then KaTeX; display PH on its own line for `PH_ONLY`; `stripHtml` restores `$`/`$$` via `data-tex`. Doc preview reuses the same helper (`MdTextView` / `renderDocMd`).
 - **`ChatPort.explain?` / `explainSpan`** (`state/explainActions.ts`): short 2–4 sentence explain; **no marks required, no db/turns write, no spawn**. UI sole entry is `explainSpan` (resolves port); overlays must not call `port.explain` or `fetch`.
 - **Deepen scope v2** (`deepenScope.ts`): `{ parent: { title, status, question, stuck, next }, span, why, recentTurns }` — **child turns only**; never parent transcript.
 - **Load matrix** (`App.tsx`): only inject `demoSnapshot()` when `source === "demo"`. Never when `empty` or `universe`.

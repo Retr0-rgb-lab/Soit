@@ -393,8 +393,9 @@ Wave 3 (docs / polish):
 - 点 mark **静默深挖** 或默认建卡  
 - 同 span **复用已有子卡**（另案）  
 - Agent 工具循环自动 spawn  
-- 外链预览、图片附件、KaTeX/数学、GFM 表格（可后置）  
-- 新 npm markdown 重型依赖（P0 禁止；若子集不够再开修订）  
+- 外链预览、图片附件、GFM 表格（可后置）  
+- **KaTeX / 数学公式：** 已开做 — 见 `docs/superpowers/specs/2026-08-20-math-katex-spec.md`（SSoT）；本 Spec 不再 defer  
+- 新 npm markdown 重型依赖（P0 禁止；**定向豁免仅 `katex`**，见 math-katex-spec §2.1；不引入 remark/rehype/mathjax）  
 - 设置壳 / FocusOrbit / PathLineNav 本波改动  
 - 技能市场、代码插件  
 

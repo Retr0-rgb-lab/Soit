@@ -1,4 +1,5 @@
 import type { Edge, WorkspaceSnapshot } from "../types";
+import { renderAssistantHtml } from "./chat/assistantHtml";
 
 /** Demo edges matching the seeded tree (parentId denormalized). */
 const demoEdges: Edge[] = [
@@ -58,7 +59,9 @@ export function demoSnapshot(): WorkspaceSnapshot {
           user: "从线性代数开始。",
           think: "",
           thinkOpen: false,
-          aiHtml: "这是宇宙根探究。从这里深挖会进入范畴论。",
+          aiHtml: renderAssistantHtml(
+            "这是宇宙根探究。从这里深挖会进入范畴论。\n\n质量–能量：$E=mc^2$。半份：\n\n$$\\frac{1}{2}$$",
+          ),
         },
       ],
       c2: [
