@@ -20,6 +20,26 @@ import {
   readChatConfigFromLocalStorage,
   writeChatConfigToLocalStorage,
 } from "./chat/config";
+import type {
+  CancelHandoffResult,
+  HandoffResult,
+  RuntimeInfo,
+  RuntimePreferences,
+  StartRuntimeHandoffArgs,
+} from "./runtime/types";
+import {
+  MOCK_HANDOFF_TEXT,
+  MOCK_RUNTIME_INFO,
+} from "./runtime/types";
+import {
+  normalizeRuntimePrefs,
+  readRuntimePrefsFromLocalStorage,
+  writeRuntimePrefsToLocalStorage,
+} from "./runtime/prefs";
+
+/** Browser-only mock handoff cancel flag (at most one in-flight). */
+let browserHandoffCancel = false;
+let browserHandoffActive = false;
 
 function hasTauri(): boolean {
   if (typeof window === "undefined") return false;
@@ -290,5 +310,131 @@ export async function setChatConfig(config: ChatConfig): Promise<void> {
     await invoke("set_chat_config", { config: cfg });
   } catch {
     // localStorage already written
+  }
+}
+
+/**
+ * Detect known runtimes (PATH / overrides). Always includes mock.
+ * Browser: mock-only. Not for bootstrap — call from settings / user action.
+ */
+export async function listRuntimes(): Promise<RuntimeInfo[]> {
+  if (!hasTauri()) {
+    return [{ ...MOCK_RUNTIME_INFO }];
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<RuntimeInfo[]>("list_runtimes");
+}
+
+/**
+ * Runtime prefs — never universe.db.
+ * Tauri: `{app_config_dir}/soit-runtime.json`. Browser: localStorage only.
+ */
+export async function getRuntimePrefs(): Promise<RuntimePreferences> {
+  if (!hasTauri()) {
+    return readRuntimePrefsFromLocalStorage();
+  }
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const raw = await invoke<Partial<RuntimePreferences>>("get_runtime_prefs");
+    return normalizeRuntimePrefs(raw);
+  } catch {
+    return readRuntimePrefsFromLocalStorage();
+  }
+}
+
+export async function setRuntimePrefs(
+  prefs: RuntimePreferences,
+): Promise<RuntimePreferences> {
+  const normalized = normalizeRuntimePrefs(prefs);
+  writeRuntimePrefsToLocalStorage(normalized);
+  if (!hasTauri()) return normalized;
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const saved = await invoke<Partial<RuntimePreferences>>("set_runtime_prefs", {
+      prefs: normalized,
+    });
+    const out = normalizeRuntimePrefs(saved);
+    writeRuntimePrefsToLocalStorage(out);
+    return out;
+  } catch {
+    return normalized;
+  }
+}
+
+/**
+ * Start external runtime handoff. P0: mock path returns terminal result.
+ * Browser: delayed mock text with [[函子]]; cancel via cancelRuntimeHandoff.
+ */
+export async function startRuntimeHandoff(
+  args: StartRuntimeHandoffArgs,
+): Promise<HandoffResult> {
+  if (!hasTauri()) {
+    return browserMockHandoff(args);
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<HandoffResult>("start_runtime_handoff", {
+    args: {
+      cardId: args.cardId,
+      runtimeId: args.runtimeId,
+      briefMarkdown: args.briefMarkdown ?? null,
+    },
+  });
+}
+
+export async function cancelRuntimeHandoff(): Promise<CancelHandoffResult> {
+  if (!hasTauri()) {
+    browserHandoffCancel = true;
+    return { ok: true };
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<CancelHandoffResult>("cancel_runtime_handoff");
+}
+
+async function browserMockHandoff(
+  args: StartRuntimeHandoffArgs,
+): Promise<HandoffResult> {
+  const runtimeId = (args.runtimeId ?? "").trim();
+  if (!runtimeId) {
+    throw new Error("runtime_id is required");
+  }
+  if (runtimeId !== "mock") {
+    throw new Error("spawn disabled");
+  }
+  if (browserHandoffActive) {
+    throw new Error("runtime handoff already in progress");
+  }
+
+  const runId = `run_browser_${Date.now()}`;
+  browserHandoffActive = true;
+  browserHandoffCancel = false;
+
+  try {
+    // ~800ms cancellable wait (chunked), mirrors Host mock.
+    const chunks = 16;
+    const stepMs = 50;
+    for (let i = 0; i < chunks; i++) {
+      if (browserHandoffCancel) {
+        return {
+          runId,
+          status: "cancelled",
+          error: "cancelled",
+        };
+      }
+      await new Promise<void>((r) => setTimeout(r, stepMs));
+    }
+    if (browserHandoffCancel) {
+      return {
+        runId,
+        status: "cancelled",
+        error: "cancelled",
+      };
+    }
+    return {
+      runId,
+      status: "succeeded",
+      text: MOCK_HANDOFF_TEXT,
+    };
+  } finally {
+    browserHandoffActive = false;
   }
 }

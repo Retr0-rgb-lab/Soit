@@ -21,7 +21,7 @@ Parent: `src/AGENTS.md`.
 | `paletteRank.ts` | Command-palette ranking |
 | `marks.ts` | Mark / term helpers for assistant HTML |
 | `chat/` | ChatPort + MockChat + OpenAI-compat BYOK + config + systemPrompt (Inquiry main track) |
-| `runtime/` | *(planned)* RuntimeId/info/prefs types + detect helpers — spec §2.5 |
+| `runtime/` | RuntimeId/info/prefs types + localStorage prefs mirror — spec §2.5; host wrappers in `host.ts` |
 
 ## Rules
 
@@ -31,7 +31,7 @@ Parent: `src/AGENTS.md`.
   - vault MD: `precipitate_concept`, `append_residue`
   - skills: `list_skills`, `set_skill_enabled`, `get_enabled_skills_text`
   - BYOK: `get_chat_config` / `set_chat_config` (app config / localStorage — never `universe.db`)
-- Runtime *(planned, dual-track):* `list_runtimes` / `get_runtime_preferences` / `set_runtime_preferences` / `start_runtime_handoff` / `get_runtime_run` / `cancel_runtime_run` — app config + `vault/.soit/runs/`; never treat external session as universe source
+  - Runtime (dual-track): `list_runtimes` / `get_runtime_prefs` / `set_runtime_prefs` / `start_runtime_handoff` / `cancel_runtime_handoff` — app config + `vault/.soit/runs/`; never treat external session as universe source; browser mock-only
 - Chat secrets: app config / localStorage only — never `universe.db`.
 - **`completeResultToHtml`** (`chat/port.ts`): always `escapeHtml` on model text, then mark spans — **never trust model HTML** (XSS via `dangerouslySetInnerHTML`).
 - **Deepen scope v2** (`deepenScope.ts`): `{ parent: { title, status, question, stuck, next }, span, why, recentTurns }` — **child turns only**; never parent transcript.
