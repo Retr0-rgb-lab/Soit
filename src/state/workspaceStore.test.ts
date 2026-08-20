@@ -265,7 +265,8 @@ describe("workspaceStore", () => {
     };
     const card = useWorkspaceStore.getState().focusId;
     await useWorkspaceStore.getState().appendUserMessage("empty please");
-    const last = useWorkspaceStore.getState().turnsByCardId[card]!.at(-1)!;
+    const turnsEmpty = useWorkspaceStore.getState().turnsByCardId[card]!;
+    const last = turnsEmpty[turnsEmpty.length - 1]!;
     expect(last.aiHtml.length).toBeGreaterThan(0);
     expect(last.aiHtml).toContain("模型返回为空");
   });
@@ -530,7 +531,8 @@ describe("workspaceStore runtime handoff + brief", () => {
     expect(s1.nodes.length).toBe(n0);
     expect(s1.edges.length).toBe(s0.edges.length);
     expect(s1.turnsByCardId[card]!.length).toBe(t0 + 1);
-    const last = s1.turnsByCardId[card]!.at(-1)!;
+    const turnsHandoff = s1.turnsByCardId[card]!;
+    const last = turnsHandoff[turnsHandoff.length - 1]!;
     expect(last.user).toContain("交给本地 Agent");
     expect(last.aiHtml).toBeTruthy();
     expect(last.aiHtml).toContain('class="mark"');

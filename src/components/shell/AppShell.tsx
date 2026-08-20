@@ -5,7 +5,6 @@ import EmptyWorkspace from "./EmptyWorkspace";
 import LeftRail from "./LeftRail";
 import LocusPeek from "./LocusPeek";
 import MapStage from "./MapStage";
-import ReentryBanner from "./ReentryBanner";
 import SettingsPanel, { type SettingsSection } from "./SettingsPanel";
 import { useWorkspace } from "../../state/workspaceStore";
 import "./settings/settings.css";
@@ -19,7 +18,13 @@ function isTypingTarget(t: EventTarget | null): boolean {
 }
 
 function parseSettingsSection(raw: unknown): SettingsSection | null {
-  if (raw === "space" || raw === "model" || raw === "skills" || raw === "about") {
+  if (
+    raw === "space" ||
+    raw === "model" ||
+    raw === "runtime" ||
+    raw === "skills" ||
+    raw === "about"
+  ) {
     return raw;
   }
   return null;
@@ -225,7 +230,6 @@ export default function AppShell() {
         ) : (
           <>
             <main className="center-stage" aria-label="inquiry card">
-              <ReentryBanner />
               <InquiryCard />
             </main>
             <LocusPeek onExpandMap={() => setMode("map")} />

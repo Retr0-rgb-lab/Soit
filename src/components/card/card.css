@@ -1,31 +1,62 @@
 /* Inquiry card (center stage) — prototype B stack chrome */
 
 .inquiry-root {
-  flex: 1;
+  /*
+   * One content column for stack + edge + dock.
+   * Right/bottom padding reserves room for staggered sheets so children share width.
+   */
+  --sheet-peek-x: max(36px, calc(var(--sheet-2-x, 30px) + 10px));
+  --sheet-peek-y: max(28px, calc(var(--sheet-2-y, 22px) + 8px));
+  flex: 0 1 auto;
   min-height: 0;
   min-width: 0;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto auto;
-  gap: 10px;
-  width: min(880px, 100%);
+  grid-template-rows: auto auto auto;
+  gap: 12px;
+  width: min(var(--inquiry-root-max, 1320px), 100%);
+  max-height: 100%;
   margin: 0 auto;
+  align-self: center;
+  isolation: isolate;
+  position: relative;
+  justify-items: stretch;
+  box-sizing: border-box;
+  /* Peek lives in padding — card/dock align to the same content box */
+  padding: 0 var(--sheet-peek-x) 0 0;
+}
+
+/* 专注模式 — only card + composer; shell chrome hidden via :has */
+.inquiry-root.is-focus-mode {
+  width: min(calc(var(--inquiry-root-max, 1320px) + 40px), 100%);
   align-self: stretch;
+  flex: 1 1 auto;
+  max-height: none;
+  grid-template-rows: minmax(0, 1fr) auto auto;
 }
 
 .inquiry-stage {
   position: relative;
-  min-height: 0;
+  width: 100%;
+  height: var(--inquiry-card-max-h, min(68vh, 640px));
+  max-height: min(var(--inquiry-card-max-h, 640px), 100%);
+  min-height: 280px;
   display: flex;
   align-items: stretch;
-  justify-content: center;
-  /* Room for staggered under-sheets (larger offset) */
-  padding: 0 36px 32px 0;
+  justify-content: stretch;
+  padding: 0 0 var(--sheet-peek-y) 0;
   overflow: visible;
+  box-sizing: border-box;
+}
+
+.inquiry-root.is-focus-mode .inquiry-stage {
+  height: var(--inquiry-card-max-h-focus, min(86vh, 900px));
+  max-height: min(var(--inquiry-card-max-h-focus, 900px), 100%);
+  flex: 1 1 auto;
 }
 
 .inquiry-stack {
   position: relative;
-  width: min(820px, 100%);
+  width: 100%;
   height: 100%;
   min-height: 0;
   overflow: visible;
@@ -34,31 +65,87 @@
 .inquiry-sheet {
   position: absolute;
   inset: 0;
+  margin: 0;
+  padding: 14px 18px;
   border-radius: 17px;
   background: color-mix(in srgb, var(--bg-muted) 72%, var(--bg-card));
   border: 1px solid rgb(42 36 28 / 10%);
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: var(--ink-soft);
+  /* Scatter rotates around card body, not a corner pin */
   transform-origin: 50% 40%;
   transition:
     transform var(--motion-sheet) var(--ease-out),
-    opacity var(--motion-sheet) var(--ease-out);
+    opacity var(--motion-sheet) var(--ease-out),
+    box-shadow var(--motion-fade) var(--ease-soft);
+  z-index: 0;
 }
 
-/* Staggered paper stack — slight scatter, not parallel chrome */
+.inquiry-sheet:disabled {
+  pointer-events: none;
+  cursor: default;
+}
+
+.inquiry-sheet:not(:disabled):hover {
+  box-shadow: var(--e2);
+  color: var(--ink);
+}
+
+/* Label in exposed corner of staggered sheet */
+.inquiry-sheet-label {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  max-width: 48%;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.88;
+  pointer-events: none;
+}
+
+/* Staggered scatter — card-motion-locus (not parallel offsets) */
 .inquiry-sheet.s1 {
-  transform: translate(var(--sheet-1-x), var(--sheet-1-y))
-    rotate(var(--sheet-1-r)) scale(var(--sheet-1-s));
+  transform: translate(var(--sheet-1-x, 16px), var(--sheet-1-y, 11px))
+    rotate(var(--sheet-1-r, 1.6deg)) scale(var(--sheet-1-s, 0.978));
   box-shadow: var(--e1);
   opacity: 0.88;
   z-index: 0;
 }
 
 .inquiry-sheet.s2 {
-  transform: translate(var(--sheet-2-x), var(--sheet-2-y))
-    rotate(var(--sheet-2-r)) scale(var(--sheet-2-s));
+  transform: translate(var(--sheet-2-x, 30px), var(--sheet-2-y, 22px))
+    rotate(var(--sheet-2-r, -2.2deg)) scale(var(--sheet-2-s, 0.955));
   box-shadow: 0 1px 2px rgb(42 36 28 / 3%), 0 14px 28px rgb(42 36 28 / 5%);
   opacity: 0.72;
   z-index: 0;
+}
+
+/* While peeling top card, lift under-sheets slightly */
+.inquiry-stack.peeling .inquiry-sheet.s1 {
+  transform: translate(
+      calc(var(--sheet-1-x, 16px) + 4px),
+      calc(var(--sheet-1-y, 11px) + 3px)
+    )
+    rotate(calc(var(--sheet-1-r, 1.6deg) + 0.4deg))
+    scale(calc(var(--sheet-1-s, 0.978) + 0.006));
+  opacity: 0.95;
+}
+
+.inquiry-stack.peeling .inquiry-sheet.s2 {
+  transform: translate(
+      calc(var(--sheet-2-x, 30px) + 6px),
+      calc(var(--sheet-2-y, 22px) + 5px)
+    )
+    rotate(calc(var(--sheet-2-r, -2.2deg) - 0.3deg))
+    scale(calc(var(--sheet-2-s, 0.955) + 0.008));
+  opacity: 0.82;
 }
 
 .inquiry-stack.settle .inquiry-sheet.s1 {
@@ -77,6 +164,8 @@
   z-index: 2;
   /* Allow external history dock to paint outside the card box */
   overflow: visible;
+  transition: transform 0.22s var(--ease-soft);
+  will-change: transform;
 }
 
 .inquiry-card {
@@ -86,13 +175,40 @@
   background: var(--bg-card);
   border: 1px solid color-mix(in srgb, var(--line-strong) 88%, var(--accent) 12%);
   border-radius: 18px;
-  box-shadow: var(--e3);
+  box-shadow:
+    0 1px 0 rgb(255 253 248 / 80%) inset,
+    1px 2px 4px rgb(40 30 18 / 4%),
+    2px 8px 20px rgb(40 30 18 / 6%),
+    3px 16px 32px rgb(40 30 18 / 5%);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   transform-origin: 50% 40%;
   /* Full width of wrap — history docks outside, no grid squeeze */
   width: 100%;
+}
+
+.inquiry-stack.peeling .inquiry-card-wrap {
+  transition: none;
+  cursor: grabbing;
+}
+
+/* Header title zone — peel-drag to switch cards */
+.ic-drag-surface {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  border-radius: 8px;
+}
+
+.ic-drag-surface:active {
+  cursor: grabbing;
+}
+
+.ic-round.on {
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 /* Card switch — short, directional */
@@ -896,8 +1012,8 @@ body.has-selbar .ic-turn-bar {
 
 /* Edge actions — lighter than card */
 .ic-edge {
-  width: min(820px, 100%);
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
   display: flex;
   justify-content: center;
   gap: 96px;
@@ -920,10 +1036,10 @@ body.has-selbar .ic-turn-bar {
   transform: none;
 }
 
-/* Composer dock — e2, not competing with card e3 */
+/* Composer dock — full content column width (= stack); e2 under card e3 */
 .ic-dock-wrap {
-  width: min(820px, 100%);
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -931,8 +1047,8 @@ body.has-selbar .ic-turn-bar {
 }
 
 .ic-spawn-error {
-  width: min(820px, 100%);
-  margin: -4px auto 0;
+  width: 100%;
+  margin: -4px 0 0;
   padding: 0 4px;
   font-size: 12px;
   line-height: 1.35;
@@ -1109,6 +1225,152 @@ body.has-selbar .ic-turn-bar {
   transform: none;
 }
 
+.ic-dock .send.is-stop {
+  background: color-mix(in srgb, var(--danger) 88%, var(--ink));
+  color: #fdf8f2;
+}
+
+.ic-dock .send.is-stop:hover {
+  transform: scale(1.04);
+}
+
+/* Dual-track agent menu — above composer dock */
+.ic-agent-menu {
+  width: 100%;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 8;
+}
+
+.ic-agent-menu-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.ic-agent-btn {
+  border: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 550;
+  padding: 5px 11px;
+  cursor: pointer;
+  box-shadow: var(--e0);
+  transition:
+    background 0.12s var(--ease-soft),
+    border-color 0.12s var(--ease-soft),
+    color 0.12s var(--ease-soft);
+}
+
+.ic-agent-btn:hover:not(:disabled) {
+  background: var(--bg-card);
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.ic-agent-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.ic-agent-btn.on,
+.ic-agent-btn.confirm {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  background: color-mix(in srgb, var(--accent-soft) 50%, var(--bg-card));
+  color: var(--accent);
+}
+
+.ic-agent-btn.handoff.confirm {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg-card);
+}
+
+.ic-agent-btn.primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg-card);
+}
+
+.ic-agent-btn.ghost {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--ink-faint);
+}
+
+.ic-agent-btn.ghost:hover:not(:disabled) {
+  background: var(--bg-muted);
+  color: var(--ink);
+  border-color: transparent;
+}
+
+.ic-agent-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 96%, transparent);
+  box-shadow: var(--e1);
+}
+
+.ic-agent-import-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.ic-agent-import-label textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-muted);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.45;
+  padding: 8px 10px;
+  resize: vertical;
+  min-height: 72px;
+}
+
+.ic-agent-import-label textarea:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--focus) 50%, var(--line-strong));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 14%, transparent);
+}
+
+.ic-agent-panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.ic-agent-feedback {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--ink-soft);
+  padding: 0 2px;
+}
+
+.ic-agent-feedback.err {
+  color: var(--danger);
+}
+
 .ic-quote-chip {
   display: none;
   align-items: center;
@@ -1134,12 +1396,47 @@ body.has-selbar .ic-turn-bar {
 }
 
 .center-stage:has(.inquiry-root) {
-  /* Keep right gutter for locus chip */
-  padding: 16px calc(var(--locus-w, 148px) + 28px) 20px 20px;
+  padding: 16px max(48px, calc(var(--locus-w, 168px) * 0.28 + 28px)) 14px 12px;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: center;
+  justify-content: center;
   min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.center-stage:has(.inquiry-root) .inquiry-root {
+  flex: 0 1 auto;
+  min-height: 0;
+  width: min(var(--inquiry-root-max, 1320px), 100%);
+}
+
+/* 专注模式：满宽舞台，只剩卡片+输入 */
+.center-stage:has(.inquiry-root.is-focus-mode) {
+  justify-content: stretch;
+  padding: 12px 24px 16px;
+}
+
+.center-stage:has(.inquiry-root.is-focus-mode) .inquiry-root {
+  flex: 1 1 auto;
+  width: min(calc(var(--inquiry-root-max, 1320px) + 40px), 100%);
+  max-height: 100%;
+}
+
+/* Hide non-card chrome while in 专注模式 */
+.app-shell:has(.inquiry-root.is-focus-mode) .left-rail,
+.app-shell:has(.inquiry-root.is-focus-mode) .locus-peek,
+.app-shell:has(.inquiry-root.is-focus-mode) .settings-gear {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.inquiry-root.is-focus-mode .ic-edge,
+.inquiry-root.is-focus-mode .ic-history-dock,
+.inquiry-root.is-focus-mode .ic-history-hit {
+  display: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

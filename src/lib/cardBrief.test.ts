@@ -211,7 +211,10 @@ describe("buildCardBrief", () => {
     // 16 turns × (user+assistant) = 32 messages, all from last 16 turns
     expect(brief.messages).toHaveLength(BRIEF_MESSAGE_CAP * 2);
     expect(brief.messages[0]).toEqual({ role: "user", content: "u4" });
-    expect(brief.messages.at(-1)).toEqual({ role: "assistant", content: "a19" });
+    expect(brief.messages[brief.messages.length - 1]).toEqual({
+      role: "assistant",
+      content: "a19",
+    });
     expect(JSON.stringify(brief)).not.toContain(PARENT_TURN_LEAK_MARKER);
   });
 });

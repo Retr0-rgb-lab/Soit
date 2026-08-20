@@ -12,11 +12,11 @@ Parent: `src/AGENTS.md`. Map product notes: `知识库/docs/map-scale-lod.md`.
 | `LeftRail.tsx` | Orbit (top) + PathLineNav (bottom) + hide toggle |
 | `FocusOrbit.tsx` | Stable world orbit + camera pan (orbitNav) |
 | `PathLineNav.tsx` | Line Sidebar: hub→focus radial path only; 7-row window; hide |
-| `SettingsPanel.tsx` | Settings modal — sections 空间 / 模型 / 技能 / **Runtime** / 关于 |
+| `SettingsPanel.tsx` | Settings modal — sections 空间 / 模型 / **运行时** / 技能 / 关于 |
 | `settings/SpaceSection.tsx` | Vault bind / switch / unbind / lastVault |
 | `settings/ModelSettingsForm.tsx` | BYOK (single source; Composer chip only) |
 | `settings/SkillsList.tsx` | Skills toggles (embedded, not a second modal) |
-| `settings/RuntimeSection.tsx` | *(planned dual-track)* detect/list runtimes + prefs; handoff enable — spec v1.1 |
+| `settings/RuntimeSection.tsx` | External coding-agent detect/prefs/handoff enable — spec v1.1 §2.7 |
 | `settings/AboutSection.tsx` | Version + memory boundary copy |
 | `MapStage.tsx` / `GraphCanvas.tsx` | Map mode + SVG graph |
 | `LocusPeek.tsx` | Locus peek |
@@ -36,17 +36,19 @@ Parent: `src/AGENTS.md`. Map product notes: `知识库/docs/map-scale-lod.md`.
 
 - 空间 → open/close universe (path text; no folder dialog v1)
 - 模型 → BYOK; dispatches `soit:chat-config-changed`
+- **运行时** → external coding-agent detect/prefs/`enableSpawn`; fifth section id `runtime` — dual-track spec v1.1
 - 技能 → SkillsList; unbound guides to 空间
-- **Runtime** → *(planned)* external coding-agent detect/prefs/handoff; fifth settings section — dual-track spec v1.1
 - 关于 → version + db/md/key boundaries
+- Nav order (frozen): **空间 · 模型 · 运行时 · 技能 · 关于**
 - Events: `soit:open-settings` `{ section? }` including `runtime`; `soit:open-skills` → settings skills
+- `RuntimeSection` lazy-loads `list_runtimes` + prefs **on first select**, not App boot
 
 ## Rules
 
 - Shell renders without selected vault.
 - Focus only via `useWorkspace.focusNode`.
 - `prefers-reduced-motion` → flat wheel lists.
-- Card stage chrome (fullscreen / drag / motion sync): `知识库/docs/card-stage-chrome.md`. Shared clock `--motion-focus` with FocusOrbit camera.
+- Card stage chrome (专注模式 / drag / motion sync): `知识库/docs/card-stage-chrome.md`. Shared clock `--motion-focus` with FocusOrbit camera.
 
 ## Do not
 

@@ -10,7 +10,7 @@ import {
 import AboutSection from "./settings/AboutSection";
 import "./settings/settings.css";
 
-export type SettingsSection = "space" | "model" | "skills" | "about";
+export type SettingsSection = "space" | "model" | "runtime" | "skills" | "about";
 
 type Props = {
   open: boolean;
@@ -19,27 +19,31 @@ type Props = {
   onSectionChange: (section: SettingsSection) => void;
 };
 
-const NAV: { id: SettingsSection; label: string }[] = [
-  { id: "space", label: "空间" },
-  { id: "model", label: "模型" },
-  { id: "skills", label: "技能" },
-  { id: "about", label: "关于" },
+const NAV: { id: SettingsSection; label: string; hint: string }[] = [
+  { id: "space", label: "空间", hint: "本库 · Obsidian" },
+  { id: "model", label: "模型", hint: "BYOK 密钥" },
+  { id: "runtime", label: "运行时", hint: "本机 Agent" },
+  { id: "skills", label: "技能", hint: "本库启停" },
+  { id: "about", label: "关于", hint: "记忆边界" },
 ];
 
 /** Optional section modules — empty until S2/S3/S4 land the files. */
 const spaceGlob = import.meta.glob("./settings/SpaceSection.tsx");
 const modelGlob = import.meta.glob("./settings/ModelSettingsForm.tsx");
+const runtimeGlob = import.meta.glob("./settings/RuntimeSection.tsx");
 const skillsGlob = import.meta.glob("./settings/SkillsList.tsx");
+
+type SectionComp = ComponentType<Record<string, unknown>>;
 
 function firstLoader(
   glob: Record<string, () => Promise<unknown>>,
-): (() => Promise<{ default: ComponentType }>) | null {
+): (() => Promise<{ default: SectionComp }>) | null {
   const key = Object.keys(glob)[0];
   if (!key) return null;
   const load = glob[key]!;
   return () =>
     load().then((mod) => {
-      const m = mod as { default?: ComponentType };
+      const m = mod as { default?: SectionComp };
       if (m.default) return { default: m.default };
       throw new Error("section module missing default export");
     });
@@ -51,6 +55,10 @@ const lazySpace = (() => {
 })();
 const lazyModel = (() => {
   const load = firstLoader(modelGlob);
+  return load ? lazy(load) : null;
+})();
+const lazyRuntime = (() => {
+  const load = firstLoader(runtimeGlob);
   return load ? lazy(load) : null;
 })();
 const lazySkills = (() => {
@@ -69,11 +77,19 @@ function Placeholder({ section }: { section: SettingsSection }) {
 function OptionalSection({
   section,
   Comp,
+  onNeedVault,
 }: {
   section: SettingsSection;
-  Comp: LazyExoticComponent<ComponentType> | null;
+  Comp: LazyExoticComponent<ComponentType<Record<string, unknown>>> | null;
+  onNeedVault?: () => void;
 }) {
   if (!Comp) return <Placeholder section={section} />;
+  const extra =
+    section === "skills" && onNeedVault
+      ? { onNeedVault }
+      : section === "space"
+        ? { active: true }
+        : {};
   return (
     <Suspense
       fallback={
@@ -82,7 +98,7 @@ function OptionalSection({
         </div>
       }
     >
-      <Comp />
+      <Comp {...extra} />
     </Suspense>
   );
 }
@@ -110,14 +126,24 @@ export default function SettingsPanel({
     };
   }, [open]);
 
+  const goSpace = () => onSectionChange("space");
+
   const body = useMemo(() => {
     if (section === "about") return <AboutSection />;
     if (section === "space")
       return <OptionalSection section="space" Comp={lazySpace} />;
     if (section === "model")
       return <OptionalSection section="model" Comp={lazyModel} />;
-    return <OptionalSection section="skills" Comp={lazySkills} />;
-  }, [section]);
+    if (section === "runtime")
+      return <OptionalSection section="runtime" Comp={lazyRuntime} />;
+    return (
+      <OptionalSection
+        section="skills"
+        Comp={lazySkills}
+        onNeedVault={goSpace}
+      />
+    );
+  }, [section, onSectionChange]);
 
   if (!open) return null;
 
@@ -134,7 +160,7 @@ export default function SettingsPanel({
       <div className="settings-panel">
         <div className="settings-panel-head">
           <div>
-            <p className="shell-label">Soit</p>
+            <p className="settings-panel-kicker">Soit</p>
             <h2 className="settings-panel-title">设置</h2>
           </div>
           <button
@@ -157,7 +183,8 @@ export default function SettingsPanel({
                 aria-current={section === item.id ? "page" : undefined}
                 onClick={() => onSectionChange(item.id)}
               >
-                {item.label}
+                <span className="settings-nav-label">{item.label}</span>
+                <span className="settings-nav-hint">{item.hint}</span>
               </button>
             ))}
           </nav>

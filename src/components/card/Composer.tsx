@@ -5,7 +5,8 @@ import {
   type ChatConfig,
 } from "../../lib/chat";
 import { getChatConfig } from "../../lib/host";
-import { IconSend } from "./icons";
+import { useWorkspace } from "../../state/workspaceStore";
+import { IconSend, IconX } from "./icons";
 
 interface Props {
   draft: string;
@@ -40,6 +41,16 @@ export default function Composer({
   const taRef = useRef<HTMLTextAreaElement>(null);
   const [cfg, setCfg] = useState<ChatConfig>({ ...DEFAULT_CHAT_CONFIG });
 
+  const inquiryInflight = useWorkspace((s) => s.inquiryInflight);
+  const runtimeRun = useWorkspace((s) => s.runtimeRun);
+  const cancelInflight = useWorkspace((s) => s.cancelInflight);
+  const cancelRuntimeHandoff = useWorkspace((s) => s.cancelRuntimeHandoff);
+
+  const runtimeBusy =
+    runtimeRun?.status === "staging" || runtimeRun?.status === "running";
+  const generating = Boolean(inquiryInflight) || runtimeBusy;
+  const inputLocked = Boolean(disabled) || generating;
+
   const reloadConfig = useCallback(async () => {
     const c = await getChatConfig();
     setCfg(c);
@@ -64,7 +75,27 @@ export default function Composer({
     el.style.height = `${Math.min(120, el.scrollHeight)}px`;
   }, [draft]);
 
+  const onStop = useCallback(() => {
+    if (inquiryInflight) {
+      cancelInflight();
+      return;
+    }
+    if (runtimeBusy) {
+      void cancelRuntimeHandoff();
+    }
+  }, [
+    inquiryInflight,
+    runtimeBusy,
+    cancelInflight,
+    cancelRuntimeHandoff,
+  ]);
+
   const kind = portKindFromConfig(cfg);
+  const stopTip = inquiryInflight
+    ? "停止生成"
+    : runtimeBusy
+      ? "停止本地 Agent"
+      : "停止";
 
   return (
     <div className="ic-dock-wrap">
@@ -97,32 +128,54 @@ export default function Composer({
             ref={taRef}
             value={draft}
             placeholder={
-              kind === "mock"
-                ? "写在这张卡上…（Mock 回复，可点左侧配置 Key）"
-                : "写在这张卡上…"
+              generating
+                ? runtimeBusy
+                  ? "本地 Agent 执行中…可点停止"
+                  : "生成中…可点停止"
+                : kind === "mock"
+                  ? "写在这张卡上…（Mock 回复，可点左侧配置 Key）"
+                  : "写在这张卡上…"
             }
             rows={1}
-            disabled={disabled}
+            disabled={inputLocked}
             onChange={(e) => onDraftChange(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
-                onSend();
+                if (!generating) onSend();
               }
             }}
           />
-          <div className="hint">Enter 换行 · Ctrl+Enter 发送</div>
+          <div className="hint">
+            {generating
+              ? runtimeBusy
+                ? "本地 Agent 执行中"
+                : "Inquiry 生成中"
+              : "Enter 换行 · Ctrl+Enter 发送"}
+          </div>
         </div>
-        <button
-          type="button"
-          className="send"
-          data-tip="发送"
-          aria-label="发送"
-          disabled={disabled || !draft.trim()}
-          onClick={onSend}
-        >
-          <IconSend />
-        </button>
+        {generating ? (
+          <button
+            type="button"
+            className="send is-stop"
+            data-tip={stopTip}
+            aria-label={stopTip}
+            onClick={onStop}
+          >
+            <IconX />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="send"
+            data-tip="发送"
+            aria-label="发送"
+            disabled={inputLocked || !draft.trim()}
+            onClick={onSend}
+          >
+            <IconSend />
+          </button>
+        )}
       </div>
     </div>
   );

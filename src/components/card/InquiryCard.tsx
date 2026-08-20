@@ -11,6 +11,7 @@ import SelectionBar, {
 import TermFloat, { type TermFloatState } from "../overlays/TermFloat";
 import TooltipLayer from "../overlays/TooltipLayer";
 import "../overlays/overlays.css";
+import CardAgentMenu from "./CardAgentMenu";
 import CardHeader from "./CardHeader";
 import Composer from "./Composer";
 import EdgeActions from "./EdgeActions";
@@ -361,7 +362,6 @@ export default function InquiryCard() {
       if (!focusId) return;
       setSelBar(null);
       setChooser(null);
-      // Mark path: span === term; never auto-spawn — deepen/diverge stay explicit.
       const span = term;
       const seq = ++floatSeqRef.current;
       setFloat({
@@ -598,6 +598,8 @@ export default function InquiryCard() {
         onDeepen={() => onDeepen(focus.title)}
         onDiverge={() => onDiverge(focus.title)}
       />
+
+      <CardAgentMenu />
 
       <Composer
         draft={draft}
