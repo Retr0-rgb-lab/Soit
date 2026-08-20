@@ -96,6 +96,8 @@ export function createChatActions(
 
     regenerateTurn: async (turnId, cardIdArg) => {
       const s0 = get();
+      const rr0 = s0.runtimeRun;
+      if (rr0 && (rr0.status === "staging" || rr0.status === "running")) return;
       const resolved = resolveTurnCard(s0, turnId, cardIdArg);
       if (!resolved) return;
       const { cardId, turnIndex } = resolved;
@@ -218,8 +220,10 @@ export function createChatActions(
       const s0 = get();
       const focusId = s0.focusId;
       if (!focusId || !text.trim()) return;
-      // Composer lock: one inquiry complete at a time (Spec §2.1).
+      // Composer lock: mutual exclusion with inquiry + runtime (Spec §2.1 / §2.6).
       if (s0.inquiryInflight) return;
+      const rr = s0.runtimeRun;
+      if (rr && (rr.status === "staging" || rr.status === "running")) return;
 
       const body = quote ? `> ${quote}\n\n${text}` : text;
       const title = text.slice(0, 16) || "新消息";

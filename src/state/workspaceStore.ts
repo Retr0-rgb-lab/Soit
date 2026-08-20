@@ -1,10 +1,12 @@
 import { create } from "zustand";
+import type { CardBrief } from "../lib/cardBrief";
 import {
   LIVE_MAX,
   pinLiveId,
   unpinLiveId,
 } from "../lib/liveSet";
 import type { MapScopeMode } from "../lib/mapScope";
+import type { RuntimeInfo, RuntimePreferences } from "../lib/runtime";
 import { rootOf, subtreeIds } from "../lib/threadDebt";
 import type {
   Edge,
@@ -14,6 +16,7 @@ import type {
   WorkspaceSnapshot,
 } from "../types";
 import { createChatActions } from "./chatActions";
+import { createRuntimeActions } from "./runtimeActions";
 import {
   afterFocus,
   cloneEdges,
@@ -50,6 +53,16 @@ export interface InquiryInflight {
   controller: AbortController;
 }
 
+/** External runtime handoff state (Spec §2.6 / §2.8). */
+export interface RuntimeRun {
+  runId: string;
+  cardId: string;
+  turnId: string;
+  runtimeId: string;
+  status: "staging" | "running" | "succeeded" | "failed" | "cancelled";
+  detail?: string;
+}
+
 export interface WorkspaceState {
   nodes: InquiryNode[];
   turnsByCardId: Record<string, Turn[]>;
@@ -77,6 +90,12 @@ export interface WorkspaceState {
   bootEpoch: number;
   /** Active Inquiry complete; null when idle. */
   inquiryInflight: InquiryInflight | null;
+  /** Runtime prefs mirror; null until loadRuntimePrefs. */
+  runtimePrefs: RuntimePreferences | null;
+  /** Detected runtimes from last refreshRuntimes. */
+  runtimes: RuntimeInfo[];
+  /** Active external handoff; null when idle. */
+  runtimeRun: RuntimeRun | null;
 
   /** Bump epoch for an async App / openUniverse load pipeline; returns new epoch. */
   beginBootLoad: () => number;
@@ -108,6 +127,19 @@ export interface WorkspaceState {
   appendUserMessage: (text: string, quote?: string) => Promise<void>;
   /** Abort in-flight Inquiry complete; late results must not write. */
   cancelInflight: () => void;
+  refreshRuntimes: () => Promise<void>;
+  loadRuntimePrefs: () => Promise<void>;
+  setRuntimePrefs: (p: Partial<RuntimePreferences>) => Promise<void>;
+  startRuntimeHandoff: (opts?: {
+    cardId?: string;
+    runtimeId?: string;
+  }) => Promise<void>;
+  cancelRuntimeHandoff: () => Promise<void>;
+  exportCardBrief: (cardId?: string) => Promise<CardBrief>;
+  importAssistantToFocus: (
+    raw: string,
+    opts?: { asResidue?: boolean },
+  ) => Promise<void>;
 }
 
 function resolveRootId(
@@ -130,6 +162,7 @@ function resolveRootId(
 
 export const useWorkspace = create<WorkspaceState>((set, get) => {
   const chat = createChatActions(set as StoreSet, get as StoreGet);
+  const runtime = createRuntimeActions(set as StoreSet, get as StoreGet);
 
   return {
     nodes: [],
@@ -148,6 +181,9 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     highlightSpan: null,
     bootEpoch: 0,
     inquiryInflight: null,
+    runtimePrefs: null,
+    runtimes: [],
+    runtimeRun: null,
 
     beginBootLoad: () => {
       const next = get().bootEpoch + 1;
@@ -167,6 +203,13 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
         } catch {
           /* ignore */
         }
+      }
+      if (get().runtimeRun) {
+        void import("../lib/host")
+          .then((h) => h.cancelRuntimeHandoff())
+          .catch(() => {
+            /* ignore */
+          });
       }
       resetIdSeq();
       const prev = get();
@@ -194,6 +237,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
         reentryDismissed: keepMap ? true : false,
         highlightSpan: null,
         inquiryInflight: null,
+        runtimeRun: null,
       });
     },
 
@@ -333,6 +377,14 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     toggleTurnCollapsed: chat.toggleTurnCollapsed,
     appendUserMessage: chat.appendUserMessage,
     cancelInflight: chat.cancelInflight,
+
+    refreshRuntimes: runtime.refreshRuntimes,
+    loadRuntimePrefs: runtime.loadRuntimePrefs,
+    setRuntimePrefs: runtime.setRuntimePrefs,
+    startRuntimeHandoff: runtime.startRuntimeHandoff,
+    cancelRuntimeHandoff: runtime.cancelRuntimeHandoff,
+    exportCardBrief: runtime.exportCardBrief,
+    importAssistantToFocus: runtime.importAssistantToFocus,
   };
 });
 

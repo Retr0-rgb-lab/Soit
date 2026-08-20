@@ -507,6 +507,87 @@ describe("workspaceStore universe write-through", () => {
   });
 });
 
+describe("workspaceStore runtime handoff + brief", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    chatPortMocks.override = null;
+    hostMocks.getEnabledSkillsText.mockResolvedValue("");
+    hostMocks.updateCard.mockResolvedValue({ ok: true as const });
+    hostMocks.updateTurn.mockResolvedValue({ ok: true as const });
+    hostMocks.deleteTurn.mockResolvedValue({ ok: true as const });
+    useWorkspaceStore.getState().loadSnapshot(demoSnapshot());
+  });
+
+  it("mock handoff adds one turn and does not spawn nodes", async () => {
+    const s0 = useWorkspaceStore.getState();
+    const card = s0.focusId;
+    const n0 = s0.nodes.length;
+    const t0 = s0.turnsByCardId[card]!.length;
+
+    await s0.startRuntimeHandoff({ runtimeId: "mock" });
+
+    const s1 = useWorkspaceStore.getState();
+    expect(s1.nodes.length).toBe(n0);
+    expect(s1.edges.length).toBe(s0.edges.length);
+    expect(s1.turnsByCardId[card]!.length).toBe(t0 + 1);
+    const last = s1.turnsByCardId[card]!.at(-1)!;
+    expect(last.user).toContain("交给本地 Agent");
+    expect(last.aiHtml).toBeTruthy();
+    expect(last.aiHtml).toContain('class="mark"');
+    expect(last.aiHtml).toContain("函子");
+    expect(s1.runtimeRun).toBeNull();
+    expect(hostMocks.spawnInquiry).not.toHaveBeenCalled();
+  }, 10_000);
+
+  it("importAssistantToFocus escapes raw html and adds a turn", async () => {
+    const card = useWorkspaceStore.getState().focusId;
+    const before = useWorkspaceStore.getState().turnsByCardId[card]!.length;
+    await useWorkspaceStore
+      .getState()
+      .importAssistantToFocus('<script>alert(1)</script> and [[范畴]]');
+
+    const turns = useWorkspaceStore.getState().turnsByCardId[card]!;
+    expect(turns.length).toBe(before + 1);
+    const last = turns[turns.length - 1]!;
+    expect(last.user).toBe("（导入自外部 Agent）");
+    expect(last.aiHtml).not.toContain("<script>");
+    expect(last.aiHtml).toContain("&lt;script&gt;");
+    expect(last.aiHtml).toContain('data-term="范畴"');
+    expect(useWorkspaceStore.getState().nodes.length).toBe(
+      demoSnapshot().nodes.length,
+    );
+  });
+
+  it("startRuntimeHandoff is blocked while inquiryInflight", async () => {
+    const card = useWorkspaceStore.getState().focusId;
+    const before = useWorkspaceStore.getState().turnsByCardId[card]!.length;
+    const controller = new AbortController();
+    useWorkspaceStore.setState({
+      inquiryInflight: {
+        cardId: card,
+        turnId: "t_fake",
+        gen: "g_fake",
+        controller,
+      },
+    });
+    await useWorkspaceStore.getState().startRuntimeHandoff({ runtimeId: "mock" });
+    expect(useWorkspaceStore.getState().turnsByCardId[card]!.length).toBe(before);
+    expect(useWorkspaceStore.getState().runtimeRun).toBeNull();
+    // cleanup so later tests are not poisoned
+    controller.abort();
+    useWorkspaceStore.setState({ inquiryInflight: null });
+  });
+
+  it("exportCardBrief returns this-card brief", async () => {
+    const card = useWorkspaceStore.getState().focusId;
+    const brief = await useWorkspaceStore.getState().exportCardBrief();
+    expect(brief.version).toBe(1);
+    expect(brief.cardId).toBe(card);
+    expect(brief.instructions).toBeTruthy();
+    expect(Array.isArray(brief.messages)).toBe(true);
+  });
+});
+
 describe("layoutGraph", () => {
   it("places demo nodes inside viewBox 0..200 x 0..300", () => {
     const laid = layoutGraph(demoSnapshot().nodes);
