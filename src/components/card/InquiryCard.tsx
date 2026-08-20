@@ -261,6 +261,11 @@ export default function InquiryCard() {
     [spawnInquiry, sourceLabel, focusId, turnsByCardId],
   );
 
+  const focusComposer = useCallback(() => {
+    const el = document.querySelector<HTMLTextAreaElement>(".ic-dock textarea");
+    el?.focus();
+  }, []);
+
   const displayTerm = useCallback((span: string) => {
     const t = span.trim();
     if (t.length <= 24) return t;
@@ -429,6 +434,14 @@ export default function InquiryCard() {
     });
     void runExplain(span, focusId, seq);
   }, [selBar, focusId, displayTerm, runExplain]);
+
+  const onFloatQuote = useCallback(() => {
+    if (!float) return;
+    setQuote(float.span);
+    floatSeqRef.current += 1;
+    setFloat(null);
+    focusComposer();
+  }, [float, focusComposer]);
 
   const onAiMouseUp = useCallback((e: React.MouseEvent, turnId: string) => {
     const t = e.target;
@@ -660,6 +673,7 @@ export default function InquiryCard() {
               markId: float.markId,
             })
           }
+          onQuote={onFloatQuote}
         />
       ) : null}
 
@@ -680,6 +694,7 @@ export default function InquiryCard() {
           onQuote={() => {
             setQuote(selBar.text);
             setSelBar(null);
+            focusComposer();
           }}
           onCopy={() => {
             copyText(selBar.text);

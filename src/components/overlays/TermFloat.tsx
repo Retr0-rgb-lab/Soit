@@ -1,6 +1,7 @@
 import {
   IconDeepen,
   IconDiverge,
+  IconQuote,
   IconX,
 } from "../card/icons";
 
@@ -28,6 +29,8 @@ interface Props {
   /** Parent already holds float.span for SourceSpan.text. */
   onDeepen: () => void;
   onDiverge: () => void;
+  /** Quote full float.span into composer chip. */
+  onQuote: () => void;
 }
 
 function clamp(n: number, a: number, b: number) {
@@ -40,6 +43,7 @@ export default function TermFloat({
   onRetry,
   onDeepen,
   onDiverge,
+  onQuote,
 }: Props) {
   const left = clamp(float.x, 8, window.innerWidth - 440);
   const top = clamp(float.y, 8, window.innerHeight - 300);
@@ -66,6 +70,15 @@ export default function TermFloat({
             onClick={onDiverge}
           >
             <IconDiverge />
+          </button>
+          <button
+            type="button"
+            className="ic-round"
+            data-tip="引用到输入框"
+            aria-label="引用"
+            onClick={onQuote}
+          >
+            <IconQuote />
           </button>
           <button
             type="button"
