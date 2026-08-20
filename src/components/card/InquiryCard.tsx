@@ -235,7 +235,8 @@ export default function InquiryCard() {
     ) => {
       setNavKind(kind);
       setSpawnError(null);
-      const text = (label || sourceLabel).slice(0, 48);
+      // Full span for SourceSpan.text (explain/selection); title truncation is spawnMerge's job.
+      const text = (label || sourceLabel).trim() || sourceLabel;
       const turns = focusId ? (turnsByCardId[focusId] ?? []) : [];
       const turnId =
         extra?.turnId || turns[turns.length - 1]?.id || "";
@@ -259,6 +260,12 @@ export default function InquiryCard() {
     },
     [spawnInquiry, sourceLabel, focusId, turnsByCardId],
   );
+
+  const displayTerm = useCallback((span: string) => {
+    const t = span.trim();
+    if (t.length <= 24) return t;
+    return `${t.slice(0, 24)}…`;
+  }, []);
 
   const onDeepen = useCallback(
     (label?: string, extra?: { turnId?: string; markId?: string }) => {
@@ -400,6 +407,28 @@ export default function InquiryCard() {
     floatSeqRef.current += 1;
     setFloat(null);
   }, []);
+
+  const onSelectionExplain = useCallback(() => {
+    if (!selBar || !focusId) return;
+    const span = selBar.text;
+    const x = selBar.x;
+    const y = selBar.y;
+    const turnId = selBar.turnId;
+    setSelBar(null);
+    setChooser(null);
+    const seq = ++floatSeqRef.current;
+    setFloat({
+      term: displayTerm(span),
+      span,
+      body: "",
+      status: "loading",
+      x: x + 12,
+      y: y + 12,
+      source: "selection",
+      turnId,
+    });
+    void runExplain(span, focusId, seq);
+  }, [selBar, focusId, displayTerm, runExplain]);
 
   const onAiMouseUp = useCallback((e: React.MouseEvent, turnId: string) => {
     const t = e.target;
@@ -637,11 +666,13 @@ export default function InquiryCard() {
       {selBar ? (
         <SelectionBar
           bar={selBar}
+          onExplain={onSelectionExplain}
           onPreview={() => {
             setChooser({
               x: selBar.x,
               y: selBar.y,
-              label: selBar.text.slice(0, 48),
+              // Full selection for SourceSpan; card title still short in spawnMerge.
+              label: selBar.text,
               turnId: selBar.turnId,
             });
             setSelBar(null);

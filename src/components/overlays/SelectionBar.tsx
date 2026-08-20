@@ -1,4 +1,4 @@
-import { IconCopy, IconPreview, IconQuote } from "../card/icons";
+import { IconCopy, IconExplain, IconPreview, IconQuote } from "../card/icons";
 
 export interface SelectionBarState {
   text: string;
@@ -8,6 +8,7 @@ export interface SelectionBarState {
 
 interface Props {
   bar: SelectionBarState;
+  onExplain: () => void;
   onPreview: () => void;
   onQuote: () => void;
   onCopy: () => void;
@@ -17,7 +18,13 @@ function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
 }
 
-export default function SelectionBar({ bar, onPreview, onQuote, onCopy }: Props) {
+export default function SelectionBar({
+  bar,
+  onExplain,
+  onPreview,
+  onQuote,
+  onCopy,
+}: Props) {
   // Center bar on selection midpoint (bar.x is already mid-x of the range).
   const left = clamp(bar.x, 48, window.innerWidth - 48);
   const top = clamp(bar.y, 8, window.innerHeight - 120);
@@ -29,6 +36,15 @@ export default function SelectionBar({ bar, onPreview, onQuote, onCopy }: Props)
       role="toolbar"
       aria-label="选区操作"
     >
+      <button
+        type="button"
+        className="ic-round"
+        data-tip="短解释（不建卡）"
+        aria-label="解释"
+        onClick={onExplain}
+      >
+        <IconExplain />
+      </button>
       <button
         type="button"
         className="ic-round"
