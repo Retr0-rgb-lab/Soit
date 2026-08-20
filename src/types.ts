@@ -69,7 +69,7 @@ export interface BootstrapState {
   vault: string | null;
   /**
    * Last successfully opened vault path from app config.
-   * Bootstrap never opens DB — FE may call openUniverse(lastVault) to restore.
+   * Bootstrap never opens DB; cold start stays on hall — user must enter (no silent open).
    */
   lastVault?: string | null;
   version: string;
