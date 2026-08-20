@@ -420,8 +420,9 @@ button:focus-visible,
   overflow: visible;
 }
 
-/* Card | Doc companion split (PEL-156) */
+/* Card | sash | Doc companion split (PEL-156 + materials-rail §2.6) */
 .workspace-split {
+  --doc-fraction: 0.42;
   display: flex;
   height: 100%;
   min-width: 0;
@@ -430,22 +431,54 @@ button:focus-visible,
 }
 
 .workspace-split .center-stage {
-  flex: 1 1 58%;
+  flex: 1 1 calc((1 - var(--doc-fraction)) * 100%);
   min-width: 0;
 }
 
 .workspace-split .doc-pane {
-  flex: 1 1 42%;
-  min-width: 280px;
-  border-inline-start: 1px solid var(--line);
+  flex: 1 1 calc(var(--doc-fraction) * 100%);
+  min-width: 0;
+  border-inline-start: none;
 }
 
-.workspace-split.is-doc-wide .center-stage {
-  flex-basis: 32%;
+/* Dragging: avoid text selection / iframe quirks while sash moves */
+.workspace-split.is-splitting {
+  user-select: none;
+  cursor: col-resize;
 }
 
-.workspace-split.is-doc-wide .doc-pane {
-  flex-basis: 68%;
+.split-sash {
+  flex: 0 0 8px;
+  position: relative;
+  z-index: 2;
+  margin: 0 -3px;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+  outline: none;
+}
+
+.split-sash::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--line);
+  transition: background 120ms ease, width 120ms ease;
+}
+
+.split-sash:hover::before,
+.split-sash:focus-visible::before,
+.split-sash.is-dragging::before {
+  width: 2px;
+  background: color-mix(in srgb, var(--ink) 45%, var(--line));
+}
+
+.split-sash:focus-visible {
+  outline: none;
 }
 
 /* Empty + full-width doc (no card) */

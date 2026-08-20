@@ -19,6 +19,8 @@ Parent: `src/AGENTS.md`.
 | `deepenScope.ts` | Deepen parent/edge scope for chat complete (v2: parent fields, no parent turns) |
 | `cardBrief.ts` | Pure card brief builder / markdown / import parse (Spec §2.3; no parent transcript) |
 | `docSession.ts` | Pure DocSession FSM (`reduceDocSession` / `initialDocSession`) — PEL-156; no IO |
+| `splitRatio.ts` | Doc/card `--doc-fraction` clamp/read/write (`soit-doc-split-ratio`) + `sanitizeMaterialFileName`; never universe.db |
+| `materialsRail.ts` | Pure materials-rail helpers (list status / reduce) when present — store owns open/import busy |
 | `composerPayload.ts` | Composer body builder + **`formatDocAnchorQuote`** (doc selection → single quote string) |
 | `paletteRank.ts` | Command-palette ranking |
 | `marks.ts` | Mark DOM helpers for assistant HTML (no static term-explanation dictionary) |
@@ -32,10 +34,12 @@ Parent: `src/AGENTS.md`.
   - turns/cards (Spec §5): `append_turn`, `update_turn`, `delete_turn`, `update_card` — camelCase invoke args
   - vault MD: `precipitate_concept`, `append_residue`
   - vault docs (PEL-156): `resolve_vault_doc` / `read_vault_text` — path sandbox under open vault; reject `..` / outside vault / `vault/.soit/**`; browser mock fixtures `demo/*.md` (e.g. `demo/welcome.md`)
+  - materials (materials-rail SPE): `list_vault_materials` / `import_vault_material` — vault `materials/` only; import ≤2MB decoded; **not** bootstrap; browser mock list includes `demo/welcome.md` + in-memory imports
   - skills: `list_skills`, `set_skill_enabled`, `get_enabled_skills_text`
   - BYOK: `get_chat_config` / `set_chat_config` (app config / localStorage — never `universe.db`)
   - Runtime (dual-track): `list_runtimes` / `get_runtime_prefs` / `set_runtime_prefs` / `start_runtime_handoff` / `cancel_runtime_handoff` — app config + `vault/.soit/runs/`; never treat external session as universe source; browser mock-only
 - **DocSession FSM** (`docSession.ts`): statuses `closed|loading|ready|error|closing`; events include `open` / `load_ok|load_err` / `set_layout` / `retry` / `close|closed` / **`force_close`** (map + `loadSnapshot` — skip anim, bump epoch). Store owns IO + epoch guards (`state/workspaceStore.ts`); this module stays pure.
+- **SplitRatio** (`splitRatio.ts`): `--doc-fraction` ∈ [0.28, 0.72], default 0.42, wide display 0.68; localStorage only. UI host is `components/shell/SplitSash.tsx`.
 - **`formatDocAnchorQuote`** (`composerPayload.ts`): `{ path, text, page? }` → `（path [p.N]）\ntext` single quote string for composer; no multi-chip `docQuotes[]` in v1.
 - Chat secrets: app config / localStorage only — never `universe.db`.
 - **`renderAssistantHtml`** (`chat/assistantHtml.ts`): safe subset pipeline order — **escapeHtml → code protect → wrapMarks → md-subset** (paragraphs/lists/headings/bold/code). Whitelist tags only from the pipeline; **never trust model HTML**. `completeResultToHtml` delegates here.

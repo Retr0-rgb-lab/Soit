@@ -116,6 +116,7 @@ export default function DocPane() {
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
+  /** 加宽: split ⇄ doc-wide only. Never writes --doc-fraction / localStorage (SPE §2.6). */
   const onToggleLayout = useCallback(() => {
     if (status !== "ready") return;
     if (layout === "doc-wide") setDocLayout("split");

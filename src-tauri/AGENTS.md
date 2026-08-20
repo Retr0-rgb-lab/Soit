@@ -10,7 +10,7 @@ Project-wide: root `AGENTS.md`. IPC types mirrored in `../src/types.ts` and `../
 |------|------|
 | `src/lib.rs` | App state, commands, `run()`, command-level tests |
 | `src/universe/` | SQLite open/migrate/snapshot/mutations (`mod`, `dto`, `ids`, `schema`, `snapshot`, `mutations`) |
-| `src/doc/` | Vault doc resolve + UTF-8 text read (PEL-156 path sandbox; no PDF bytes) |
+| `src/doc/` | Vault doc resolve + UTF-8 text read (PEL-156 path sandbox; no PDF bytes) + `materials/` list/import |
 | `src/obsidian/` | `concepts/` precipitate + `inquiry/` residue (no full transcripts) |
 | `src/skills.rs` | SKILL.md index, seed, enable/disable, inject text (soft cap 32768) |
 | `src/chat_config.rs` | BYOK JSON under app config dir (not universe.db) |
@@ -49,10 +49,12 @@ Project-wide: root `AGENTS.md`. IPC types mirrored in `../src/types.ts` and `../
 | `cancel_runtime_handoff` | Cancel in-flight mock handoff (`{ ok }`) |
 | `resolve_vault_doc` | PEL-156: `{ path }` → `{ ok, pathRel, pathAbs, kind, displayName, size, error? }`; kind `md\|text\|pdf\|unsupported`; requires open universe |
 | `read_vault_text` | PEL-156: `{ pathRel, maxBytes? }` → `{ ok, text?, error? }`; default max **1_500_000** bytes; oversize / non-UTF-8 → error (no silent truncate) |
+| `list_vault_materials` | Materials-rail: lazy list under `vault/materials/`; caps depth/entries; **not** called from bootstrap / `open_universe` |
+| `import_vault_material` | Materials-rail: `{ fileName, bytesBase64 }` → write under `materials/` (≤**2MB** decoded); collision `stem (n).ext`; reject path seps / `..` in name |
 | `select_vault` | Thin wrapper → `open_universe` (compat) |
 | `ping` | Health `"pong"` |
 
-Doc companion FE contract: `docs/superpowers/specs/2026-08-20-doc-companion-viewer-spec.md` v1.1. Permissions: `allow-resolve-vault-doc` / `allow-read-vault-text` in `permissions/bootstrap.toml` + `capabilities/default.json`.
+Doc companion FE contract: `docs/superpowers/specs/2026-08-20-doc-companion-viewer-spec.md` v1.1. Materials rail: `docs/superpowers/specs/2026-08-20-materials-rail-spec.md` v1.1. Permissions: `allow-resolve-vault-doc` / `allow-read-vault-text` / `allow-list-vault-materials` / `allow-import-vault-material` in `permissions/bootstrap.toml` + `capabilities/default.json`.
 
 ## Load matrix
 
@@ -74,6 +76,7 @@ Doc companion FE contract: `docs/superpowers/specs/2026-08-20-doc-companion-view
 - `open_universe`: reject relative paths; store canonical vault path; schema_version > app → Err.
 - Runtime: `enableSpawn` Host-enforced default false; handoff cwd/files only under `vault/.soit/runs/<runId>/` (canonicalize prefix); reject `run_id` with `..` or path seps; at most one concurrent handoff.
 - **Vault docs (PEL-156):** `dunce::canonicalize` + `starts_with(vault_canon)`; reject path escape and reads under `vault/.soit/**`; `pathRel` output uses `/`; pdf resolve returns kind+size only (no bulk bytes / base64 in P0); commands no-op error when universe closed (`universe_closed`).
+- **Materials:** only `vault/materials/**`; import decoded size ≤ 2_097_152; never scan whole vault; never open materials DB on cold start.
 - Production source files ≤800 LOC (`universe/` split enforces this).
 - Run `cargo test` / `cargo check` from this directory.
 

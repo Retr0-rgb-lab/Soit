@@ -9,7 +9,9 @@ Doc companion (PEL-156): `docs/superpowers/specs/2026-08-20-doc-companion-viewer
 
 | File | Role |
 |------|------|
-| `AppShell.tsx` | Shell; rail collapse (`Ctrl+B`); **settings gear + Ctrl+,**; center matrix (card / DocPane / Orbit); Esc order |
+| `AppShell.tsx` | Shell; rail collapse (`Ctrl+B`); **chrome-stack** (gear + materials toggle); center matrix (card / DocPane / Orbit); Esc order |
+| `MaterialsRail.tsx` | Right dock: vault `materials/` list + ≤2MB import; click → `selectMaterial` → `openDoc` |
+| `SplitSash.tsx` | `WorkspaceSplit`: Card \| sash \| DocPane; owns `--doc-fraction` + persist (`lib/splitRatio`) |
 | `LeftRail.tsx` | Orbit (top) + PathLineNav (bottom) + hide toggle |
 | `FocusOrbit.tsx` | Stable world orbit + camera pan (orbitNav) |
 | `PathLineNav.tsx` | Line Sidebar: hub→focus radial path only; 7-row window; hide |
@@ -65,22 +67,36 @@ Doc companion (PEL-156): `docs/superpowers/specs/2026-08-20-doc-companion-viewer
 |---------------|-----------|-------------|------|
 | map | * | * (force-closed) | **Orbit only** — never mount Doc with Orbit |
 | focus | no | closed | InquiryCard full width |
-| focus | no | open + split/doc-wide | `.workspace-split`：Card \| DocPane (`is-doc-wide` widens doc) |
-| focus | no | open + peek | Card full width + DocPane fixed overlay |
+| focus | no | open + split/doc-wide | `.workspace-split`：Card \| **sash** \| DocPane (`--doc-fraction`; `is-doc-wide` display 0.68) |
+| focus | no | open + peek | Card full width + DocPane fixed overlay (**no** sash) |
 | focus | yes | closed | EmptyWorkspace |
-| focus | yes | open + not peek | DocPane full width (`boundCardId` may be null) |
+| focus | yes | open + not peek | DocPane full width (`boundCardId` may be null; **no** sash) |
 | focus | yes | open + peek | EmptyWorkspace + DocPane overlay |
 
-- Open entry: Composer tool / CommandPalette → `soit:open-doc` → `OpenDocPopover` (no `window.prompt`; no file picker as main path).
-- Doc UI details: `components/doc/AGENTS.md`.
+- Open entry: Composer tool / CommandPalette → `soit:open-doc` → `OpenDocPopover`; **MaterialsRail** click → `selectMaterial` (map → focus first) → `openDoc`. No `window.prompt`; no file picker as main path (import input is materials-only).
+- Doc UI details: `components/doc/AGENTS.md`. Spec: `docs/superpowers/specs/2026-08-20-materials-rail-spec.md` §2.4–2.6.
+
+### SplitRatio law (`SplitSash` / `lib/splitRatio`)
+
+- CSS var `--doc-fraction` ∈ [0.28, 0.72]; default **0.42**; localStorage `soit-doc-split-ratio` (never universe.db).
+- `layout==='split'`: stored fraction; sash visible. `doc-wide`: display **0.68** only (no auto-persist).
+- Drag sash → update fraction + persist; if was doc-wide → `setDocLayout("split")`. Double-click sash → 0.42 + persist + split.
+- DocPane **加宽** toggles layout only — must not write fraction.
+
+### Materials chrome
+
+- `chrome-stack` (gear + materials toggle) fixed top-right; **focus mode hides whole stack**.
+- MaterialsRail 260px right dock; `soit:toggle-materials` / `soit:open-materials`. Ctrl+, / Ctrl+K do **not** force-close rail.
+- Lazy `list_vault_materials` on open — never bootstrap.
 
 ### Esc order (`AppShell` keydown)
 
 1. settings → close  
 2. command palette → close  
 3. open-doc popover → close  
-4. doc surface open (any layout, incl. peek) → `closeDoc()`  
-5. map → `setMode("focus")`  
+4. materials rail open → `closeMaterialsRail()` (does **not** close Doc)  
+5. doc surface open (any layout, incl. peek) → `closeDoc()`  
+6. map → `setMode("focus")`  
 
 Card-local overlays (selbar / chooser / term float / pip) handle their own Esc inside the card tree before shell logic matters.
 

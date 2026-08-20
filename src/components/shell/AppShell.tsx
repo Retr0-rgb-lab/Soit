@@ -8,6 +8,7 @@ import LeftRail from "./LeftRail";
 import LocusPeek from "./LocusPeek";
 import MapStage from "./MapStage";
 import MaterialsRail from "./MaterialsRail";
+import WorkspaceSplit from "./SplitSash";
 import SettingsPanel, { type SettingsSection } from "./SettingsPanel";
 import { useWorkspace } from "../../state/workspaceStore";
 import "./settings/settings.css";
@@ -322,17 +323,14 @@ export default function AppShell() {
       );
     }
 
-    // Split / doc-wide: Card | DocPane
+    // Split / doc-wide: Card | sash | DocPane (--doc-fraction law)
     if (useSplit) {
-      const wide = docLayout === "doc-wide";
       return (
-        <div
-          className={`workspace-split${wide ? " is-doc-wide" : ""}`}
-          aria-label="card and document"
-        >
-          {card}
-          <DocPane />
-        </div>
+        <WorkspaceSplit
+          layout={docLayout === "doc-wide" ? "doc-wide" : "split"}
+          card={card}
+          doc={<DocPane />}
+        />
       );
     }
 
