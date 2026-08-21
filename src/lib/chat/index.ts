@@ -5,6 +5,10 @@ import {
   type ChatConfig,
 } from "./config";
 import { createMockChat } from "./mockChat";
+import {
+  readModelSettingsFromLocalStorage,
+  resolveExplainConfig,
+} from "./modelSettings";
 import { createOpenAICompatChat } from "./openaiCompat";
 import type { ChatPort } from "./port";
 
@@ -103,6 +107,22 @@ export async function resolvePort(
     return portFromConfig(cfg);
   } catch {
     return portFromConfig(readChatConfigFromLocalStorage());
+  }
+}
+
+/** Resolve ChatPort for short-explain from the explainModelId slot. */
+export async function resolveExplainPort(
+  configOverride?: ChatConfig | null,
+): Promise<ChatPort> {
+  if (configOverride) return portFromConfig(configOverride);
+  try {
+    const { getModelSettings } = await import("../host");
+    const settings = await getModelSettings();
+    return portFromConfig(resolveExplainConfig(settings));
+  } catch {
+    return portFromConfig(
+      resolveExplainConfig(readModelSettingsFromLocalStorage()),
+    );
   }
 }
 
