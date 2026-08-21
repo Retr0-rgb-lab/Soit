@@ -19,6 +19,12 @@ describe("splitThinkContent", () => {
     expect(r.text).toContain("正式输出");
   });
 
+  it("peels fenced ```thinking blocks", () => {
+    const r = splitThinkContent("```thinking\nplan\n```\n\n正式答案。");
+    expect(r.think).toBe("plan");
+    expect(r.text).toBe("正式答案。");
+  });
+
   it("stripThinkForExplain never returns think body", () => {
     expect(
       stripThinkForExplain("<think>secret</think>\n短解释正文。"),
@@ -35,5 +41,12 @@ describe("parseAssistantContent + think", () => {
     expect(r.think).toBe("plan");
     expect(r.text).toContain("函子");
     expect(r.marks?.[0]?.term).toBe("函子");
+  });
+
+  it("also accepts fullwidth 【term】 marks", () => {
+    const r = parseAssistantContent("见 【自然变换】 与 [[伴随]]。");
+    expect(r.marks?.map((m) => m.term).sort()).toEqual(["伴随", "自然变换"]);
+    expect(r.text).not.toContain("【");
+    expect(r.text).not.toContain("[[");
   });
 });

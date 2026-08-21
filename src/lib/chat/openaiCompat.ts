@@ -121,21 +121,26 @@ export class OpenAICompatChat implements ChatPort {
 }
 
 /**
- * Parse [[term]] markers into structured marks; strip brackets from text.
+ * Parse [[term]] / 【term】 markers into structured marks; strip wrappers from text.
  * Also peels thinking blocks into `think` (PEL-160).
  */
 export function parseAssistantContent(raw: string): ChatCompleteResult {
   const split = splitThinkContent(raw);
   const marks: { term: string }[] = [];
   const seen = new Set<string>();
-  const text = split.text.replace(/\[\[([^\]]+)\]\]/g, (_full, term: string) => {
+  const pushTerm = (term: string): string => {
     const t = String(term).trim();
     if (t && !seen.has(t)) {
       seen.add(t);
       marks.push({ term: t });
     }
     return t;
-  });
+  };
+  // Primary: [[term]]. Secondary: fullwidth 【term】 (common model noise).
+  let text = split.text.replace(/\[\[([^\]]+)\]\]/g, (_full, term: string) =>
+    pushTerm(term),
+  );
+  text = text.replace(/【([^】]+)】/g, (_full, term: string) => pushTerm(term));
   return {
     text,
     marks: marks.length ? marks : undefined,

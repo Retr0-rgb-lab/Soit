@@ -16,6 +16,7 @@ const BLOCK_TAGS = [
   "thought",
   "reasoning",
   "reflection",
+  "redacted_reasoning",
 ] as const;
 
 function stripMatchedBlocks(raw: string): SplitThinkResult {
@@ -37,17 +38,27 @@ function stripMatchedBlocks(raw: string): SplitThinkResult {
     });
   }
 
-  // Unclosed <think>… to end (streaming / sloppy models)
+  // Fenced thinking blocks: ```thinking / ```think / ```reasoning
   text = text.replace(
-    /<\s*think(?:ing)?\s*>[\s\S]*$/i,
-    (full) => {
-      const inner = full.replace(/^<\s*think(?:ing)?\s*>/i, "").trim();
-      if (inner) chunks.push(inner);
-      return "";
+    /```(?:thinking|think|reasoning)\s*\n([\s\S]*?)```/gi,
+    (_full, inner: string) => {
+      const t = String(inner ?? "").trim();
+      if (t) chunks.push(t);
+      return "\n";
     },
   );
 
-  return { text: text.replace(/\n{3,}/g, "\n\n").trim(), think: chunks.join("\n\n").trim() };
+  // Unclosed <think>… to end (streaming / sloppy models)
+  text = text.replace(/<\s*think(?:ing)?\s*>[\s\S]*$/i, (full) => {
+    const inner = full.replace(/^<\s*think(?:ing)?\s*>/i, "").trim();
+    if (inner) chunks.push(inner);
+    return "";
+  });
+
+  return {
+    text: text.replace(/\n{3,}/g, "\n\n").trim(),
+    think: chunks.join("\n\n").trim(),
+  };
 }
 
 /** Markdown-style "思考过程" / "Reasoning" headings before the answer. */
@@ -57,7 +68,9 @@ function splitLabeledPreamble(raw: string): SplitThinkResult | null {
   const m = re.exec(raw);
   if (!m || m.index > 40) return null;
   const think = (m[1] ?? "").trim();
-  const text = (raw.slice(0, m.index) + raw.slice(m.index + m[0].length)).trim();
+  const text = (
+    raw.slice(0, m.index) + raw.slice(m.index + m[0].length)
+  ).trim();
   if (!think) return null;
   return { text, think };
 }

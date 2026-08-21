@@ -162,7 +162,7 @@ export default function TurnItem({
           <div className="ic-msg you">{turn.user}</div>
 
           {showThink ? (
-            <>
+            <div className={`ic-think-wrap${thinkOpen ? " open" : ""}${thinkBusy ? " busy" : ""}`}>
               <button
                 type="button"
                 className={`ic-think${thinkOpen ? " open" : ""}`}
@@ -190,7 +190,7 @@ export default function TurnItem({
               >
                 <span>{thinkText}</span>
               </div>
-            </>
+            </div>
           ) : null}
 
           <div className="ic-msg ai" data-ai-turn={turn.id}>

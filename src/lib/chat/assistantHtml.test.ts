@@ -28,6 +28,38 @@ describe("renderAssistantHtml", () => {
     expect(html).toContain("<li>b</li>");
   });
 
+  it("keeps loose / indented list items in one ul", () => {
+    const html = renderAssistantHtml(
+      "- **对象层面**：搬走。\n\n  - 例：线性空间\n- **态射层面**：搬走。",
+    );
+    expect(html).toContain("<ul>");
+    expect(html.match(/<ul>/g)?.length).toBe(1);
+    expect(html).toContain("<li>");
+    expect(html).not.toMatch(/<p>\s*- /);
+  });
+
+  it("renders blockquotes and strips bare [brackets]", () => {
+    const html = renderAssistantHtml("> 成套地搬走\n\nsee [label](https://example.com) and [noise]");
+    expect(html).toContain("<blockquote>");
+    expect(html).toContain("成套地搬走");
+    expect(html).toContain('class="ai-link"');
+    expect(html).toContain("label");
+    expect(html).toContain("noise");
+    expect(html).not.toContain("[noise]");
+    expect(html).not.toContain("href=");
+  });
+
+  it("renders GFM tables", () => {
+    const html = renderAssistantHtml(
+      "| A | B |\n| --- | --- |\n| 1 | **x** |\n| 2 | y |",
+    );
+    expect(html).toContain("<table>");
+    expect(html).toContain("<th>");
+    expect(html).toContain("<td>");
+    expect(html).toContain("<strong>x</strong>");
+    expect(html).not.toContain("| ---");
+  });
+
   it("renders fenced code", () => {
     const html = renderAssistantHtml("```\nconst a = 1;\n```");
     expect(html).toContain("<pre><code>");
