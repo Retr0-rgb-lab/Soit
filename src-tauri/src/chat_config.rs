@@ -60,6 +60,8 @@ pub struct ModelSettingsDto {
   pub models: Vec<ModelEntryDto>,
   #[serde(default)]
   pub active_model_id: Option<String>,
+  #[serde(default)]
+  pub explain_model_id: Option<String>,
 }
 
 impl Default for ModelSettingsDto {
@@ -69,6 +71,7 @@ impl Default for ModelSettingsDto {
       providers: vec![],
       models: vec![],
       active_model_id: None,
+      explain_model_id: None,
     }
   }
 }
@@ -179,6 +182,7 @@ pub fn migrate_chat_config_to_settings(cfg: &ChatConfigDto) -> ModelSettingsDto 
       updated_at: t,
     }],
     active_model_id: Some(model_entry_id),
+    explain_model_id: None,
   }
 }
 
@@ -196,6 +200,15 @@ pub fn normalize_model_settings(mut s: ModelSettingsDto) -> ModelSettingsDto {
       .any(|m| m.id == *aid && m.enabled);
     if !ok {
       s.active_model_id = None;
+    }
+  }
+  if let Some(ref eid) = s.explain_model_id {
+    let ok = s
+      .models
+      .iter()
+      .any(|m| m.id == *eid && m.enabled);
+    if !ok {
+      s.explain_model_id = None;
     }
   }
   s
@@ -452,7 +465,99 @@ mod tests {
     }"#;
     let s = parse_disk_value(raw).unwrap();
     assert_eq!(s.active_model_id.as_deref(), Some("m1"));
+    assert!(s.explain_model_id.is_none());
     assert_eq!(resolve_chat_config(&s).model, "gpt-4o");
+  }
+
+  #[test]
+  fn parse_keeps_valid_explain_model_id() {
+    let raw = r#"{
+      "version": 1,
+      "providers": [{
+        "id": "p1",
+        "name": "OpenAI",
+        "baseUrl": "https://api.openai.com/v1",
+        "apiKey": "k",
+        "createdAt": 1,
+        "updatedAt": 1
+      }],
+      "models": [
+        {
+          "id": "m1",
+          "providerId": "p1",
+          "modelId": "gpt-4o",
+          "enabled": true,
+          "createdAt": 1,
+          "updatedAt": 1
+        },
+        {
+          "id": "m2",
+          "providerId": "p1",
+          "modelId": "gpt-4o-mini",
+          "enabled": true,
+          "createdAt": 1,
+          "updatedAt": 1
+        }
+      ],
+      "activeModelId": "m1",
+      "explainModelId": "m2"
+    }"#;
+    let s = parse_disk_value(raw).unwrap();
+    assert_eq!(s.explain_model_id.as_deref(), Some("m2"));
+    assert_eq!(s.active_model_id.as_deref(), Some("m1"));
+    assert_eq!(resolve_chat_config(&s).model, "gpt-4o");
+  }
+
+  #[test]
+  fn normalize_clears_disabled_or_unknown_explain() {
+    let disabled = r#"{
+      "version": 1,
+      "providers": [{
+        "id": "p1",
+        "name": "P",
+        "baseUrl": "https://x.com/v1",
+        "apiKey": "k",
+        "createdAt": 1,
+        "updatedAt": 1
+      }],
+      "models": [{
+        "id": "m1",
+        "providerId": "p1",
+        "modelId": "m",
+        "enabled": false,
+        "createdAt": 1,
+        "updatedAt": 1
+      }],
+      "activeModelId": "m1",
+      "explainModelId": "m1"
+    }"#;
+    let s = parse_disk_value(disabled).unwrap();
+    assert!(s.explain_model_id.is_none());
+
+    let unknown = r#"{
+      "version": 1,
+      "providers": [{
+        "id": "p1",
+        "name": "P",
+        "baseUrl": "https://x.com/v1",
+        "apiKey": "k",
+        "createdAt": 1,
+        "updatedAt": 1
+      }],
+      "models": [{
+        "id": "m1",
+        "providerId": "p1",
+        "modelId": "m",
+        "enabled": true,
+        "createdAt": 1,
+        "updatedAt": 1
+      }],
+      "activeModelId": "m1",
+      "explainModelId": "nope"
+    }"#;
+    let s = parse_disk_value(unknown).unwrap();
+    assert!(s.explain_model_id.is_none());
+    assert_eq!(s.active_model_id.as_deref(), Some("m1"));
   }
 
   #[test]
@@ -486,8 +591,33 @@ mod tests {
     assert!(out.contains("baseUrl"));
     assert!(out.contains("apiKey"));
     assert!(out.contains("activeModelId"));
+    assert!(out.contains("explainModelId"));
     assert!(out.contains("providerId"));
     assert!(out.contains("modelId"));
     assert!(out.contains("createdAt"));
+  }
+
+  #[test]
+  fn empty_key_upsert_keeps_explain_id() {
+    let mut s = migrate_chat_config_to_settings(&ChatConfigDto {
+      base_url: "https://api.openai.com/v1".into(),
+      model: "gpt-4o".into(),
+      api_key: "sk".into(),
+    });
+    s.explain_model_id = s.active_model_id.clone();
+    s = normalize_model_settings(s);
+    let explain = s.explain_model_id.clone();
+    assert!(explain.is_some());
+    let next = upsert_from_chat_config(
+      &s,
+      &ChatConfigDto {
+        base_url: "https://api.openai.com/v1".into(),
+        model: "gpt-4o".into(),
+        api_key: "".into(),
+      },
+    );
+    assert_eq!(next.providers.len(), 1);
+    assert!(next.active_model_id.is_none());
+    assert_eq!(next.explain_model_id, explain);
   }
 }
