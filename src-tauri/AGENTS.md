@@ -13,7 +13,7 @@ Project-wide: root `AGENTS.md`. IPC types mirrored in `../src/types.ts` and `../
 | `src/doc/` | Vault doc resolve + UTF-8 text read (PEL-156 path sandbox; no PDF bytes) + `materials/` list/import |
 | `src/obsidian/` | `concepts/` precipitate + `inquiry/` residue (no full transcripts) |
 | `src/skills.rs` | SKILL.md index, seed, enable/disable, inject text (soft cap 32768) |
-| `src/chat_config.rs` | BYOK JSON under app config dir (not universe.db) |
+| `src/chat_config.rs` | BYOK JSON (`soit-chat.json`) under app config dir (not universe.db); `ModelSettings` includes optional `explainModelId` |
 | `src/session_config.rs` | `soit-session.json` SessionConfig v1: lastVault + recentVaults≤8 (app config; not universe.db) |
 | `src/runtime/` | External runtime detect / `soit-runtime.json` prefs / mock handoff (P0; no shell plugin) |
 | `src/main.rs` | Binary entry |
@@ -42,7 +42,8 @@ Project-wide: root `AGENTS.md`. IPC types mirrored in `../src/types.ts` and `../
 | `list_skills` | SKILL.md list + enabled flags |
 | `set_skill_enabled(id, enabled)` | Toggle; id must exist on disk; returns refreshed list |
 | `get_enabled_skills_text` | Concat enabled skill bodies for chat inject (soft cap 32768 bytes) |
-| `get_chat_config` / `set_chat_config` | BYOK in app config dir — **not** universe.db |
+| `get_chat_config` / `set_chat_config` | BYOK in app config dir — **not** universe.db; `get_chat_config` still projects **dialogue slot only** (`activeModelId`) |
+| `get_model_settings` / `set_model_settings` | Full `ModelSettings` v1 (`providers` / `models` / `activeModelId` / optional `explainModelId`); app config `soit-chat.json` |
 | `get_session_config` / `set_session_config` | Full SessionConfig v1 (`lastVault` + `recentVaults`≤8); migrate legacy `{lastVault}` on read; **not** universe.db |
 | `get_last_vault` / `set_last_vault` | Compat: get last only; `set(Some)` → last + push_recent; `set(None)` → clear last only (recents kept); bootstrap never opens DB |
 | `list_runtimes` | Detect known bins on PATH/overrides; **always** includes `mock` available; not called from bootstrap |

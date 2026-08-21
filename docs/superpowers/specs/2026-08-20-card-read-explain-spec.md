@@ -29,7 +29,7 @@
 
 **工作树注意：** `main` 上另有未提交的 shell/orbit 改动；另有 **Agent dual-track** spec 将改 `port.ts`（`signal`）、`chatActions.ts`、`mockChat`/`openaiCompat`、Composer。本 Spec 实现应：  
 - 避开 `FocusOrbit*` / `PathLineNav*` / `orbitNav*` / `SettingsPanel*`；  
-- 与 dual-track **协调** chat 路径：解释走独立 `explain`/`explainSpan`，复用 `resolvePort`，不平行再造 completion 栈；卡片/overlays 仍为本波 UI 主战场。
+- 与 dual-track **协调** chat 路径：解释走独立 `explain`/`explainSpan`，经 `resolveExplainPort`（`explainModelId`，缺省跟随对话），不平行再造 completion 栈；卡片/overlays 仍为本波 UI 主战场。 §2.2 入口仍是 `explainSpan`。
 
 ---
 

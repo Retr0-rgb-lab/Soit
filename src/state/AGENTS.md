@@ -15,6 +15,7 @@ Spec: `知识库/specs/2026-08-20-host-hardening-and-durability.md` §6.
 | `turnHelpers.ts` | ids, resolveTurnCard, messagesFromTurns, patchTurnAi, skills inject |
 | `spawnMerge.ts` | memorySpawn, mergeHostSnapshot, afterFocus, hostClearUnread |
 | `chatActions.ts` | append / regenerate / delete / collapse + cancelInflight (demo + universe) |
+| `explainActions.ts` | `explainSpan` short-explain (cache; no db/turns); port via `resolveExplainPort` |
 | `runCompletion.ts` | shared Inquiry complete pipeline + abort — spec §2.1 |
 | `runtimeActions.ts` | handoff + brief export/import + runtime prefs/list — spec §2.4–2.8 |
 | `workspaceStore.test.ts` | Mutation semantics + universe mock host |
@@ -38,6 +39,7 @@ Spec: `知识库/specs/2026-08-20-host-hardening-and-durability.md` §6.
 - **`bootEpoch` / `beginBootLoad`:** App/openUniverse should bump epoch and pass it to `loadSnapshot(snap, epoch)` so stale loads do not clobber (Spec §6.3). Wire in App when coordinating G3.
 - **Turn ops** scoped by `(cardId, turnId)`. Prefer passing `cardId`; without it, resolve under `focusId` then scan.
 - Skills text injected via `getEnabledSkillsText` at complete time (`turnHelpers.withSkillsSystem`).
+- **`explainSpan`:** `resolveExplainPort` (not `resolvePort`); cache only; **must not** write turns/db.
 - **Inquiry inflight:** `inquiryInflight` / `cancelInflight`; send/regenerate share `runCompletion` (gen race token, not `think`). **Runtime handoff:** `exportCardBrief` / `importAssistantToFocus`; `startRuntimeHandoff` / `cancelRuntimeHandoff`; `runtimeRun` + prefs/list — never `spawn_inquiry`; Composer locks when inquiry or runtime inflight (spec §2.1–2.6).
 - Caps are intentional product knobs — keep consistent with map/rail consumers:
   - `LIVE_MAX` (`lib/liveSet.ts`)

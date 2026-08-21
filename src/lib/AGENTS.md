@@ -16,7 +16,9 @@ Parent: `src/AGENTS.md`.
 | `mapScope.ts` | Map LOD scopes (`cone` / `working` / `atlas` / `growth`), roles, caps |
 | `liveSet.ts` | Live-thread pin set + session touch |
 | `treeNav.ts` / `threadDebt.ts` | Tree ancestry / root / subtree helpers |
-| `deepenScope.ts` | Deepen parent/edge scope for chat complete (v2: parent fields, no parent turns) |
+| `deepenScope.ts` | Fork scope (deepen/diverge): hard fields + Pi-style parent compact + full last 1–2 parent turns |
+| `chat/contextCompact.ts` | Pi-like keep-recent split + structured extractive compact (no network) |
+| `explainCache.ts` | Per-card short-explain memory (PEL-163); not universe.db |
 | `cardBrief.ts` | Pure card brief builder / markdown / import parse (Spec §2.3; no parent transcript) |
 | `docSession.ts` | Pure DocSession FSM (`reduceDocSession` / `initialDocSession`) — PEL-156; no IO |
 | `splitRatio.ts` | Doc/card `--doc-fraction` clamp/read/write (`soit-doc-split-ratio`) + `sanitizeMaterialFileName`; never universe.db |
@@ -25,7 +27,7 @@ Parent: `src/AGENTS.md`.
 | `paletteRank.ts` | Command-palette ranking |
 | `marks.ts` | Mark DOM helpers for assistant HTML (no static term-explanation dictionary) |
 | `chat/` | ChatPort + MockChat + OpenAI-compat BYOK + config + **`modelSettings`** + systemPrompt + `assistantHtml` / `explain` (Inquiry main track) |
-| `chat/modelSettings.ts` | `ModelSettings` v1 types, migrate flat `ChatConfig`, `resolveChatConfig` / `activeModelLabel`, LS read/write + legacy key migrate |
+| `chat/modelSettings.ts` | `ModelSettings` v1 types (`explainModelId`), migrate flat `ChatConfig`, `resolveChatConfig` / `resolveExplainConfig` / `explainModelLabel`, LS read/write + legacy key migrate |
 | `math/tex.ts` | Shared KaTeX protect/render (`protectAndRenderMath`) for assistant + doc md; same PH alphabet as code slots; fallback `<code class="soit-math-fallback">` |
 | `runtime/` | RuntimeId/info/prefs types + localStorage prefs mirror — spec §2.5; host wrappers in `host.ts` |
 | `sessionConfig.ts` | SessionConfig v1 normalize/migrate/push/remove recentVaults (≤8); LS `soit-session`; Host authority via `host.ts` — hall preselect only; **no** cold-start auto-open |
@@ -47,20 +49,26 @@ Parent: `src/AGENTS.md`.
   - Enter is user-driven (`spaceNav` / store); Host canonical path is authority after open ok
   - Browser: no fake bound vault; open fails; no “演示宇宙” enter CTA in v1
 - **ModelSettings contract** (`chat/modelSettings.ts`; Rust mirror `src-tauri/src/chat_config.rs`):
-  - Shape: `{ version:1, providers[], models[], activeModelId }` — provider = name + baseUrl + apiKey; model = providerId + modelId + optional label + enabled
-  - Migrate: legacy flat `ChatConfig` with non-empty key → 1 provider + 1 model + active; empty key → empty catalog
-  - Resolve: active → provider credentials for Port; no active / disabled / empty key → Mock (`apiKey: ""`)
-  - Normalize drops orphan models (unknown providerId) and invalid active; write path mirrors projected `ChatConfig` for legacy readers
+  - Shape: `{ version:1, providers[], models[], activeModelId, explainModelId }` — provider = name + baseUrl + apiKey; model = providerId + modelId + optional label + enabled; `explainModelId` null = follow chat
+  - Migrate: legacy flat `ChatConfig` with non-empty key → 1 provider + 1 model + active; empty key → empty catalog; missing `explainModelId` → `null`
+  - Resolve: `resolveChatConfig` = dialogue slot (`activeModelId`); `resolveExplainConfig` = short-explain slot (`explainModelId`, follow chat if null / disabled / empty key)
+  - **Explain must not** call `resolvePort` (dialogue only). Use `resolveExplainPort` → `resolveExplainConfig`.
+  - Normalize drops orphan models (unknown providerId) and invalid active/explain ids; write path mirrors projected dialogue `ChatConfig` for legacy readers
   - Cold start: bootstrap **must not** read model settings or hit model network
-  - Spec: `docs/superpowers/specs/2026-08-20-model-providers-spec.md`
+  - Specs: `docs/superpowers/specs/2026-08-20-model-providers-spec.md`; slots: `docs/superpowers/specs/2026-08-21-model-assignment-spec.md` v1.1
 - **DocSession FSM** (`docSession.ts`): statuses `closed|loading|ready|error|closing`; events include `open` / `load_ok|load_err` / `set_layout` / `retry` / `close|closed` / **`force_close`** (map + `loadSnapshot` — skip anim, bump epoch). Store owns IO + epoch guards (`state/workspaceStore.ts`); this module stays pure.
 - **SplitRatio** (`splitRatio.ts`): `--doc-fraction` ∈ [0.28, 0.72], default 0.42, wide display 0.68; localStorage only. UI host is `components/shell/SplitSash.tsx`.
 - **`formatDocAnchorQuote`** (`composerPayload.ts`): `{ path, text, page? }` → `（path [p.N]）\ntext` single quote string for composer; no multi-chip `docQuotes[]` in v1.
 - Chat secrets: app config / localStorage only — never `universe.db`; UI lists show 已配置/未配置 only, never plaintext keys.
 - **`renderAssistantHtml`** (`chat/assistantHtml.ts`): safe subset pipeline order — **escapeHtml → code protect → math (`protectAndRenderMath`) → wrapMarks → md-subset** (paragraphs/lists/headings/bold/code). Whitelist tags only from the pipeline; **never trust model HTML**. `completeResultToHtml` delegates here. Math SSoT: `docs/superpowers/specs/2026-08-20-math-katex-spec.md` (bundled `katex` only; no CDN).
 - **`protectAndRenderMath`** (`math/tex.ts`): runs on already-escaped text after code PH; `$…$` inline / `$$…$$` block; tex body `htmlUnescape` then KaTeX; display PH on its own line for `PH_ONLY`; `stripHtml` restores `$`/`$$` via `data-tex`. Doc preview reuses the same helper (`MdTextView` / `renderDocMd`).
-- **`ChatPort.explain?` / `explainSpan`** (`state/explainActions.ts`): short 2–4 sentence explain; **no marks required, no db/turns write, no spawn**. UI sole entry is `explainSpan` (resolves port); overlays must not call `port.explain` or `fetch`.
-- **Deepen scope v2** (`deepenScope.ts`): `{ parent: { title, status, question, stuck, next }, span, why, recentTurns }` — **child turns only**; never parent transcript.
+- **`ChatPort.explain?` / `explainSpan`** (`state/explainActions.ts`): short 2–4 sentence explain; **no marks required, no db/turns write, no spawn**. UI sole entry is `explainSpan` → `resolveExplainPort` (**not** `resolvePort`); overlays must not call `port.explain` or `fetch`.
+- **Fork scope** (`deepenScope.ts` + `chat/contextCompact.ts`, Pi-inspired):
+  - **Hard:** lineage, kind, parent fields, span, why
+  - **Implicit compact:** structured condensation of parent turns *before* keep-recent cut (Goal / Constraints / Progress / Decisions / Critical / Next)
+  - **Recent full:** last **1–2** parent turns complete (not 280-char clips)
+  - Child `recentTurns` stay child-only; long **same-card** threads compact older turns inside `messagesFromTurns`
+  - Never dump full parent transcript into child messages
 - **Load matrix** (`App.tsx`): never silent-inject `demoSnapshot()` on boot. Unbound → empty graph (`unboundEmptySnapshot`); `empty`/`universe` from Host as-is. `demoSnapshot()` is tests-only.
 - Browser path (no Tauri): mock bootstrap + demo snapshot; turn/card host helpers throw (store must not call them off universe path).
 - Prefer pure input→output helpers; side effects only in `host.ts` (dynamic `import("@tauri-apps/api/core")`).

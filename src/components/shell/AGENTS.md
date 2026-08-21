@@ -21,10 +21,11 @@ Hall contract: `docs/superpowers/specs/2026-08-20-workspace-hall-spec.md` v1.1.
 | `SettingsPanel.tsx` | Settings modal — 空间 / **外观** / 模型 / 运行时 / 技能 / 关于 |
 | `settings/SpaceSection.tsx` | Path switch via `enter`/`switchVault`; leave; clear lastVault memory; **not** a second hall |
 | `settings/AppearanceSection.tsx` | Theme (5) + font family + font size — `lib/appearance.ts` |
-| `settings/ModelSettingsForm.tsx` | 模型段壳：子 Tab 供应商 \| 可用模型；默认空供应商→供应商，否则可用模型 |
+| `settings/ModelSettingsForm.tsx` | 模型段壳：子 Tab 供应商 \| 可用模型 \| 分配；默认空供应商→供应商，否则可用模型（不默认进分配） |
 | `settings/ProvidersPanel.tsx` | BYOK 供应商列表 + 添加/编辑/删除（级联模型；密钥列表只显示已配置/未配置） |
 | `settings/ProviderForm.tsx` | 供应商表单：名*、Base URL*（http/s）、API Key（编辑留空不改） |
 | `settings/ModelsPanel.tsx` | 可用模型目录 + 启用开关 + 设为对话模型 + 编辑/删除 |
+| `settings/AssignmentPanel.tsx` | 分配：对话 `activeModelId` + 短解释 `explainModelId`（null=跟随对话） |
 | `settings/ModelForm.tsx` | 模型表单：供应商*、Model ID*、可选显示名 |
 | `settings/SkillsList.tsx` | Skills toggles; unbound → leave/hall, not settings·空间-only |
 | `settings/RuntimeSection.tsx` | External coding-agent detect/prefs/handoff enable |
@@ -60,15 +61,15 @@ Hall contract: `docs/superpowers/specs/2026-08-20-workspace-hall-spec.md` v1.1.
 ## Settings IA
 
 - 空间 → switch path / leave workspace / clear last memory (path text; no folder dialog v1); same enter/leave pipes as hall — **not** a second hall
-- **外观** → themes paper/matcha/celadon/ink/cinnabar + fonts system/song/hei/kai/mono + size sm–xl; `soit-appearance` localStorage; boot in `index.html`
+- **外观** → themes paper/matcha/celadon/ink/cinnabar/vellum/cyanotype/wisteria/walnut/travertine + fonts system/song/hei/kai/mono + size sm–xl; richer component tokens (`--bg-composer`, `--header-wash`, `--graph-node-*`, `--accent-2`); `soit-appearance` localStorage; boot in `index.html`
 - **模型** (nav hint: **供应商 · 密钥**) → 本机 BYOK 多供应商 + 模型目录；**不**抄套餐墙 / ChatGPT 登录
-  - 权威数据：`ModelSettings` v1（`providers[]` / `models[]` / `activeModelId`）via `getModelSettings` / `setModelSettings`
-  - 子 Tab：**供应商**（凭证+端点）· **可用模型**（目录 + 对话选用）
-  - 删供应商 → 级联删其下模型；若删到 active → `activeModelId=null`（回 Mock）
+  - 权威数据：`ModelSettings` v1（`providers[]` / `models[]` / `activeModelId` / `explainModelId`）via `getModelSettings` / `setModelSettings`
+  - 子 Tab：**供应商**（凭证+端点）· **可用模型**（目录）· **分配**（对话 `activeModelId` + 短解释 `explainModelId`；null=跟随对话）
+  - 删供应商 → 级联删其下模型；若删到 active → `activeModelId=null`（回 Mock）；非法 explain id 由 normalize 清为跟随
   - 编辑供应商 API Key 留空 → 保留旧密钥；列表永不展示密钥明文
-  - Base URL 须 http(s)；保存后 `soit:chat-config-changed`；Composer 模型：工具栏 Cpu 图标，点击弹出切换（本地预览 + 管理模型…）；输入从 textarea 左缘起
-  - 投影：`getChatConfig` = active → 旧扁平 `ChatConfig`（Port 兼容）；密钥仅 app config / localStorage，**不进** universe.db
-  - Spec: `docs/superpowers/specs/2026-08-20-model-providers-spec.md`
+  - Base URL 须 http(s)；保存后 `soit:chat-config-changed`；Composer 模型：工具栏 Cpu 图标，点击弹出切换（本地预览 + 管理模型…）；输入从 textarea 左缘起；chip 只表示对话槽
+  - 投影：`getChatConfig` = active → 旧扁平 `ChatConfig`（Port 兼容，仅对话槽）；密钥仅 app config / localStorage，**不进** universe.db
+  - Spec: `docs/superpowers/specs/2026-08-20-model-providers-spec.md`；槽：`docs/superpowers/specs/2026-08-21-model-assignment-spec.md` v1.1
 - **运行时** → external coding-agent detect/prefs/`enableSpawn`
 - 技能 → SkillsList; unbound guides to leave/hall (not 空间-only)
 - 关于 → version + db/md/key boundaries
