@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { getModelSettings } from "../../../lib/host";
+import AssignmentPanel from "./AssignmentPanel";
 import ModelsPanel from "./ModelsPanel";
 import ProvidersPanel from "./ProvidersPanel";
 
-type ModelTab = "providers" | "models";
+type ModelTab = "providers" | "models" | "assign";
 
 /**
- * Settings · 模型 — section shell with sub-tabs 供应商 | 可用模型.
+ * Settings · 模型 — section shell with sub-tabs 供应商 | 可用模型 | 分配.
  */
 export default function ModelSettingsForm() {
   const [tab, setTab] = useState<ModelTab | null>(null);
@@ -31,7 +32,7 @@ export default function ModelSettingsForm() {
       <div className="settings-section-intro">
         <h3 className="settings-section-title">模型</h3>
         <p className="settings-section-desc">
-          本机 BYOK：先添加供应商凭证，再在可用模型中选用对话模型。密钥不进宇宙库。
+          本机 BYOK：先添加供应商凭证，再在可用模型中建目录，然后在分配里把模型绑到对话或短解释。密钥不进宇宙库。
         </p>
       </div>
 
@@ -54,13 +55,24 @@ export default function ModelSettingsForm() {
         >
           可用模型
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={active === "assign"}
+          className={`settings-model-subnav-btn${active === "assign" ? " on" : ""}`}
+          onClick={() => setTab("assign")}
+        >
+          分配
+        </button>
       </div>
 
       <div role="tabpanel" className="settings-model-panel">
         {active === "providers" ? (
           <ProvidersPanel />
-        ) : (
+        ) : active === "models" ? (
           <ModelsPanel onNeedProviders={() => setTab("providers")} />
+        ) : (
+          <AssignmentPanel onNeedModels={() => setTab("models")} />
         )}
       </div>
     </div>
