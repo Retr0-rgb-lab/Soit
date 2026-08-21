@@ -932,6 +932,34 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 18%, transparent);
 }
 
+/* ── Assignment slots ─────────────────────────────────────── */
+
+.settings-assign {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-assign .settings-field select {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 400;
+  letter-spacing: 0;
+  padding: 10px 12px;
+}
+
+.settings-assign .settings-field select:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--focus) 55%, var(--line-strong));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 18%, transparent);
+}
+
 /* Shared enable toggle (models / reusable) */
 .settings-toggle {
   position: relative;
