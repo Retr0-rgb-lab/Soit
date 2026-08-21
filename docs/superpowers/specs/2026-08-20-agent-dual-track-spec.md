@@ -1,10 +1,10 @@
-# Agent 双轨（Inquiry Chat + External Runtime）— Spec v1.1
+# Agent 双轨（Inquiry Chat + External Runtime）— Spec v1.2
 
-> 日期: 2026-08-20  
+> 日期: 2026-08-20（v1.2 补丁 2026-08-21）  
 > 依据: `知识库/docs/共识.md` / `对象模型.md` / `非目标.md`；会话讨论「轻量探究对话 + 外部 coding agent 拓展」；OpenDesign adapter / ACP 调研；现状 `src/lib/chat/*` + `src/state/chatActions.ts`  
 > 基线分支: `main`  
 > 前置依赖: Host 耐久写穿（turn/card/spawn）；Settings 壳（空间/模型/技能/关于）；ChatPort Mock + OpenAI-compat BYOK；Skills 文本注入；deepenScope v2  
-> Oracle: v1.0 → v1.1（spawn 安全冻结、brief 信任边界、IA/文件清单、验收补全）
+> Oracle: v1.0 → v1.1（spawn 安全冻结、brief 信任边界、IA/文件清单、验收补全）→ v1.2（§7 允许主轨有界 Host 工具；见 inquiry-tools-search spec）
 
 ---
 
@@ -484,13 +484,14 @@ Optional / P1（不阻塞 A8）:
 
 ## 7. 不在范围
 
-- 自研 ReAct / 多步 tool-loop Agent Core  
+- **无界** ReAct / 自研 coding **Agent Core** / 任意 shell·写树·子 Agent 舰队工具环  
+  - **允许（v1.2）**：主轨 **有界** Host 工具（固定目录 `vault_search` / `fetch_url` / `web_search`、max rounds、过程时间线）— 见 `2026-08-21-inquiry-tools-search-spec.md`  
 - 子 Agent 舰队、多卡并行 mute 编排 UI  
 - Soit 作为 Claude/Cursor 的 MCP 主入口（反向可后置）  
 - ACP 全量多 vendor 生产级适配矩阵（本切片 mock + 探测；真 CLI ≤1 且 P1）  
 - `workspaceAccess: "vault-root"` / 默认给外部 agent 写笔记根  
 - `custom` runtime 自由 argv；`tauri-plugin-shell`  
-- 模型请求强制改走 Rust 代理  
+- 模型请求强制改走 Rust 代理（工具执行可走 Host；completion 仍可 FE fetch）  
 - 完整 Markdown 渲染器 / 代码块执行  
 - 一卡一笔记、聊天全文镜像进 vault  
 - 合并探究、第三种分叉节点  

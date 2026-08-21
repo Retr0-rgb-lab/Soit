@@ -66,7 +66,7 @@ impl Universe {
       .conn
       .prepare(
         "SELECT id, card_id, title, collapsed, user_text, ai_html, think, think_open,
-                COALESCE(starred, 0)
+                COALESCE(starred, 0), COALESCE(process_json, '[]')
          FROM turns ORDER BY sort_order ASC, created_at ASC, id ASC",
       )
       .map_err(|e| format!("prepare turns: {e}"))?;
@@ -76,6 +76,8 @@ impl Universe {
         let collapsed_i: i64 = row.get(3)?;
         let think_open_i: i64 = row.get(7)?;
         let starred_i: i64 = row.get(8)?;
+        let process_raw: String = row.get(9)?;
+        let process = serde_json::from_str(&process_raw).unwrap_or_else(|_| vec![]);
         Ok((
           row.get::<_, String>(1)?,
           TurnDto {
@@ -87,6 +89,7 @@ impl Universe {
             think: row.get(6)?,
             think_open: think_open_i != 0,
             starred: starred_i != 0,
+            process,
           },
         ))
       })

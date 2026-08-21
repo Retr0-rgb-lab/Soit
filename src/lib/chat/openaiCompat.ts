@@ -3,7 +3,10 @@ import type {
   ChatCompleteResult,
   ChatExplainInput,
   ChatPort,
+  ChatToolCall,
+  ChatWireMessage,
 } from "./port";
+import { messagesToWire } from "./port";
 import type { ChatConfig } from "./config";
 import { splitThinkContent, stripThinkForExplain } from "./splitThink";
 import { buildInquirySystemPrompt } from "./systemPrompt";
@@ -30,13 +33,40 @@ export class OpenAICompatChat implements ChatPort {
     const url = `${base}/chat/completions`;
     const model = this.config.model.trim() || "gpt-4o-mini";
 
-    const messages = [
-      { role: "system" as const, content: buildInquirySystemPrompt(input.scope) },
-      ...input.messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
-    ];
+    const wire: ChatWireMessage[] = input.wireMessages?.length
+      ? [...input.wireMessages]
+      : messagesToWire(input.messages ?? []);
+
+    // Ensure system prompt is first (if not already present as system).
+    const hasSystem = wire.some((m) => m.role === "system");
+    if (!hasSystem) {
+      wire.unshift({
+        role: "system",
+        content: buildInquirySystemPrompt(input.scope, {
+          toolsEnabled: Boolean(input.tools?.length || input.toolsEnabled),
+        }),
+      });
+    }
+
+    const body: Record<string, unknown> = {
+      model,
+      messages: wire.map(serializeWireMessage),
+      temperature: 0.7,
+    };
+
+    if (input.tools?.length && input.toolChoice !== "none") {
+      body.tools = input.tools.map((t) => ({
+        type: "function",
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters,
+        },
+      }));
+      body.tool_choice = input.toolChoice === "auto" ? "auto" : "auto";
+    } else if (input.toolChoice === "none") {
+      body.tool_choice = "none";
+    }
 
     const res = await fetch(url, {
       method: "POST",
@@ -44,29 +74,49 @@ export class OpenAICompatChat implements ChatPort {
         "Content-Type": "application/json",
         Authorization: `Bearer ${this.config.apiKey}`,
       },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: 0.7,
-      }),
+      body: JSON.stringify(body),
       signal: input.signal,
     });
 
     if (!res.ok) {
-      const body = await res.text().catch(() => "");
+      const errBody = await res.text().catch(() => "");
       throw new Error(
-        `Chat API ${res.status}: ${body.slice(0, 280) || res.statusText}`,
+        `Chat API ${res.status}: ${errBody.slice(0, 280) || res.statusText}`,
       );
     }
 
     const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string | null } }>;
+      choices?: Array<{
+        message?: {
+          content?: string | null;
+          tool_calls?: Array<{
+            id?: string;
+            type?: string;
+            function?: { name?: string; arguments?: string };
+          }>;
+        };
+        finish_reason?: string;
+      }>;
     };
-    const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+
+    const msg = data.choices?.[0]?.message;
+    const toolCalls = parseToolCalls(msg?.tool_calls);
+    const raw = (msg?.content ?? "").trim();
+
+    if (toolCalls.length) {
+      // Intermediate tool round — do not force empty-text placeholder.
+      const split = raw ? splitThinkContent(raw) : { text: "", think: "" };
+      return {
+        text: split.text,
+        think: split.think || undefined,
+        toolCalls,
+      };
+    }
+
     return parseAssistantContent(raw);
   }
 
-  /** Short explain — low temp, truncated span/output; no marks / no think. */
+  /** Short explain — low temp, truncated span/output; no marks / no think / no tools. */
   async explain(input: ChatExplainInput): Promise<{ text: string }> {
     const base = this.config.baseUrl.replace(/\/+$/, "");
     const url = `${base}/chat/completions`;
@@ -118,6 +168,51 @@ export class OpenAICompatChat implements ChatPort {
     }
     return { text };
   }
+}
+
+function serializeWireMessage(m: ChatWireMessage): Record<string, unknown> {
+  if (m.role === "tool") {
+    return {
+      role: "tool",
+      tool_call_id: m.tool_call_id,
+      content: m.content,
+    };
+  }
+  if (m.role === "assistant") {
+    const out: Record<string, unknown> = {
+      role: "assistant",
+      content: m.content,
+    };
+    if (m.tool_calls?.length) {
+      out.tool_calls = m.tool_calls;
+    }
+    return out;
+  }
+  return { role: m.role, content: m.content };
+}
+
+function parseToolCalls(
+  raw:
+    | Array<{
+        id?: string;
+        type?: string;
+        function?: { name?: string; arguments?: string };
+      }>
+    | undefined,
+): ChatToolCall[] {
+  if (!raw?.length) return [];
+  const out: ChatToolCall[] = [];
+  for (const t of raw) {
+    const id = (t.id ?? "").trim() || `call_${out.length}`;
+    const name = (t.function?.name ?? "").trim();
+    if (!name) continue;
+    out.push({
+      id,
+      name,
+      arguments: t.function?.arguments ?? "{}",
+    });
+  }
+  return out;
 }
 
 /**

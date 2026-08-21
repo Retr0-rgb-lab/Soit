@@ -58,6 +58,96 @@ describe("MockChat", () => {
     // Attribute quotes are escaped — no executable markup path.
     expect(html).toContain("class=&quot;mark&quot;");
   });
+
+  it("emits vault_search tool call when tools on and user asks 搜索", async () => {
+    const port = createMockChat();
+    const tools = [
+      {
+        name: "vault_search",
+        description: "search",
+        parameters: { type: "object", properties: {} },
+      },
+    ];
+    const r = await port.complete({
+      cardId: "c1",
+      messages: [{ role: "user", content: "搜索 函子" }],
+      tools,
+      toolChoice: "auto",
+    });
+    expect(r.toolCalls?.[0]?.name).toBe("vault_search");
+    expect(r.text).toBe("");
+    const args = JSON.parse(r.toolCalls![0]!.arguments) as { query: string };
+    expect(args.query).toContain("函子");
+  });
+
+  it("emits fetch_url when message contains http URL", async () => {
+    const port = createMockChat();
+    const r = await port.complete({
+      cardId: "c1",
+      messages: [{ role: "user", content: "请读取 https://example.com/a" }],
+      tools: [
+        {
+          name: "fetch_url",
+          description: "fetch",
+          parameters: { type: "object", properties: {} },
+        },
+      ],
+      toolChoice: "auto",
+    });
+    expect(r.toolCalls?.[0]?.name).toBe("fetch_url");
+    expect(r.toolCalls?.[0]?.arguments).toContain("https://example.com/a");
+  });
+
+  it("final hop after tool role uses tool content", async () => {
+    const port = createMockChat();
+    const r = await port.complete({
+      cardId: "c1",
+      wireMessages: [
+        { role: "user", content: "搜索 函子" },
+        {
+          role: "assistant",
+          content: null,
+          tool_calls: [
+            {
+              id: "mock_vault_1",
+              type: "function",
+              function: {
+                name: "vault_search",
+                arguments: JSON.stringify({ query: "函子" }),
+              },
+            },
+          ],
+        },
+        {
+          role: "tool",
+          tool_call_id: "mock_vault_1",
+          content: "hit: materials/functor.md",
+        },
+      ],
+    });
+    expect(r.toolCalls).toBeUndefined();
+    expect(r.text).toContain("已根据工具结果作答");
+    expect(r.text).toContain("functor.md");
+    expect(r.marks?.some((m) => m.term === "函子")).toBe(true);
+  });
+
+  it("toolChoice none never emits toolCalls", async () => {
+    const port = createMockChat();
+    const r = await port.complete({
+      cardId: "c1",
+      messages: [{ role: "user", content: "搜索 函子" }],
+      tools: [
+        {
+          name: "vault_search",
+          description: "search",
+          parameters: { type: "object", properties: {} },
+        },
+      ],
+      toolChoice: "none",
+    });
+    expect(r.toolCalls).toBeUndefined();
+    expect(r.text.length).toBeGreaterThan(0);
+  });
 });
 
 describe("openaiCompat parse", () => {

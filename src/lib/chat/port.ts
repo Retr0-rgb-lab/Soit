@@ -1,4 +1,4 @@
-/** ChatPort — single complete path for send + regenerate (Wave C). */
+/** ChatPort — complete path for send + regenerate (+ optional tools). */
 
 import { htmlUnescape } from "../math/tex";
 import { renderAssistantHtml } from "./assistantHtml";
@@ -10,6 +10,32 @@ export interface ChatMessage {
   content: string;
 }
 
+/** Ephemeral OpenAI wire messages for tool loops — never persisted as turns. */
+export type ChatWireMessage =
+  | { role: "system" | "user"; content: string }
+  | {
+      role: "assistant";
+      content: string | null;
+      tool_calls?: Array<{
+        id: string;
+        type: "function";
+        function: { name: string; arguments: string };
+      }>;
+    }
+  | { role: "tool"; tool_call_id: string; content: string };
+
+export interface ChatToolDef {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}
+
+export interface ChatToolCall {
+  id: string;
+  name: string;
+  arguments: string;
+}
+
 export interface ChatMark {
   term: string;
   explanation?: string;
@@ -17,11 +43,18 @@ export interface ChatMark {
 
 export interface ChatCompleteInput {
   cardId: string;
-  messages: ChatMessage[];
+  /** Plain history (user/assistant/system). Used when wireMessages omitted. */
+  messages?: ChatMessage[];
+  /** Tool-loop wire history (preferred when set). */
+  wireMessages?: ChatWireMessage[];
   /** deepen scope or other card context; opaque to the port */
   scope?: unknown;
   /** Optional abort — ports must honor when provided (Spec §2.1). */
   signal?: AbortSignal;
+  tools?: ChatToolDef[];
+  toolChoice?: "auto" | "none";
+  /** Whether tools are enabled (affects system prompt). */
+  toolsEnabled?: boolean;
 }
 
 export interface ChatCompleteResult {
@@ -29,6 +62,7 @@ export interface ChatCompleteResult {
   marks?: ChatMark[];
   /** Optional model thinking / chain-of-thought (hidden by default in UI). */
   think?: string;
+  toolCalls?: ChatToolCall[];
 }
 
 /** Short explain input — span/selection gloss; does not write turns or vault. */
@@ -170,4 +204,12 @@ export function stripHtml(html: string): string {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .trim();
+}
+
+/** Plain ChatMessage[] → wire messages. */
+export function messagesToWire(messages: ChatMessage[]): ChatWireMessage[] {
+  return messages.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }));
 }

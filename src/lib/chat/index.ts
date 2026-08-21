@@ -21,11 +21,15 @@ export type {
   ChatMessage,
   ChatPort,
   ChatRole,
+  ChatToolCall,
+  ChatToolDef,
+  ChatWireMessage,
 } from "./port";
 export {
   applyMarksHtml,
   completeResultToHtml,
   escapeHtml,
+  messagesToWire,
   stripHtml,
   wrapMarksOnEscaped,
 } from "./port";

@@ -1244,42 +1244,47 @@ body.has-selbar .ic-turn-bar {
   padding: 2px 8px 2px 8px;
 }
 
-/* PEL-160: thinking is secondary chrome — nested under wrap, never peer of .ai-html */
+/*
+ * PEL-160 / PEL-173: process + think is secondary chrome on the card paper.
+ * No nested panel fills, no mono “terminal” type — same --font as body, softer ink.
+ */
 .ic-think-wrap {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 0;
-  margin: 2px 8px 10px;
+  margin: 2px 8px 12px;
   max-width: min(100%, 42rem);
-  padding: 0 0 0 10px;
-  border-left: 2px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  padding: 0 0 0 12px;
+  border-left: 1.5px solid color-mix(in srgb, var(--ink) 14%, transparent);
+  background: transparent;
 }
 
 .ic-think-wrap.busy {
-  border-left-color: color-mix(in srgb, var(--focus) 35%, transparent);
+  border-left-color: color-mix(in srgb, var(--focus) 42%, transparent);
 }
 
 .ic-think {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-family: inherit;
+  font-size: 12.5px;
   font-weight: 500;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   color: var(--ink-soft);
   margin: 0;
   border: 0;
   background: transparent;
-  padding: 2px 6px 2px 2px;
-  border-radius: 6px;
+  padding: 2px 4px 2px 0;
+  border-radius: 4px;
   cursor: pointer;
   user-select: none;
 }
 
 .ic-think:hover {
   color: var(--ink);
-  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  background: transparent;
 }
 
 .ic-think:focus-visible {
@@ -1290,7 +1295,7 @@ body.has-selbar .ic-turn-bar {
 .ic-think svg {
   width: 12px;
   height: 12px;
-  opacity: 0.75;
+  opacity: 0.65;
   transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1298,15 +1303,16 @@ body.has-selbar .ic-turn-bar {
   transform: rotate(180deg);
 }
 
-/* Expand/collapse: grid 0fr→1fr + fade (animates; display:none cannot) */
+/* Expand/collapse: grid 0fr→1fr + fade — no fill on the body */
 .ic-think-body {
-  font-size: 11.5px;
-  color: color-mix(in srgb, var(--ink-soft) 92%, var(--ink));
-  line-height: 1.45;
+  font-family: inherit;
+  font-size: calc(var(--font-size-root) * 0.92);
+  color: color-mix(in srgb, var(--ink-soft) 88%, var(--ink));
+  line-height: 1.55;
   margin: 0;
   width: 100%;
-  border-radius: 0 8px 8px 0;
-  background: color-mix(in srgb, var(--ink) 3.5%, transparent);
+  border-radius: 0;
+  background: transparent;
   display: grid;
   grid-template-rows: 0fr;
   opacity: 0;
@@ -1315,8 +1321,7 @@ body.has-selbar .ic-turn-bar {
   transition:
     grid-template-rows 0.32s cubic-bezier(0.16, 1, 0.3, 1),
     opacity 0.22s ease,
-    margin-bottom 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-    background-color 0.22s ease;
+    margin-bottom 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .ic-think-body > span {
@@ -1325,10 +1330,10 @@ body.has-selbar .ic-turn-bar {
   display: block;
   white-space: pre-wrap;
   word-break: break-word;
-  padding: 0 10px;
+  padding: 0;
   opacity: 0;
-  transform: translateY(-4px);
-  font-family: var(--font-mono, ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace);
+  transform: translateY(-3px);
+  font-family: inherit;
   transition:
     opacity 0.2s ease 0.04s,
     transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
@@ -1338,14 +1343,140 @@ body.has-selbar .ic-turn-bar {
 .ic-think-body.open {
   grid-template-rows: 1fr;
   opacity: 1;
-  margin: 4px 0 2px;
+  margin: 6px 0 2px;
   pointer-events: auto;
 }
 
 .ic-think-body.open > span {
   opacity: 1;
   transform: translateY(0);
-  padding: 8px 10px;
+  padding: 2px 0 4px;
+}
+
+/* Process timeline — same paper, no step cards */
+.ic-process-body > .ic-process-list {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-3px);
+  transition:
+    opacity 0.2s ease 0.04s,
+    transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ic-process-body.open > .ic-process-list {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ic-process-body.open {
+  padding: 0;
+}
+
+.ic-process-list {
+  list-style: none;
+  margin: 0;
+  padding: 2px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: transparent;
+}
+
+.ic-process-step {
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: calc(var(--font-size-root) * 0.92);
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--ink-soft) 88%, var(--ink));
+}
+
+.ic-process-step.is-error .ic-process-step-title {
+  color: color-mix(in srgb, #a33 55%, var(--ink));
+}
+
+.ic-process-step.is-running .ic-process-step-title {
+  color: color-mix(in srgb, var(--focus) 55%, var(--ink));
+}
+
+.ic-process-step-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ic-process-step-title {
+  font-weight: 600;
+  font-size: 0.95em;
+  color: var(--ink-soft);
+}
+
+.ic-process-step-sum {
+  flex: 1;
+  min-width: 0;
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+}
+
+.ic-process-step-st {
+  flex-shrink: 0;
+  font-size: 0.85em;
+  opacity: 0.55;
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.ic-process-detail {
+  margin-top: 4px;
+  background: transparent;
+}
+
+.ic-process-detail summary {
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9em;
+  font-weight: 500;
+  color: var(--ink-soft);
+  user-select: none;
+  list-style: none;
+}
+
+.ic-process-detail summary::-webkit-details-marker {
+  display: none;
+}
+
+.ic-process-detail summary::before {
+  content: "› ";
+  opacity: 0.55;
+}
+
+.ic-process-detail[open] summary::before {
+  content: "▾ ";
+}
+
+/* Think prose + tool detail: body type on card paper, no nested panel */
+.ic-process-detail-body,
+.ic-process-detail pre {
+  margin: 6px 0 0;
+  padding: 0;
+  max-height: 14rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--ink-soft) 90%, var(--ink));
+  background: transparent;
+  border: 0;
+  border-radius: 0;
 }
 
 /* Marks inside trusted demo HTML — no glow ring */
@@ -2234,11 +2365,13 @@ body.has-selbar .ic-turn-bar {
   .ic-think svg,
   .ic-turn-body,
   .ic-think-body,
-  .ic-think-body > span {
+  .ic-think-body > span,
+  .ic-process-body > .ic-process-list {
     transition: none !important;
   }
 
-  .ic-think-body:not(.open) > span {
+  .ic-think-body:not(.open) > span,
+  .ic-process-body:not(.open) > .ic-process-list {
     transform: none;
   }
 }

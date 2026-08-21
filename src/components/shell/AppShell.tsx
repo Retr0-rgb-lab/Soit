@@ -34,6 +34,7 @@ function parseSettingsSection(raw: unknown): SettingsSection | null {
     raw === "space" ||
     raw === "appearance" ||
     raw === "model" ||
+    raw === "tools" ||
     raw === "runtime" ||
     raw === "skills" ||
     raw === "about"

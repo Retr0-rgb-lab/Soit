@@ -30,6 +30,7 @@ Parent: `src/AGENTS.md`.
 | `chat/modelSettings.ts` | `ModelSettings` v1 types (`explainModelId`), migrate flat `ChatConfig`, `resolveChatConfig` / `resolveExplainConfig` / `explainModelLabel`, LS read/write + legacy key migrate |
 | `math/tex.ts` | Shared KaTeX protect/render (`protectAndRenderMath`) for assistant + doc md; same PH alphabet as code slots; fallback `<code class="soit-math-fallback">` |
 | `runtime/` | RuntimeId/info/prefs types + localStorage prefs mirror — spec §2.5; host wrappers in `host.ts` |
+| `tools/` | Inquiry tool defs/prefs/process labels (`prefs`, `defs`, `processLabel`); host invoke via `host.ts` |
 | `sessionConfig.ts` | SessionConfig v1 normalize/migrate/push/remove recentVaults (≤8); LS `soit-session`; Host authority via `host.ts` — hall preselect only; **no** cold-start auto-open |
 
 ## Rules
@@ -43,6 +44,7 @@ Parent: `src/AGENTS.md`.
   - skills: `list_skills`, `set_skill_enabled`, `get_enabled_skills_text`
   - BYOK multi-provider: `get_model_settings` / `set_model_settings` (authoritative `ModelSettings`); `get_chat_config` / `set_chat_config` (project active → flat `ChatConfig` / legacy upsert); app config JSON / localStorage — **never** `universe.db`
   - Runtime (dual-track): `list_runtimes` / `get_runtime_prefs` / `set_runtime_prefs` / `start_runtime_handoff` / `cancel_runtime_handoff` — app config + `vault/.soit/runs/`; never treat external session as universe source; browser mock-only
+  - Inquiry tools: `get_tools_prefs` / `set_tools_prefs` / `invoke_inquiry_tool` — app config `soit-tools.json` (not universe.db); browser mock in `host.ts`
   - Session: `get_session_config` / `set_session_config` / `get_last_vault` / `set_last_vault` — app config `soit-session.json` (browser LS `soit-session`); open success Host writes last+recent; set last null keeps recents; `close_universe` does **not** clear last/recents
 - **Workspace hall / session** (spec `docs/superpowers/specs/2026-08-20-workspace-hall-spec.md`):
   - Cold start: FE reads `getSessionConfig` for last+recents + `getBootstrapState` only to detect Host-bound vault → `closeUniverse`; **never** auto `openUniverse(lastVault)`

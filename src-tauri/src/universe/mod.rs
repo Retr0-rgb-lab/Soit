@@ -459,8 +459,15 @@ mod tests {
         Some(true),
         None,
         None,
+        Some(r#"[{"id":"p1","kind":"think","title":"思考","status":"ok"}]"#),
       )
       .unwrap();
+    assert_eq!(up.snapshot.turns_by_card_id[&card_id]
+      .iter()
+      .find(|t| t.id == tid)
+      .unwrap()
+      .process
+      .len(), 1);
     assert!(up.ok);
     let t = up.snapshot.turns_by_card_id[&card_id]
       .iter()

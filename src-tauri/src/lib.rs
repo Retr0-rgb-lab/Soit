@@ -4,6 +4,7 @@ mod obsidian;
 mod runtime;
 mod session_config;
 mod skills;
+mod tools;
 mod universe;
 
 use serde::Serialize;
@@ -290,7 +291,7 @@ fn append_turn(
   )
 }
 
-/// Patch turn fields (aiHtml / think / collapse / …).
+/// Patch turn fields (aiHtml / think / process / collapse / …).
 #[tauri::command]
 fn update_turn(
   card_id: String,
@@ -301,6 +302,7 @@ fn update_turn(
   collapsed: Option<bool>,
   title: Option<String>,
   user: Option<String>,
+  process: Option<Vec<serde_json::Value>>,
   state: State<'_, AppState>,
 ) -> Result<MutationResult, String> {
   let mut g = state
@@ -310,6 +312,9 @@ fn update_turn(
   let u = g
     .as_mut()
     .ok_or_else(|| "no universe open — bind a vault first".to_string())?;
+  let process_json = process
+    .as_ref()
+    .map(|p| serde_json::to_string(p).unwrap_or_else(|_| "[]".into()));
   u.update_turn(
     &card_id,
     &turn_id,
@@ -319,6 +324,7 @@ fn update_turn(
     collapsed,
     title.as_deref(),
     user.as_deref(),
+    process_json.as_deref(),
   )
 }
 
@@ -457,6 +463,29 @@ fn append_residue(
   Ok(obsidian::write_residue(&u.vault_path, &card_id, &text))
 }
 
+#[tauri::command]
+fn get_tools_prefs(app: AppHandle) -> Result<tools::prefs::ToolsPrefsDto, String> {
+  tools::get_tools_prefs(app)
+}
+
+#[tauri::command]
+fn set_tools_prefs(
+  app: AppHandle,
+  prefs: tools::prefs::ToolsPrefsDto,
+) -> Result<tools::prefs::ToolsPrefsDto, String> {
+  tools::set_tools_prefs(app, prefs)
+}
+
+#[tauri::command]
+fn invoke_inquiry_tool(
+  app: AppHandle,
+  state: State<'_, AppState>,
+  name: String,
+  args_json: String,
+) -> Result<tools::ToolInvokeResult, String> {
+  tools::invoke_inquiry_tool(app, state, name, args_json)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -477,6 +506,9 @@ pub fn run() {
       update_card,
       precipitate_concept,
       append_residue,
+      get_tools_prefs,
+      set_tools_prefs,
+      invoke_inquiry_tool,
       list_skills,
       set_skill_enabled,
       get_enabled_skills_text,

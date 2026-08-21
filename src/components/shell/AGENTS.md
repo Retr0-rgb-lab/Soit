@@ -18,7 +18,7 @@ Hall contract: `docs/superpowers/specs/2026-08-20-workspace-hall-spec.md` v1.1.
 | `LeftRail.tsx` | Orbit (top) + PathLineNav (bottom) + hide toggle + **退出工作区** → `leaveWorkspace` |
 | `FocusOrbit.tsx` | Stable world orbit + camera pan (orbitNav) |
 | `PathLineNav.tsx` | Line Sidebar: hub→focus radial path only; 7-row window; hide |
-| `SettingsPanel.tsx` | Settings modal — 空间 / **外观** / 模型 / 运行时 / 技能 / 关于 |
+| `SettingsPanel.tsx` | Settings modal — 空间 / **外观** / 模型 / **工具** / 运行时 / 技能 / 关于 |
 | `settings/SpaceSection.tsx` | Path switch via `enter`/`switchVault`; leave; clear lastVault memory; **not** a second hall |
 | `settings/AppearanceSection.tsx` | Theme (5) + font family + font size — `lib/appearance.ts` |
 | `settings/ModelSettingsForm.tsx` | 模型段壳：子 Tab 供应商 \| 可用模型 \| 分配；默认空供应商→供应商，否则可用模型（不默认进分配） |

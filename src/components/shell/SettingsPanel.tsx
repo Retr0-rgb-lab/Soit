@@ -15,6 +15,7 @@ export type SettingsSection =
   | "space"
   | "appearance"
   | "model"
+  | "tools"
   | "runtime"
   | "skills"
   | "about";
@@ -30,6 +31,7 @@ const NAV: { id: SettingsSection; label: string; hint: string }[] = [
   { id: "space", label: "空间", hint: "本库 · Obsidian" },
   { id: "appearance", label: "外观", hint: "主题 · 字体" },
   { id: "model", label: "模型", hint: "供应商 · 密钥" },
+  { id: "tools", label: "工具", hint: "检索 · 搜索" },
   { id: "runtime", label: "运行时", hint: "本机 Agent" },
   { id: "skills", label: "技能", hint: "本库启停" },
   { id: "about", label: "关于", hint: "记忆边界" },
@@ -38,6 +40,7 @@ const NAV: { id: SettingsSection; label: string; hint: string }[] = [
 /** Optional section modules — empty until S2/S3/S4 land the files. */
 const spaceGlob = import.meta.glob("./settings/SpaceSection.tsx");
 const modelGlob = import.meta.glob("./settings/ModelSettingsForm.tsx");
+const toolsGlob = import.meta.glob("./settings/ToolsSection.tsx");
 const runtimeGlob = import.meta.glob("./settings/RuntimeSection.tsx");
 const skillsGlob = import.meta.glob("./settings/SkillsList.tsx");
 
@@ -63,6 +66,10 @@ const lazySpace = (() => {
 })();
 const lazyModel = (() => {
   const load = firstLoader(modelGlob);
+  return load ? lazy(load) : null;
+})();
+const lazyTools = (() => {
+  const load = firstLoader(toolsGlob);
   return load ? lazy(load) : null;
 })();
 const lazyRuntime = (() => {
@@ -143,15 +150,19 @@ export default function SettingsPanel({
       return <OptionalSection section="space" Comp={lazySpace} />;
     if (section === "model")
       return <OptionalSection section="model" Comp={lazyModel} />;
+    if (section === "tools")
+      return <OptionalSection section="tools" Comp={lazyTools} />;
     if (section === "runtime")
       return <OptionalSection section="runtime" Comp={lazyRuntime} />;
-    return (
-      <OptionalSection
-        section="skills"
-        Comp={lazySkills}
-        onNeedVault={goSpace}
-      />
-    );
+    if (section === "skills")
+      return (
+        <OptionalSection
+          section="skills"
+          Comp={lazySkills}
+          onNeedVault={goSpace}
+        />
+      );
+    return <Placeholder section={section} />;
   }, [section, onSectionChange]);
 
   if (!open) return null;

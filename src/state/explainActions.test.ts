@@ -78,8 +78,8 @@ describe("explainSpan", () => {
     expect(text).toBe("fallback gloss");
     expect(port.complete).toHaveBeenCalledOnce();
     const arg = vi.mocked(port.complete).mock.calls[0]![0];
-    expect(arg.messages.some((m) => m.role === "system")).toBe(true);
-    expect(arg.messages.some((m) => m.content.includes("范畴"))).toBe(true);
+    expect(arg.messages?.some((m) => m.role === "system")).toBe(true);
+    expect(arg.messages?.some((m) => m.content.includes("范畴"))).toBe(true);
     expect(resolvePort).not.toHaveBeenCalled();
   });
 

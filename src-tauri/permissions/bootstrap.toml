@@ -177,3 +177,18 @@ commands.allow = ["list_vault_materials"]
 identifier = "allow-import-vault-material"
 description = "Allow import_vault_material command (base64 import ≤2MB into materials/)"
 commands.allow = ["import_vault_material"]
+
+[[permission]]
+identifier = "allow-get-tools-prefs"
+description = "Allow get_tools_prefs (app config soit-tools.json; not universe.db)"
+commands.allow = ["get_tools_prefs"]
+
+[[permission]]
+identifier = "allow-set-tools-prefs"
+description = "Allow set_tools_prefs (app config soit-tools.json; not universe.db)"
+commands.allow = ["set_tools_prefs"]
+
+[[permission]]
+identifier = "allow-invoke-inquiry-tool"
+description = "Allow invoke_inquiry_tool (vault_search / fetch_url / web_search)"
+commands.allow = ["invoke_inquiry_tool"]

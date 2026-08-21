@@ -152,7 +152,18 @@ export function patchTurnAi(
   set: StoreSet,
   cardId: string,
   turnId: string,
-  patch: Partial<Pick<Turn, "aiHtml" | "think" | "thinkOpen" | "collapsed" | "title" | "user">>,
+  patch: Partial<
+    Pick<
+      Turn,
+      | "aiHtml"
+      | "think"
+      | "thinkOpen"
+      | "collapsed"
+      | "title"
+      | "user"
+      | "process"
+    >
+  >,
 ): void {
   set((s) => {
     const turns = s.turnsByCardId[cardId];

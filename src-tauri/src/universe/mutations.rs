@@ -239,6 +239,7 @@ impl Universe {
       think: String::new(),
       think_open: false,
       starred: false,
+      process: vec![],
     };
     let snapshot = self.snapshot()?;
     Ok(AppendTurnResult { turn, snapshot })
@@ -255,6 +256,7 @@ impl Universe {
     collapsed: Option<bool>,
     title: Option<&str>,
     user: Option<&str>,
+    process_json: Option<&str>,
   ) -> Result<MutationResult, String> {
     let card_id = card_id.trim();
     let turn_id = turn_id.trim();
@@ -322,6 +324,24 @@ impl Universe {
         params![v, turn_id, card_id],
       )
       .map_err(|e| format!("update user: {e}"))?;
+    }
+    if let Some(v) = process_json {
+      let normalized = if v.trim().is_empty() {
+        "[]".to_string()
+      } else {
+        // Validate JSON array
+        let parsed: serde_json::Value =
+          serde_json::from_str(v).map_err(|e| format!("process_json: {e}"))?;
+        if !parsed.is_array() {
+          return Err("process_json must be a JSON array".into());
+        }
+        parsed.to_string()
+      };
+      tx.execute(
+        "UPDATE turns SET process_json = ?1 WHERE id = ?2 AND card_id = ?3",
+        params![normalized, turn_id, card_id],
+      )
+      .map_err(|e| format!("update process_json: {e}"))?;
     }
 
     let ts = now_ms().to_string();

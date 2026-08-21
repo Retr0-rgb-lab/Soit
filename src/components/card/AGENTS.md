@@ -15,7 +15,7 @@ Stage chrome: `知识库/docs/card-stage-chrome.md` (专注模式 · **drag-to-s
 | `CardHeader.tsx` | Title / path / tools / 专注模式; drag surface on titles |
 | `HoverIconTray.tsx` | Top-right hover tray — icons slide out (Reicon + CSS) |
 | `icons.tsx` | Stroke locals + Reicon wrappers (`reicon-react`) |
-| `TurnItem.tsx` | One turn; collapse; hover affordances |
+| `TurnItem.tsx` | One turn; collapse; hover affordances; **process strip** (think + tools, single expand entry) |
 | `TurnHistoryRail.tsx` | External right-edge multi-turn history dock (PEL-148) |
 | `LineSidebar.tsx` | React Bits proximity sidebar used by the history dock |
 | `EdgeActions.tsx` | Card-edge **深挖 / 发散** only |
@@ -29,6 +29,7 @@ Stage chrome: `知识库/docs/card-stage-chrome.md` (专注模式 · **drag-to-s
 - Turn ops (`regenerateTurn`, `deleteTurn`, collapse) stay **on the current card**; regenerate must not spawn nodes.
 - **Delete inquiry** (`deleteInquiry`): HoverIconTray trash → confirm → cascade subtree (turns + edges). Not EdgeActions. No Obsidian cascade. Universe → Host `delete_inquiry`.
 - Assistant HTML is a **safe subset** from `renderAssistantHtml` (escape → structure → marks); may include marks (`class="mark" data-term=...`). Never trust model raw HTML.
+- **Process / think strip** (PEL-160/173): single fold under the turn; sits on **card paper** — no nested panel fills, no mono terminal type; same `--font` as body, softer ink + left rule only.
 - Mark / selection short-explain goes through **`explainSpan` only** (never `port.explain` / fetch from UI). Explain does **not** create cards, turns, or db rows; spawn still requires explicit deepen/diverge — do not silent-deepen.
 - Wire mutations through `useWorkspace`, not local fake graphs.
 - **Turn history** sits **in-flow on the right** (hover edge strip → Line Sidebar). Open rail **shrinks card width** so the panel stays on-screen. Wheel scrolls the list. Not the workspace graph.

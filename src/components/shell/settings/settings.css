@@ -1146,6 +1146,75 @@
   color: var(--danger);
 }
 
+/* ── Tools (inquiry Host tools prefs) ─────────────────────── */
+
+.settings-tools .settings-field select {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 400;
+  letter-spacing: 0;
+  padding: 10px 12px;
+  transition:
+    border-color 0.14s var(--ease-soft),
+    box-shadow 0.14s var(--ease-soft);
+}
+
+.settings-tools .settings-field select:hover:not(:disabled) {
+  border-color: var(--line-strong);
+}
+
+.settings-tools .settings-field select:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--focus) 55%, var(--line-strong));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 18%, transparent);
+}
+
+.settings-tools .settings-field select:disabled {
+  opacity: 0.65;
+  background: var(--bg-muted);
+  cursor: not-allowed;
+}
+
+.tools-toggle-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.tools-toggle-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tools-toggle-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.tools-toggle-desc {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.tools-warn {
+  margin: 0;
+}
+
+.tools-status {
+  margin: 12px 2px 0;
+}
+
 /* ── Runtime ──────────────────────────────────────────────── */
 
 .settings-runtime .settings-field select {

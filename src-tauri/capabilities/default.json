@@ -40,6 +40,9 @@
     "allow-read-vault-text",
     "allow-list-vault-materials",
     "allow-import-vault-material",
+    "allow-get-tools-prefs",
+    "allow-set-tools-prefs",
+    "allow-invoke-inquiry-tool",
     "allow-ping"
   ]
 }

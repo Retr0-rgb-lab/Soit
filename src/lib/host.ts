@@ -397,6 +397,7 @@ export async function updateTurn(
     collapsed: args.collapsed,
     title: args.title,
     user: args.user,
+    process: args.process,
   });
 }
 
@@ -739,6 +740,143 @@ export async function importVaultMaterial(args: {
     fileName: args.fileName,
     bytesBase64: args.bytesBase64,
   });
+}
+
+/** Tools prefs — app config soit-tools.json (not universe.db). */
+export async function getToolsPrefs(): Promise<
+  import("./tools/types").ToolsPrefs
+> {
+  const { normalizeToolsPrefs, readToolsPrefsFromLocalStorage } = await import(
+    "./tools/prefs"
+  );
+  if (!hasTauri()) {
+    return readToolsPrefsFromLocalStorage();
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  const raw = await invoke<unknown>("get_tools_prefs");
+  return normalizeToolsPrefs(raw);
+}
+
+export async function setToolsPrefs(
+  prefs: import("./tools/types").ToolsPrefs,
+): Promise<import("./tools/types").ToolsPrefs> {
+  const {
+    normalizeToolsPrefs,
+    writeToolsPrefsToLocalStorage,
+  } = await import("./tools/prefs");
+  const next = normalizeToolsPrefs(prefs);
+  if (!hasTauri()) {
+    writeToolsPrefsToLocalStorage(next);
+    return next;
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  const raw = await invoke<unknown>("set_tools_prefs", { prefs: next });
+  const saved = normalizeToolsPrefs(raw);
+  writeToolsPrefsToLocalStorage(saved);
+  return saved;
+}
+
+/** Host tool invoke — vault_search / fetch_url / web_search. */
+export async function invokeInquiryTool(
+  name: string,
+  argsJson: string,
+): Promise<import("./tools/types").ToolInvokeResult> {
+  if (!hasTauri()) {
+    return browserMockInvokeTool(name, argsJson);
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<import("./tools/types").ToolInvokeResult>(
+    "invoke_inquiry_tool",
+    { name, argsJson },
+  );
+}
+
+async function browserMockInvokeTool(
+  name: string,
+  argsJson: string,
+): Promise<import("./tools/types").ToolInvokeResult> {
+  let args: Record<string, unknown> = {};
+  try {
+    args = JSON.parse(argsJson || "{}") as Record<string, unknown>;
+  } catch {
+    /* empty */
+  }
+  const prefs = (await import("./tools/prefs")).readToolsPrefsFromLocalStorage();
+  if (!prefs.toolsEnabled) {
+    return {
+      ok: false,
+      title: "工具",
+      summary: "工具已关闭",
+      content: "工具已关闭（设置 → 工具）",
+      error: "工具已关闭（设置 → 工具）",
+    };
+  }
+  if (name === "vault_search") {
+    const q = String(args.query ?? "");
+    return {
+      ok: true,
+      title: "检索库内",
+      summary: `「${q}」· mock 0 条`,
+      content: JSON.stringify({ query: q, count: 0, hits: [] }, null, 2),
+    };
+  }
+  if (name === "fetch_url") {
+    const url = String(args.url ?? "");
+    try {
+      const res = await fetch(url);
+      const text = (await res.text()).slice(0, 4000);
+      return {
+        ok: res.ok,
+        title: "读取链接",
+        summary: url,
+        content: text || `(HTTP ${res.status})`,
+        error: res.ok ? undefined : `HTTP ${res.status}`,
+      };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return {
+        ok: false,
+        title: "读取链接",
+        summary: msg,
+        content: msg,
+        error: msg,
+      };
+    }
+  }
+  if (name === "web_search") {
+    if (prefs.webSearchBackend === "off") {
+      const err =
+        "网页搜索已关闭。可在设置 → 工具 中启用 DuckDuckGo 或 Tavily。";
+      return {
+        ok: false,
+        title: "网页搜索",
+        summary: err,
+        content: err,
+        error: err,
+      };
+    }
+    return {
+      ok: true,
+      title: "网页搜索",
+      summary: "browser mock · 1 条",
+      content: JSON.stringify(
+        {
+          query: args.query,
+          hits: [
+            {
+              title: "Mock result",
+              url: "https://example.com",
+              snippet: "Browser mock search hit (desktop Host is authoritative).",
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+    };
+  }
+  const err = `unknown tool: ${name}`;
+  return { ok: false, title: "未知工具", summary: err, content: err, error: err };
 }
 
 async function browserMockHandoff(

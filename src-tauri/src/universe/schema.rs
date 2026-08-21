@@ -76,6 +76,17 @@ impl Universe {
         .map_err(|e| format!("alter turns.starred: {e}"))?;
     }
 
+    // Inquiry tools — process timeline JSON (no SCHEMA_VERSION bump)
+    if !self.turns_has_column("process_json")? {
+      self
+        .conn
+        .execute(
+          "ALTER TABLE turns ADD COLUMN process_json TEXT NOT NULL DEFAULT '[]'",
+          [],
+        )
+        .map_err(|e| format!("alter turns.process_json: {e}"))?;
+    }
+
     let ver: Option<String> = self
       .conn
       .query_row(

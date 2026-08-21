@@ -33,6 +33,9 @@ pub struct TurnDto {
   /// PEL-166 — starred turn (catalog in companion). Default false for old rows.
   #[serde(default)]
   pub starred: bool,
+  /// Tool/think process timeline (JSON array). Default empty.
+  #[serde(default)]
+  pub process: Vec<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

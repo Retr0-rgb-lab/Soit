@@ -50,6 +50,8 @@ Project-wide: root `AGENTS.md`. IPC types mirrored in `../src/types.ts` and `../
 | `get_runtime_prefs` / `set_runtime_prefs` | `soit-runtime.json` in app config — **not** universe.db; default `enableSpawn: false`, `defaultRuntimeId: "mock"` |
 | `start_runtime_handoff` | P0 **mock only** (~800ms); non-mock → Err when `enableSpawn` false or CLI not implemented; optional `brief.md` under `vault/.soit/runs/<runId>/` |
 | `cancel_runtime_handoff` | Cancel in-flight mock handoff (`{ ok }`) |
+| `get_tools_prefs` / `set_tools_prefs` | Inquiry tools prefs in app config `soit-tools.json` — **not** universe.db (enable flags / search provider keys) |
+| `invoke_inquiry_tool` | Run one tool (`vault_search` / `fetch_url` / `web_search`); requires open universe where path-bound; returns structured result JSON |
 | `resolve_vault_doc` | PEL-156: `{ path }` → `{ ok, pathRel, pathAbs, kind, displayName, size, error? }`; kind `md\|text\|pdf\|unsupported`; requires open universe |
 | `read_vault_text` | PEL-156: `{ pathRel, maxBytes? }` → `{ ok, text?, error? }`; default max **1_500_000** bytes; oversize / non-UTF-8 → error (no silent truncate) |
 | `list_vault_materials` | Materials-rail: lazy list under `vault/materials/`; caps depth/entries; **not** called from bootstrap / `open_universe` |

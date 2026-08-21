@@ -20,6 +20,25 @@ export interface InquiryNode {
   next?: string | null;
 }
 
+/** Inquiry tool / think timeline step (tools-search spec). */
+export type ProcessStepStatus = "running" | "ok" | "error" | "cancelled";
+export type ProcessStepKind =
+  | "think"
+  | "vault_search"
+  | "web_search"
+  | "fetch_url";
+
+export interface ProcessStep {
+  id: string;
+  kind: ProcessStepKind;
+  title: string;
+  summary?: string;
+  status: ProcessStepStatus;
+  detail?: string;
+  startedAt?: string;
+  endedAt?: string;
+}
+
 export interface Turn {
   id: string;
   title: string;
@@ -30,6 +49,8 @@ export interface Turn {
   thinkOpen: boolean;
   /** PEL-166 — starred for companion catalog. */
   starred?: boolean;
+  /** Tool/think process timeline; authoritative when present. */
+  process?: ProcessStep[];
 }
 
 /** Source span on a parent turn — used for edges and return-to-source. */
@@ -196,6 +217,7 @@ export interface AppendTurnResult {
 export interface UpdateTurnArgs {
   cardId: string;
   turnId: string;
+  process?: ProcessStep[];
   aiHtml?: string;
   think?: string;
   thinkOpen?: boolean;

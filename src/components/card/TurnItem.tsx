@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import type { Turn } from "../../types";
+import type { ProcessStep, Turn } from "../../types";
+import { isProcessBusy, processEntryLabel } from "../../lib/tools";
 import {
   IconBookmark,
   IconChev,
@@ -32,10 +33,19 @@ interface Props {
   railTarget?: boolean;
 }
 
-/** Status-only think lines (inflight) — still toggleable but labeled differently. */
-function isThinkStatus(think: string): boolean {
+function legacyThinkAsProcess(think: string): ProcessStep[] {
   const t = think.trim();
-  return t === "生成中…" || t.endsWith("中…") || t.endsWith("中...");
+  if (!t) return [];
+  return [
+    {
+      id: "legacy-think",
+      kind: "think",
+      title: "思考",
+      status: "ok",
+      detail: t,
+      summary: t.slice(0, 80),
+    },
+  ];
 }
 
 export default function TurnItem({
@@ -53,15 +63,19 @@ export default function TurnItem({
 }: Props) {
   const bookOn = Boolean(turn.starred);
   /** Local UI toggle; default closed so formal output stays primary (PEL-160). */
-  const [thinkOpen, setThinkOpen] = useState(false);
+  const [processOpen, setProcessOpen] = useState(false);
   const collapsed = forceExpand ? false : turn.collapsed;
   const thinkText = (turn.think ?? "").trim();
-  const showThink = Boolean(thinkText);
-  const thinkBusy = showThink && isThinkStatus(thinkText);
+  const processSteps: ProcessStep[] =
+    turn.process && turn.process.length > 0
+      ? turn.process
+      : legacyThinkAsProcess(thinkText);
+  const showProcess = processSteps.length > 0;
+  const processBusy = isProcessBusy(turn.process, thinkText);
 
   // New turn id → reset closed; never auto-open from store.
   useEffect(() => {
-    setThinkOpen(false);
+    setProcessOpen(false);
   }, [turn.id]);
 
   const onMarkPointer = (e: React.MouseEvent) => {
@@ -161,34 +175,69 @@ export default function TurnItem({
         <div className="ic-turn-inner">
           <div className="ic-msg you">{turn.user}</div>
 
-          {showThink ? (
-            <div className={`ic-think-wrap${thinkOpen ? " open" : ""}${thinkBusy ? " busy" : ""}`}>
+          {showProcess ? (
+            <div
+              className={`ic-think-wrap ic-process-wrap${processOpen ? " open" : ""}${processBusy ? " busy" : ""}`}
+            >
               <button
                 type="button"
-                className={`ic-think${thinkOpen ? " open" : ""}`}
-                aria-expanded={thinkOpen}
-                aria-controls={`think-${turn.id}`}
-                data-tip={thinkOpen ? "隐藏思考过程" : "显示思考过程"}
+                className={`ic-think${processOpen ? " open" : ""}`}
+                aria-expanded={processOpen}
+                aria-controls={`process-${turn.id}`}
+                aria-busy={processBusy || undefined}
+                data-tip={processOpen ? "收起过程" : "显示过程"}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setThinkOpen((v) => !v);
+                  setProcessOpen((v) => !v);
                 }}
               >
-                {thinkBusy
-                  ? thinkOpen
-                    ? "思考中 · 收起"
-                    : "思考中…"
-                  : thinkOpen
-                    ? "隐藏思考"
-                    : "思考过程"}{" "}
+                {processEntryLabel(processSteps, {
+                  open: processOpen,
+                  busy: processBusy,
+                })}{" "}
                 <IconChev />
               </button>
               <div
-                id={`think-${turn.id}`}
-                className={`ic-think-body${thinkOpen ? " open" : ""}`}
-                aria-hidden={!thinkOpen}
+                id={`process-${turn.id}`}
+                className={`ic-think-body ic-process-body${processOpen ? " open" : ""}`}
+                aria-hidden={!processOpen}
               >
-                <span>{thinkText}</span>
+                <ul className="ic-process-list">
+                  {processSteps.map((step) => (
+                    <li
+                      key={step.id}
+                      className={`ic-process-step is-${step.status}`}
+                    >
+                      <div className="ic-process-step-head">
+                        <span className="ic-process-step-title">{step.title}</span>
+                        {step.summary ? (
+                          <span className="ic-process-step-sum">{step.summary}</span>
+                        ) : null}
+                        <span className="ic-process-step-st" aria-hidden>
+                          {step.status === "running"
+                            ? "…"
+                            : step.status === "ok"
+                              ? "✓"
+                              : step.status === "error"
+                                ? "!"
+                                : "–"}
+                        </span>
+                      </div>
+                      {step.detail && step.kind === "think" ? (
+                        <div className="ic-process-detail-body">
+                          {step.detail}
+                        </div>
+                      ) : step.detail ? (
+                        <details className="ic-process-detail">
+                          <summary>详情</summary>
+                          <pre className="ic-process-detail-body">
+                            {step.detail}
+                          </pre>
+                        </details>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           ) : null}

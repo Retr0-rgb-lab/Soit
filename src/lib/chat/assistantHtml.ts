@@ -75,12 +75,16 @@ function applyInline(html: string): string {
       return `<span class="ai-link">${label}</span>`;
     },
   );
-  // Bare [label] that is not a mark placeholder — drop brackets (common model noise).
+  // Bare [label] noise — drop brackets. Skip wiki `[[term]]` (handled by mark parse)
+  // and markdown links already rewritten above.
   out = out.replace(
     /\[([^\]\n]{1,40})\](?!\()/g,
     (match, label: string, offset: number) => {
       if (isInsideTag(out, offset)) return match;
-      // Keep empty / code-like
+      // Inside `[[…]]` — leave for mark pipeline / already-stripped doubles.
+      if (out[offset - 1] === "[" || out[offset + match.length] === "]") {
+        return match;
+      }
       if (!String(label).trim()) return match;
       return String(label);
     },

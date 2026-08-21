@@ -122,10 +122,77 @@ export class MockChat implements ChatPort {
     }
     throwIfAborted(input.signal);
 
-    const lastUser = [...input.messages]
-      .reverse()
-      .find((m) => m.role === "user");
-    const q = (lastUser?.content ?? "").trim() || "（空消息）";
+    const wire = input.wireMessages;
+    const plain = input.messages ?? [];
+
+    // After a tool result in wire history → final answer (tool-loop second hop).
+    const hasToolResult = wire?.some((m) => m.role === "tool");
+    if (hasToolResult) {
+      const lastTool = [...(wire ?? [])]
+        .reverse()
+        .find((m) => m.role === "tool");
+      const snippet = (lastTool && "content" in lastTool
+        ? lastTool.content
+        : ""
+      ).slice(0, 120);
+      return {
+        text: `（MockChat）已根据工具结果作答：${snippet || "（空）"}\n可继续用 [[函子]] 或 [[范畴]] 分叉。`,
+        marks: [GLOSSARY[0]!, GLOSSARY[1]!],
+        think: "已消费 tool 结果，输出终答。",
+      };
+    }
+
+    const lastUserContent = (() => {
+      if (wire?.length) {
+        for (let i = wire.length - 1; i >= 0; i--) {
+          const m = wire[i]!;
+          if (m.role === "user") return m.content;
+        }
+      }
+      const lastUser = [...plain].reverse().find((m) => m.role === "user");
+      return lastUser?.content ?? "";
+    })();
+
+    const q = lastUserContent.trim() || "（空消息）";
+
+    // Optional one-shot tool call when tools provided and user asks to search.
+    const wantsTool =
+      Boolean(input.tools?.length) &&
+      input.toolChoice !== "none" &&
+      /搜索|检索|search|http:\/\/|https:\/\//i.test(q);
+
+    if (wantsTool) {
+      const useFetch = /https?:\/\//i.test(q);
+      if (useFetch) {
+        const m = q.match(/https?:\/\/[^\s]+/i);
+        return {
+          text: "",
+          think: "需要读取链接。",
+          toolCalls: [
+            {
+              id: "mock_fetch_1",
+              name: "fetch_url",
+              arguments: JSON.stringify({ url: m?.[0] ?? "https://example.com" }),
+            },
+          ],
+        };
+      }
+      const useWeb = /网页|web\s*search|联网/i.test(q);
+      return {
+        text: "",
+        think: useWeb ? "需要网页搜索。" : "需要检索库内材料。",
+        toolCalls: [
+          {
+            id: useWeb ? "mock_web_1" : "mock_vault_1",
+            name: useWeb ? "web_search" : "vault_search",
+            arguments: JSON.stringify({
+              query: q.replace(/搜索|检索|search/gi, "").trim() || q,
+            }),
+          },
+        ],
+      };
+    }
+
     const marks = pickMarks(q, input.scope);
     const terms = marks.map((m) => m.term).join("、");
     const hint = scopeHint(input.scope);
