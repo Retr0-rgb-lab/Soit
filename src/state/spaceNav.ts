@@ -3,7 +3,12 @@
  * Spec: workspace-hall v1.1 §2.1 §2.5 — navEpoch via beginBootLoad.
  */
 
-import { unboundEmptySnapshot } from "../lib/demoSeed";
+import {
+  DEMO_WORKSPACE_PATH,
+  demoSnapshot,
+  isDemoWorkspacePath,
+  unboundEmptySnapshot,
+} from "../lib/demoSeed";
 import { removeRecentVault } from "../lib/sessionConfig";
 import type { OpenUniverseResult, SessionConfig, WorkspaceSnapshot } from "../types";
 import type { StoreGet, StoreSet } from "./turnHelpers";
@@ -155,6 +160,8 @@ async function runOpenPath(
 
 export interface SpaceNavActions {
   enter: (path: string) => Promise<void>;
+  /** Browser FE: load in-memory demo cards; never writes lastVault. */
+  enterDemo: () => Promise<void>;
   leave: () => Promise<void>;
   switch: (path: string) => Promise<void>;
   forget: (path: string) => Promise<void>;
@@ -195,6 +202,49 @@ export function createSpaceNavActions(
       }
     },
 
+    enterDemo: async () => {
+      const s0 = get();
+      if (s0.spaceBusy || isSpaceBusyPhase(s0.shellPhase)) return;
+      if (
+        s0.shellPhase === "workspace" &&
+        isDemoWorkspacePath(s0.vaultPath)
+      ) {
+        return;
+      }
+
+      const epoch = get().beginBootLoad();
+      applyPhase(set, "entering", { enterError: null });
+
+      try {
+        // Leave a real Host vault if any (desktop dev), then stay in-memory.
+        if (s0.vaultPath && !isDemoWorkspacePath(s0.vaultPath)) {
+          try {
+            const { closeUniverse } = await import("../lib/host");
+            await closeUniverse();
+          } catch {
+            /* ignore */
+          }
+          if (!epochLive(get, epoch)) return;
+        }
+
+        const snap = demoSnapshot();
+        set({ vaultPath: DEMO_WORKSPACE_PATH, enterError: null });
+        get().loadSnapshot(snap, epoch);
+        if (!epochLive(get, epoch)) return;
+        // Never write lastVault / recents for mock hall entry.
+        applyPhase(set, "workspace", { enterError: null });
+      } catch (e) {
+        if (!epochLive(get, epoch)) return;
+        applyPhase(set, "error", {
+          enterError:
+            (e instanceof Error ? e.message : String(e)).trim() ||
+            "打开演示失败",
+          vaultPath: null,
+        });
+        get().loadSnapshot(unboundEmptySnapshot(), epoch);
+      }
+    },
+
     leave: async () => {
       const s0 = get();
       if (s0.shellPhase !== "workspace") return;
@@ -204,8 +254,11 @@ export function createSpaceNavActions(
       applyPhase(set, "leaving", { enterError: null });
 
       try {
-        const { closeUniverse } = await import("../lib/host");
-        await closeUniverse();
+        const demo = isDemoWorkspacePath(s0.vaultPath);
+        if (!demo) {
+          const { closeUniverse } = await import("../lib/host");
+          await closeUniverse();
+        }
         if (!epochLive(get, epoch)) return;
         set({ vaultPath: null });
         get().loadSnapshot(unboundEmptySnapshot(), epoch);

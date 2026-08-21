@@ -11,6 +11,9 @@ type Props = {
 
 function vaultLeaf(path: string | null): string {
   if (!path) return "未绑定";
+  if (path.startsWith("demo://")) {
+    return path.slice("demo://".length) || "演示工作区";
+  }
   return path.replace(/\\/g, "/").split("/").filter(Boolean).pop() ?? path;
 }
 

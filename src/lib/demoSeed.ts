@@ -35,6 +35,14 @@ const demoEdges: Edge[] = [
     source: { turnId: "c2_t0", text: "伴随" },
     actor: "user",
   },
+  {
+    id: "e_c3_c6",
+    kind: "deepen",
+    fromCardId: "c3",
+    toCardId: "c6",
+    source: { turnId: "c3_t1", text: "函子", markId: "函子" },
+    actor: "user",
+  },
 ];
 
 /**
@@ -51,7 +59,17 @@ export function unboundEmptySnapshot(): WorkspaceSnapshot {
   };
 }
 
-/** In-memory demo universe (mirrors prototype B seed). */
+/**
+ * Browser FE mock vault label (not a real path; never written to lastVault).
+ * Left rail leaf + materials unbound checks use vaultPath / source=demo.
+ */
+export const DEMO_WORKSPACE_PATH = "demo://Soit演示工作区";
+
+export function isDemoWorkspacePath(path: string | null | undefined): boolean {
+  return (path ?? "").trim() === DEMO_WORKSPACE_PATH;
+}
+
+/** In-memory demo universe for browser FE testing (hall → enterDemo). */
 export function demoSnapshot(): WorkspaceSnapshot {
   return {
     source: "demo",
@@ -62,6 +80,14 @@ export function demoSnapshot(): WorkspaceSnapshot {
       { id: "c3", title: "函子", parentId: "c2", kind: "deepen", unread: false, status: "active" },
       { id: "c4", title: "自然变换", parentId: "c2", kind: "diverge", unread: true, status: "active" },
       { id: "c5", title: "伴随", parentId: "c2", kind: "diverge", unread: false, status: "active" },
+      {
+        id: "c6",
+        title: "Hom 函子",
+        parentId: "c3",
+        kind: "deepen",
+        unread: false,
+        status: "active",
+      },
     ],
     edges: demoEdges.map((e) => ({ ...e, source: { ...e.source } })),
     turnsByCardId: {
@@ -132,6 +158,18 @@ export function demoSnapshot(): WorkspaceSnapshot {
           think: "",
           thinkOpen: false,
           aiHtml: "伴随是一对函子之间的可逆 Hom 自然同构关系。",
+        },
+      ],
+      c6: [
+        {
+          id: "c6_t0",
+          title: "开场",
+          collapsed: false,
+          user: "Hom 函子怎么记？",
+          think: "",
+          thinkOpen: false,
+          aiHtml:
+            "固定一个对象 $A$，把 $X\\mapsto \\mathrm{Hom}(A,X)$ 看成协变函子；反变则固定在第二变元。",
         },
       ],
     },

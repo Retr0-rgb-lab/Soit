@@ -29,6 +29,7 @@ export default function WorkspacePicker() {
   const spaceBusy = useWorkspace((s) => s.spaceBusy);
   const enterError = useWorkspace((s) => s.enterError);
   const enter = useWorkspace((s) => s.enter);
+  const enterDemo = useWorkspace((s) => s.enterDemo);
   const forget = useWorkspace((s) => s.forget);
   const dismissEnterError = useWorkspace((s) => s.dismissEnterError);
 
@@ -119,7 +120,20 @@ export default function WorkspacePicker() {
 
         {!desktop ? (
           <div className="workspace-picker__banner is-info" role="status">
-            浏览器预览无法打开本机库。请使用桌面版进入工作区。
+            <span>
+              浏览器预览无法打开本机库。可用下方<strong>演示工作区</strong>
+              测卡片、轨道与设置；真库请用桌面版。
+            </span>
+            <div className="workspace-picker__banner-actions">
+              <button
+                type="button"
+                className="workspace-picker__btn primary"
+                disabled={busy}
+                onClick={() => void enterDemo()}
+              >
+                {busy ? "打开中…" : "进入演示工作区"}
+              </button>
+            </div>
           </div>
         ) : null}
 
@@ -277,6 +291,20 @@ export default function WorkspacePicker() {
             </button>
           </div>
         )}
+
+        {desktop ? (
+          <p className="workspace-picker__hint">
+            开发调试也可进入内存演示（不写 lastVault）：
+            <button
+              type="button"
+              className="workspace-picker__link"
+              disabled={busy}
+              onClick={() => void enterDemo()}
+            >
+              演示工作区
+            </button>
+          </p>
+        ) : null}
 
         {busy ? (
           <p className="workspace-picker__busy" aria-live="polite">

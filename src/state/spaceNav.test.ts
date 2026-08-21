@@ -281,4 +281,30 @@ describe("spaceNav shellPhase", () => {
     expect(hostMocks.closeUniverse).not.toHaveBeenCalled();
     expect(useWorkspaceStore.getState().shellPhase).toBe("picker");
   });
+
+  it("enterDemo loads seeded mock cards without openUniverse or lastVault write", async () => {
+    hostMocks.setSessionConfig.mockClear();
+    hostMocks.openUniverse.mockClear();
+    await useWorkspaceStore.getState().enterDemo();
+    const s = useWorkspaceStore.getState();
+    expect(s.shellPhase).toBe("workspace");
+    expect(s.source).toBe("demo");
+    expect(s.vaultPath).toMatch(/^demo:\/\//);
+    expect(s.nodes.length).toBeGreaterThanOrEqual(5);
+    expect(s.nodes.some((n) => n.id === "c3")).toBe(true);
+    expect(s.focusId).toBe("c3");
+    expect(hostMocks.openUniverse).not.toHaveBeenCalled();
+    expect(hostMocks.setSessionConfig).not.toHaveBeenCalled();
+  });
+
+  it("leave from demo → picker without closeUniverse", async () => {
+    await useWorkspaceStore.getState().enterDemo();
+    hostMocks.closeUniverse.mockClear();
+    await useWorkspaceStore.getState().leave();
+    const s = useWorkspaceStore.getState();
+    expect(s.shellPhase).toBe("picker");
+    expect(s.vaultPath).toBeNull();
+    expect(s.nodes).toEqual([]);
+    expect(hostMocks.closeUniverse).not.toHaveBeenCalled();
+  });
 });
