@@ -33,6 +33,41 @@
   letter-spacing: 0.02em;
 }
 
+.companion-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.companion-tabs__btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted, rgba(0, 0, 0, 0.5));
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.companion-tabs__btn.is-on,
+.companion-tabs__btn[aria-current="page"] {
+  color: var(--ink, #1a1a1a);
+  background: var(--bg-muted, rgba(0, 0, 0, 0.06));
+}
+
+.stars-catalog__row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stars-catalog__row .materials-pane__item {
+  flex: 1 1 auto;
+}
+
 .materials-pane__actions {
   display: flex;
   align-items: center;

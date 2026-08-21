@@ -481,6 +481,36 @@ mod tests {
   }
 
   #[test]
+  fn set_turn_starred_roundtrip() {
+    let dir = temp_vault("star_turn");
+    let mut u = Universe::open(&dir).unwrap();
+    let root = u.create_root_inquiry("根", None).unwrap();
+    let card_id = root.nodes[0].id.clone();
+    let tid = root.turns_by_card_id[&card_id][0].id.clone();
+    assert!(!root.turns_by_card_id[&card_id][0].starred);
+
+    let on = u.set_turn_starred(&card_id, &tid, true).unwrap();
+    let t = on
+      .snapshot
+      .turns_by_card_id[&card_id]
+      .iter()
+      .find(|t| t.id == tid)
+      .unwrap();
+    assert!(t.starred);
+
+    let off = u.set_turn_starred(&card_id, &tid, false).unwrap();
+    let t2 = off
+      .snapshot
+      .turns_by_card_id[&card_id]
+      .iter()
+      .find(|t| t.id == tid)
+      .unwrap();
+    assert!(!t2.starred);
+
+    let _ = fs::remove_dir_all(&dir);
+  }
+
+  #[test]
   fn update_card_stuck_next_in_snapshot() {
     let dir = temp_vault("stuck_next");
     let mut u = Universe::open(&dir).unwrap();

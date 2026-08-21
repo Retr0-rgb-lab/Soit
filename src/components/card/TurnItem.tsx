@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Turn } from "../../types";
 import {
   IconBookmark,
@@ -18,6 +18,7 @@ interface Props {
   onDiverge: (label: string, turnId: string) => void;
   onRegenerate: () => void;
   onDelete: () => void;
+  onToggleStar?: () => void;
   onMarkClick: (
     term: string,
     x: number,
@@ -31,6 +32,12 @@ interface Props {
   railTarget?: boolean;
 }
 
+/** Status-only think lines (inflight) — still toggleable but labeled differently. */
+function isThinkStatus(think: string): boolean {
+  const t = think.trim();
+  return t === "生成中…" || t.endsWith("中…") || t.endsWith("中...");
+}
+
 export default function TurnItem({
   turn,
   onToggleCollapsed,
@@ -38,14 +45,24 @@ export default function TurnItem({
   onDiverge,
   onRegenerate,
   onDelete,
+  onToggleStar,
   onMarkClick,
   onAiMouseUp,
   forceExpand,
   railTarget,
 }: Props) {
-  const [bookOn, setBookOn] = useState(false);
-  const [thinkOpen, setThinkOpen] = useState(turn.thinkOpen);
+  const bookOn = Boolean(turn.starred);
+  /** Local UI toggle; default closed so formal output stays primary (PEL-160). */
+  const [thinkOpen, setThinkOpen] = useState(false);
   const collapsed = forceExpand ? false : turn.collapsed;
+  const thinkText = (turn.think ?? "").trim();
+  const showThink = Boolean(thinkText);
+  const thinkBusy = showThink && isThinkStatus(thinkText);
+
+  // New turn id → reset closed; never auto-open from store.
+  useEffect(() => {
+    setThinkOpen(false);
+  }, [turn.id]);
 
   const onMarkPointer = (e: React.MouseEvent) => {
     const t = e.target;
@@ -110,10 +127,11 @@ export default function TurnItem({
           </button>
           <button
             type="button"
-            className="ic-round"
-            data-tip={bookOn ? "取消钉住本轮（仅本会话）" : "钉住本轮（仅本会话）"}
-            aria-label={bookOn ? "取消钉住本轮" : "钉住本轮"}
-            onClick={() => setBookOn((v) => !v)}
+            data-tip={bookOn ? "取消收藏本轮" : "收藏本轮"}
+            aria-label={bookOn ? "取消收藏本轮" : "收藏本轮"}
+            aria-pressed={bookOn}
+            className={`ic-round${bookOn ? " on" : ""}`}
+            onClick={() => onToggleStar?.()}
           >
             <IconBookmark />
           </button>
@@ -143,20 +161,34 @@ export default function TurnItem({
         <div className="ic-turn-inner">
           <div className="ic-msg you">{turn.user}</div>
 
-          {turn.think ? (
+          {showThink ? (
             <>
               <button
                 type="button"
                 className={`ic-think${thinkOpen ? " open" : ""}`}
+                aria-expanded={thinkOpen}
+                aria-controls={`think-${turn.id}`}
+                data-tip={thinkOpen ? "隐藏思考过程" : "显示思考过程"}
                 onClick={(e) => {
                   e.stopPropagation();
                   setThinkOpen((v) => !v);
                 }}
               >
-                思考{thinkOpen ? "收起" : "完成"} <IconChev />
+                {thinkBusy
+                  ? thinkOpen
+                    ? "思考中 · 收起"
+                    : "思考中…"
+                  : thinkOpen
+                    ? "隐藏思考"
+                    : "思考过程"}{" "}
+                <IconChev />
               </button>
-              <div className={`ic-think-body${thinkOpen ? " open" : ""}`}>
-                <span>{turn.think}</span>
+              <div
+                id={`think-${turn.id}`}
+                className={`ic-think-body${thinkOpen ? " open" : ""}`}
+                aria-hidden={!thinkOpen}
+              >
+                <span>{thinkText}</span>
               </div>
             </>
           ) : null}

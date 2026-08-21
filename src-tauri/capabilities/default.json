@@ -15,6 +15,7 @@
     "allow-append-turn",
     "allow-update-turn",
     "allow-delete-turn",
+    "allow-set-turn-starred",
     "allow-delete-inquiry",
     "allow-update-card",
     "allow-precipitate-concept",

@@ -1,6 +1,7 @@
 import DocPane from "../doc/DocPane";
 import { useWorkspace } from "../../state/workspaceStore";
 import MaterialsList from "./MaterialsRail";
+import StarsCatalog from "./StarsCatalog";
 
 function isDocSurfaceOpen(status: string): boolean {
   return (
@@ -18,9 +19,14 @@ function isDocSurfaceOpen(status: string): boolean {
 export default function CompanionPane() {
   const materialsOpen = useWorkspace((s) => s.materialsRail.open);
   const view = useWorkspace((s) => s.materialsRail.view);
+  const section = useWorkspace((s) => s.materialsRail.section);
   const docStatus = useWorkspace((s) => s.docSession.status);
   const showMaterialsList = useWorkspace((s) => s.showMaterialsList);
   const docOpen = isDocSurfaceOpen(docStatus);
+
+  if (materialsOpen && section === "stars") {
+    return <StarsCatalog />;
+  }
 
   // List wins when companion opened to browse; preview when view=preview or
   // doc opened without materials (path popover / return-to-source).

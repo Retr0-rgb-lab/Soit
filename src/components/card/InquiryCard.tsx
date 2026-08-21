@@ -54,6 +54,7 @@ export default function InquiryCard() {
   const deleteTurn = useWorkspace((s) => s.deleteTurn);
   const deleteInquiry = useWorkspace((s) => s.deleteInquiry);
   const toggleTurnCollapsed = useWorkspace((s) => s.toggleTurnCollapsed);
+  const setTurnStarred = useWorkspace((s) => s.setTurnStarred);
   const appendUserMessage = useWorkspace((s) => s.appendUserMessage);
 
   const focus = useMemo(
@@ -253,6 +254,41 @@ export default function InquiryCard() {
     // navKind intentionally read once per focus change; set via handlers before spawn
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusId]);
+
+  // PEL-161: same card — after user sends / AI updates last turn, pin to bottom.
+  // Do not fight the focus-change reset (scrollTop = 0) above.
+  const lastTurn = turns.length ? turns[turns.length - 1]! : null;
+  const lastTurnKey = lastTurn
+    ? `${lastTurn.id}:${lastTurn.user.length}:${lastTurn.aiHtml.length}:${lastTurn.think.length}`
+    : "";
+  const scrollFocusRef = useRef(focusId);
+  const lastScrollKeyRef = useRef("");
+  useEffect(() => {
+    if (scrollFocusRef.current !== focusId) {
+      scrollFocusRef.current = focusId;
+      lastScrollKeyRef.current = lastTurnKey;
+      return;
+    }
+    if (!focusId || !lastTurn || !lastTurnKey) return;
+    if (lastScrollKeyRef.current === lastTurnKey) return;
+    lastScrollKeyRef.current = lastTurnKey;
+    const root = msgsRef.current;
+    if (!root) return;
+    const el = root.querySelector(
+      `.ic-turn[data-turn="${CSS.escape(lastTurn.id)}"]`,
+    ) as HTMLElement | null;
+    const go = () => {
+      if (el) {
+        el.scrollIntoView({ block: "end", behavior: "smooth" });
+      } else {
+        root.scrollTop = root.scrollHeight;
+      }
+    };
+    const id = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(go);
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [focusId, lastTurnKey, lastTurn]);
 
   useEffect(() => {
     document.body.classList.toggle("has-selbar", Boolean(selBar));
@@ -797,6 +833,9 @@ export default function InquiryCard() {
                         }
                         onRegenerate={() => regenerateTurn(t.id, focusId)}
                         onDelete={() => deleteTurn(t.id, focusId)}
+                        onToggleStar={() =>
+                          void setTurnStarred(t.id, !t.starred, focusId)
+                        }
                         onMarkClick={onMarkClick}
                         onAiMouseUp={onAiMouseUp}
                       />

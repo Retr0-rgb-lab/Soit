@@ -970,6 +970,30 @@ describe("workspaceStore materialsRail (M3)", () => {
       globalThis.atob = realAtob;
     }
   });
+
+  it("setTurnStarred + jumpToStarredTurn in demo", async () => {
+    const s0 = useWorkspaceStore.getState();
+    expect(s0.turnsByCardId.c3?.find((t) => t.id === "c3_t1")?.starred).toBe(
+      true,
+    );
+    await s0.setTurnStarred("c3_t1", false, "c3");
+    expect(
+      useWorkspaceStore.getState().turnsByCardId.c3?.find((t) => t.id === "c3_t1")
+        ?.starred,
+    ).toBe(false);
+    await useWorkspaceStore.getState().setTurnStarred("c1_t0", true, "c1");
+    expect(
+      useWorkspaceStore.getState().turnsByCardId.c1?.find((t) => t.id === "c1_t0")
+        ?.starred,
+    ).toBe(true);
+
+    useWorkspaceStore.getState().jumpToStarredTurn("c1", "c1_t0");
+    const s = useWorkspaceStore.getState();
+    expect(s.focusId).toBe("c1");
+    expect(s.highlightSpan?.turnId).toBe("c1_t0");
+    expect(s.materialsRail.open).toBe(true);
+    expect(s.materialsRail.section).toBe("stars");
+  });
 });
 
 describe("layoutGraph", () => {

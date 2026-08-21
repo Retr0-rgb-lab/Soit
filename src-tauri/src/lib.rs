@@ -339,6 +339,24 @@ fn delete_turn(
   u.delete_turn(&card_id, &turn_id)
 }
 
+/// PEL-166 — star / unstar a turn.
+#[tauri::command]
+fn set_turn_starred(
+  card_id: String,
+  turn_id: String,
+  starred: bool,
+  state: State<'_, AppState>,
+) -> Result<MutationResult, String> {
+  let mut g = state
+    .universe
+    .lock()
+    .map_err(|_| "universe lock poisoned".to_string())?;
+  let u = g
+    .as_mut()
+    .ok_or_else(|| "no universe open — bind a vault first".to_string())?;
+  u.set_turn_starred(&card_id, &turn_id, starred)
+}
+
 /// Delete one inquiry card and its descendant subtree.
 #[tauri::command]
 fn delete_inquiry(
@@ -454,6 +472,7 @@ pub fn run() {
       append_turn,
       update_turn,
       delete_turn,
+      set_turn_starred,
       delete_inquiry,
       update_card,
       precipitate_concept,

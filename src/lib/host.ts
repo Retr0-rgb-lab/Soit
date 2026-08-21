@@ -414,6 +414,23 @@ export async function deleteTurn(
   });
 }
 
+/** Host `set_turn_starred` (PEL-166). Browser: caller updates memory. */
+export async function setTurnStarred(args: {
+  cardId: string;
+  turnId: string;
+  starred: boolean;
+}): Promise<HostMutationResult> {
+  if (!hasTauri()) {
+    throw new Error("set_turn_starred requires tauri");
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<HostMutationResult>("set_turn_starred", {
+    cardId: args.cardId,
+    turnId: args.turnId,
+    starred: args.starred,
+  });
+}
+
 /** Host `delete_inquiry` — card + subtree; turns cascade; edges stripped. */
 export async function deleteInquiry(
   cardId: string,

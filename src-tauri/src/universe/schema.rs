@@ -65,6 +65,17 @@ impl Universe {
         .map_err(|e| format!("alter edges.actor: {e}"))?;
     }
 
+    // PEL-166 — turn stars
+    if !self.turns_has_column("starred")? {
+      self
+        .conn
+        .execute(
+          "ALTER TABLE turns ADD COLUMN starred INTEGER NOT NULL DEFAULT 0",
+          [],
+        )
+        .map_err(|e| format!("alter turns.starred: {e}"))?;
+    }
+
     let ver: Option<String> = self
       .conn
       .query_row(
@@ -113,6 +124,19 @@ impl Universe {
       .map_err(|e| format!("table_info rows: {e}"))?
       .collect::<Result<Vec<_>, _>>()
       .map_err(|e| format!("table_info: {e}"))?;
+    Ok(cols.iter().any(|c| c == name))
+  }
+
+  fn turns_has_column(&self, name: &str) -> Result<bool, String> {
+    let mut stmt = self
+      .conn
+      .prepare("PRAGMA table_info(turns)")
+      .map_err(|e| format!("pragma table_info turns: {e}"))?;
+    let cols = stmt
+      .query_map([], |row| row.get::<_, String>(1))
+      .map_err(|e| format!("table_info turns rows: {e}"))?
+      .collect::<Result<Vec<_>, _>>()
+      .map_err(|e| format!("table_info turns: {e}"))?;
     Ok(cols.iter().any(|c| c == name))
   }
 

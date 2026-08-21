@@ -65,7 +65,8 @@ impl Universe {
     let mut tstmt = self
       .conn
       .prepare(
-        "SELECT id, card_id, title, collapsed, user_text, ai_html, think, think_open
+        "SELECT id, card_id, title, collapsed, user_text, ai_html, think, think_open,
+                COALESCE(starred, 0)
          FROM turns ORDER BY sort_order ASC, created_at ASC, id ASC",
       )
       .map_err(|e| format!("prepare turns: {e}"))?;
@@ -74,6 +75,7 @@ impl Universe {
       .query_map([], |row| {
         let collapsed_i: i64 = row.get(3)?;
         let think_open_i: i64 = row.get(7)?;
+        let starred_i: i64 = row.get(8)?;
         Ok((
           row.get::<_, String>(1)?,
           TurnDto {
@@ -84,6 +86,7 @@ impl Universe {
             ai_html: row.get(5)?,
             think: row.get(6)?,
             think_open: think_open_i != 0,
+            starred: starred_i != 0,
           },
         ))
       })

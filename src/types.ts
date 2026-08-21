@@ -28,6 +28,8 @@ export interface Turn {
   aiHtml: string; // may contain <span class="mark" data-term="...">
   think: string;
   thinkOpen: boolean;
+  /** PEL-166 — starred for companion catalog. */
+  starred?: boolean;
 }
 
 /** Source span on a parent turn — used for edges and return-to-source. */

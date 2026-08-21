@@ -238,6 +238,7 @@ impl Universe {
       ai_html: String::new(),
       think: String::new(),
       think_open: false,
+      starred: false,
     };
     let snapshot = self.snapshot()?;
     Ok(AppendTurnResult { turn, snapshot })
@@ -332,6 +333,41 @@ impl Universe {
 
     tx.commit().map_err(|e| format!("commit: {e}"))?;
 
+    Ok(MutationResult {
+      ok: true,
+      snapshot: self.snapshot()?,
+    })
+  }
+
+  /// PEL-166 — star / unstar a turn (catalog, not 活线).
+  pub fn set_turn_starred(
+    &mut self,
+    card_id: &str,
+    turn_id: &str,
+    starred: bool,
+  ) -> Result<MutationResult, String> {
+    let card_id = card_id.trim();
+    let turn_id = turn_id.trim();
+    if card_id.is_empty() || turn_id.is_empty() {
+      return Err("cardId and turnId are required".into());
+    }
+
+    let tx = self
+      .conn
+      .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+      .map_err(|e| format!("begin transaction: {e}"))?;
+
+    let n = tx
+      .execute(
+        "UPDATE turns SET starred = ?1 WHERE id = ?2 AND card_id = ?3",
+        params![if starred { 1 } else { 0 }, turn_id, card_id],
+      )
+      .map_err(|e| format!("set starred: {e}"))?;
+    if n == 0 {
+      return Err(format!("turn not found: {turn_id}"));
+    }
+
+    tx.commit().map_err(|e| format!("commit: {e}"))?;
     Ok(MutationResult {
       ok: true,
       snapshot: self.snapshot()?,

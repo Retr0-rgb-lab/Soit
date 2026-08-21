@@ -16,7 +16,7 @@ const demoEdges: Edge[] = [
     kind: "deepen",
     fromCardId: "c2",
     toCardId: "c3",
-    source: { turnId: "c2_t0", text: "函子", markId: "函子" },
+    source: { turnId: "c2_t2", text: "函子", markId: "函子" },
     actor: "user",
   },
   {
@@ -24,7 +24,7 @@ const demoEdges: Edge[] = [
     kind: "diverge",
     fromCardId: "c2",
     toCardId: "c4",
-    source: { turnId: "c2_t0", text: "自然变换", markId: "自然变换" },
+    source: { turnId: "c2_t2", text: "自然变换", markId: "自然变换" },
     actor: "user",
   },
   {
@@ -32,7 +32,7 @@ const demoEdges: Edge[] = [
     kind: "diverge",
     fromCardId: "c2",
     toCardId: "c5",
-    source: { turnId: "c2_t0", text: "伴随" },
+    source: { turnId: "c2_t2", text: "伴随" },
     actor: "user",
   },
   {
@@ -123,6 +123,25 @@ export function demoSnapshot(): WorkspaceSnapshot {
       c2: [
         {
           id: "c2_t0",
+          title: "动机",
+          collapsed: true,
+          user: "为什么要从线性代数走到范畴？",
+          think: "",
+          thinkOpen: false,
+          aiHtml:
+            "线代里的「结构 + 保结构映射」已经在暗示更一般的语言；范畴把这套说法抽干净。",
+        },
+        {
+          id: "c2_t1",
+          title: "对象与态射",
+          collapsed: true,
+          user: "对象和态射分别对应什么？",
+          think: "",
+          thinkOpen: false,
+          aiHtml: "对象 ≈ 结构，态射 ≈ 保结构映射。先站稳这两个词，再谈函子。",
+        },
+        {
+          id: "c2_t2",
           title: "入门",
           collapsed: false,
           user: "范畴论怎么接上线性代数？",
@@ -146,6 +165,7 @@ export function demoSnapshot(): WorkspaceSnapshot {
           id: "c3_t1",
           title: "函子在保什么",
           collapsed: false,
+          starred: true,
           user: "函子到底在保什么结构？",
           think: "回答要可分叉：函子 / 范畴 / 自然变换 分开。",
           thinkOpen: false,

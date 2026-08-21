@@ -49,6 +49,11 @@ description = "Allow delete_turn command"
 commands.allow = ["delete_turn"]
 
 [[permission]]
+identifier = "allow-set-turn-starred"
+description = "Allow set_turn_starred command (PEL-166)"
+commands.allow = ["set_turn_starred"]
+
+[[permission]]
 identifier = "allow-delete-inquiry"
 description = "Allow delete_inquiry command"
 commands.allow = ["delete_inquiry"]

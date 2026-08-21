@@ -8,6 +8,7 @@ describe("materialsRail helpers", () => {
   it("initialMaterialsRail starts closed idle on list view", () => {
     const s = initialMaterialsRail();
     expect(s.open).toBe(false);
+    expect(s.section).toBe("materials");
     expect(s.view).toBe("list");
     expect(s.listStatus).toBe("idle");
     expect(s.entries).toEqual([]);

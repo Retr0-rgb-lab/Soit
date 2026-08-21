@@ -10,9 +10,14 @@ export type MaterialsListStatus = "idle" | "loading" | "ready" | "error";
 /** Within the shared companion pane (list ↔ preview, one surface). */
 export type MaterialsCompanionView = "list" | "preview";
 
+/** Companion catalog module (PEL-166). */
+export type CompanionSection = "materials" | "stars";
+
 export type MaterialsRailState = {
   /** Companion pane open (shares slot with DocPane — not a third column). */
   open: boolean;
+  /** Which module in the right pane: vault files vs starred turns. */
+  section: CompanionSection;
   /** list = materials browser; preview = DocSession body in same pane. */
   view: MaterialsCompanionView;
   listStatus: MaterialsListStatus;
@@ -26,6 +31,7 @@ export type MaterialsRailState = {
 export function initialMaterialsRail(): MaterialsRailState {
   return {
     open: false,
+    section: "materials",
     view: "list",
     listStatus: "idle",
     entries: [],
@@ -46,6 +52,7 @@ export function forceCloseMaterialsRail(
   return {
     ...state,
     open: false,
+    section: "materials",
     view: "list",
     listStatus: "idle",
     error: null,

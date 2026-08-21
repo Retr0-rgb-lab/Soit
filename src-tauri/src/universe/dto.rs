@@ -30,6 +30,9 @@ pub struct TurnDto {
   pub ai_html: String,
   pub think: String,
   pub think_open: bool,
+  /// PEL-166 — starred turn (catalog in companion). Default false for old rows.
+  #[serde(default)]
+  pub starred: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

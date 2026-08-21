@@ -16,6 +16,7 @@ import type { MapScopeMode } from "../lib/mapScope";
 import {
   forceCloseMaterialsRail,
   initialMaterialsRail,
+  type CompanionSection,
   type MaterialsRailState,
 } from "../lib/materialsRail";
 import type { RuntimeInfo, RuntimePreferences } from "../lib/runtime";
@@ -167,6 +168,14 @@ export interface WorkspaceState {
   /** Companion pane (list|preview shared slot): toggle open/closed. */
   toggleMaterialsRail: () => void;
   openMaterialsRail: () => void;
+  /** PEL-166 — 资料 | 收藏 module in the same right pane. */
+  setCompanionSection: (section: CompanionSection) => void;
+  /** PEL-166 — persist turn star; demo = memory. */
+  setTurnStarred: (turnId: string, starred: boolean, cardId?: string) => Promise<void>;
+  /** Open companion 收藏 catalog (same pane as materials). */
+  openStarsCatalog: () => void;
+  /** Jump to card + turn; right pane stays the catalog. */
+  jumpToStarredTurn: (cardId: string, turnId: string) => void;
   /** Close companion pane + doc preview (one surface). */
   closeMaterialsRail: () => void;
   /** Back from preview to materials list in the same pane. */
@@ -587,6 +596,104 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       } else {
         get().openMaterialsRail();
       }
+    },
+
+    setCompanionSection: (section) => {
+      const prev = get().materialsRail;
+      set({
+        materialsRail: {
+          ...prev,
+          open: true,
+          section,
+          view: section === "stars" ? "list" : prev.view,
+        },
+      });
+      if (section === "materials") {
+        if (prev.listStatus === "idle" || prev.entries.length === 0) {
+          void get().refreshMaterials();
+        }
+      } else {
+        const docStatus = get().docSession.status;
+        if (
+          docStatus === "loading" ||
+          docStatus === "ready" ||
+          docStatus === "error" ||
+          docStatus === "closing"
+        ) {
+          get().closeDoc();
+        }
+      }
+    },
+
+    openStarsCatalog: () => {
+      get().setCompanionSection("stars");
+    },
+
+    setTurnStarred: async (turnId, starred, cardIdArg) => {
+      const s = get();
+      const turnIdTrim = turnId.trim();
+      if (!turnIdTrim) return;
+      let cardId = (cardIdArg ?? s.focusId).trim();
+      if (!cardId) {
+        for (const [cid, turns] of Object.entries(s.turnsByCardId)) {
+          if (turns.some((t) => t.id === turnIdTrim)) {
+            cardId = cid;
+            break;
+          }
+        }
+      }
+      if (!cardId) return;
+
+      const patchLocal = () => {
+        const turns = s.turnsByCardId[cardId] ?? [];
+        set({
+          turnsByCardId: {
+            ...get().turnsByCardId,
+            [cardId]: turns.map((t) =>
+              t.id === turnIdTrim ? { ...t, starred } : t,
+            ),
+          },
+        });
+      };
+
+      if (isUniverseSource(s.source)) {
+        try {
+          const { setTurnStarred: hostStar } = await import("../lib/host");
+          const res = await hostStar({ cardId, turnId: turnIdTrim, starred });
+          if (res.snapshot) {
+            get().loadSnapshot(res.snapshot);
+            return;
+          }
+        } catch (err) {
+          console.error("[soit] set_turn_starred host failed", err);
+        }
+        return;
+      }
+      patchLocal();
+    },
+
+    jumpToStarredTurn: (cardId, turnId) => {
+      const s = get();
+      const cid = cardId.trim();
+      const tid = turnId.trim();
+      if (!cid || !tid) return;
+      const turns = s.turnsByCardId[cid] ?? [];
+      const turn = turns.find((t) => t.id === tid);
+      const focused = afterFocus(s, cid);
+      set({
+        ...focused,
+        highlightSpan: {
+          turnId: tid,
+          text: (turn?.user || turn?.title || "").slice(0, 80),
+        },
+        workspaceMode: "focus",
+        materialsRail: {
+          ...s.materialsRail,
+          open: true,
+          section: "stars",
+          view: "list",
+        },
+      });
     },
 
     openMaterialsRail: () => {

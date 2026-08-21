@@ -39,6 +39,7 @@ export default function MaterialsList({
   const vaultPath = useWorkspace((s) => s.vaultPath);
   const source = useWorkspace((s) => s.source);
   const closeMaterialsRail = useWorkspace((s) => s.closeMaterialsRail);
+  const setCompanionSection = useWorkspace((s) => s.setCompanionSection);
   const refreshMaterials = useWorkspace((s) => s.refreshMaterials);
   const selectMaterial = useWorkspace((s) => s.selectMaterial);
   const importMaterials = useWorkspace((s) => s.importMaterials);
@@ -89,7 +90,22 @@ export default function MaterialsList({
       aria-label="资料"
     >
       <header className="materials-pane__head">
-        <h2 className="materials-pane__title">资料</h2>
+        <nav className="companion-tabs" aria-label="右侧栏模块">
+          <button
+            type="button"
+            className="companion-tabs__btn is-on"
+            aria-current="page"
+          >
+            资料
+          </button>
+          <button
+            type="button"
+            className="companion-tabs__btn"
+            onClick={() => setCompanionSection("stars")}
+          >
+            收藏
+          </button>
+        </nav>
         <div className="materials-pane__actions">
           <button
             type="button"
