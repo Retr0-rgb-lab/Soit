@@ -15,6 +15,7 @@ const THEME_OPTIONS: {
   label: string;
   bg: string;
   accent: string;
+  accent2: string;
   ink: string;
 }[] = [
   {
@@ -22,6 +23,7 @@ const THEME_OPTIONS: {
     label: "宣纸",
     bg: "#efe4d4",
     accent: "#8a5a32",
+    accent2: "#3e6f8f",
     ink: "#2b241c",
   },
   {
@@ -29,6 +31,7 @@ const THEME_OPTIONS: {
     label: "抹茶",
     bg: "#e2ebd9",
     accent: "#4f7340",
+    accent2: "#a67c52",
     ink: "#1f2c24",
   },
   {
@@ -36,21 +39,64 @@ const THEME_OPTIONS: {
     label: "青瓷",
     bg: "#dde8e5",
     accent: "#3f7f72",
+    accent2: "#c4785a",
     ink: "#1a282c",
   },
   {
     id: "ink",
     label: "墨夜",
-    bg: "#161310",
-    accent: "#c4a06a",
-    ink: "#d2c8b8",
+    bg: "#0a0a0a",
+    accent: "#d4b88a",
+    accent2: "#7eb0c8",
+    ink: "#ffffff",
   },
   {
     id: "cinnabar",
     label: "丹砂",
     bg: "#f0e3da",
     accent: "#b03a2e",
+    accent2: "#9a7b4f",
     ink: "#2a201c",
+  },
+  {
+    id: "vellum",
+    label: "羊皮",
+    bg: "#e6d9bf",
+    accent: "#7a3b2e",
+    accent2: "#9a7b3c",
+    ink: "#2a2218",
+  },
+  {
+    id: "cyanotype",
+    label: "蓝晒",
+    bg: "#d2dee6",
+    accent: "#2f5f78",
+    accent2: "#b56a48",
+    ink: "#1a2a32",
+  },
+  {
+    id: "wisteria",
+    label: "藤紫",
+    bg: "#e5dde4",
+    accent: "#6b4570",
+    accent2: "#5e7a62",
+    ink: "#2a2228",
+  },
+  {
+    id: "walnut",
+    label: "胡桃",
+    bg: "#1c1712",
+    accent: "#c9a06a",
+    accent2: "#6d8f78",
+    ink: "#e2d6c6",
+  },
+  {
+    id: "travertine",
+    label: "石室",
+    bg: "#e2ddd4",
+    accent: "#5c6e62",
+    accent2: "#8b6b4a",
+    ink: "#242420",
   },
 ];
 
@@ -133,7 +179,8 @@ export default function AppearanceSection() {
       <header className="settings-section-intro">
         <h3 className="settings-section-title">外观</h3>
         <p className="settings-section-desc">
-          主题、字体与字号保存在本机，不写入 vault。默认宣纸 · 系统 · 中。
+          十套主题（含蓝调/紫调/暗色材质）、字体与字号保存在本机，不写入
+          vault。默认宣纸 · 系统 · 中。
         </p>
       </header>
 
@@ -162,7 +209,7 @@ export default function AppearanceSection() {
                   <span
                     className="appearance-theme-chip"
                     style={{
-                      background: `linear-gradient(135deg, ${t.bg} 55%, ${t.accent} 55%)`,
+                      background: `linear-gradient(135deg, ${t.bg} 0 42%, ${t.accent} 42% 72%, ${t.accent2} 72% 100%)`,
                       borderColor: t.ink,
                     }}
                     aria-hidden

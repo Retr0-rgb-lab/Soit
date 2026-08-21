@@ -9,7 +9,12 @@ export type AppearanceTheme =
   | "matcha"
   | "celadon"
   | "ink"
-  | "cinnabar";
+  | "cinnabar"
+  | "vellum"
+  | "cyanotype"
+  | "wisteria"
+  | "walnut"
+  | "travertine";
 
 export type AppearanceFont = "system" | "song" | "hei" | "kai" | "mono";
 
@@ -35,6 +40,11 @@ const THEMES = new Set<string>([
   "celadon",
   "ink",
   "cinnabar",
+  "vellum",
+  "cyanotype",
+  "wisteria",
+  "walnut",
+  "travertine",
 ]);
 
 const FONTS = new Set<string>(["system", "song", "hei", "kai", "mono"]);
@@ -42,13 +52,17 @@ const FONTS = new Set<string>(["system", "song", "hei", "kai", "mono"]);
 const FONT_SIZES = new Set<string>(["sm", "md", "lg", "xl"]);
 
 /** Critical FOUC bg — keep in sync with index.html boot + tokens --bg-app. */
-/** Critical FOUC bg — keep in sync with index.html boot + tokens --bg-app. */
 export const THEME_CRITICAL_BG: Record<AppearanceTheme, string> = {
   paper: "#efe4d4",
   matcha: "#e2ebd9",
   celadon: "#dde8e5",
-  ink: "#161310",
+  ink: "#0a0a0a",
   cinnabar: "#f0e3da",
+  vellum: "#e6d9bf",
+  cyanotype: "#d2dee6",
+  wisteria: "#e5dde4",
+  walnut: "#1c1712",
+  travertine: "#e2ddd4",
 };
 
 function pickEnum<T extends string>(

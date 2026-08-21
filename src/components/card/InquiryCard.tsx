@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { FocusNavKind } from "../../lib/focusMotion";
 import { scrollChromeFade } from "../../lib/scrollChromeFade";
-import { ancestorChain } from "../../lib/treeNav";
+import { ancestorChain, collectSubtreeIds } from "../../lib/treeNav";
+import { getExplainCached } from "../../lib/explainCache";
 import { explainSpan } from "../../state/explainActions";
 import { useWorkspace } from "../../state/workspaceStore";
 import type { SourceSpan } from "../../types";
@@ -25,7 +27,6 @@ import {
   IconMap,
   IconTrash,
 } from "./icons";
-import { collectSubtreeIds } from "../../lib/treeNav";
 import TurnHistoryRail from "./TurnHistoryRail";
 import TurnItem from "./TurnItem";
 import { useCardPip } from "./useCardPip";
@@ -499,9 +500,18 @@ export default function InquiryCard() {
   );
 
   const runExplain = useCallback(
-    async (span: string, cardId: string, seq: number) => {
+    async (
+      span: string,
+      cardId: string,
+      seq: number,
+      opts?: { skipCache?: boolean },
+    ) => {
       try {
-        const text = await explainSpan({ cardId, span });
+        const text = await explainSpan({
+          cardId,
+          span,
+          skipCache: opts?.skipCache,
+        });
         if (floatSeqRef.current !== seq) return;
         setFloat((prev) =>
           prev
@@ -534,6 +544,10 @@ export default function InquiryCard() {
     [],
   );
 
+  const onFloatMove = useCallback((x: number, y: number) => {
+    setFloat((prev) => (prev ? { ...prev, x, y } : null));
+  }, []);
+
   const onMarkClick = useCallback(
     (
       term: string,
@@ -546,18 +560,19 @@ export default function InquiryCard() {
       setChooser(null);
       const span = term;
       const seq = ++floatSeqRef.current;
+      const cached = getExplainCached(focusId, span);
       setFloat({
         term,
         span,
-        body: "",
-        status: "loading",
+        body: cached ?? "",
+        status: cached ? "ready" : "loading",
         x: x + 12,
         y: y + 12,
         source: "mark",
         turnId: meta.turnId,
         markId: meta.markId,
       });
-      void runExplain(span, focusId, seq);
+      if (!cached) void runExplain(span, focusId, seq);
     },
     [focusId, runExplain],
   );
@@ -575,7 +590,7 @@ export default function InquiryCard() {
           }
         : null,
     );
-    void runExplain(float.span, focusId, seq);
+    void runExplain(float.span, focusId, seq, { skipCache: true });
   }, [float, focusId, runExplain]);
 
   const closeFloat = useCallback(() => {
@@ -592,17 +607,18 @@ export default function InquiryCard() {
     setSelBar(null);
     setChooser(null);
     const seq = ++floatSeqRef.current;
+    const cached = getExplainCached(focusId, span);
     setFloat({
       term: displayTerm(span),
       span,
-      body: "",
-      status: "loading",
+      body: cached ?? "",
+      status: cached ? "ready" : "loading",
       x: x + 12,
       y: y + 12,
       source: "selection",
       turnId,
     });
-    void runExplain(span, focusId, seq);
+    if (!cached) void runExplain(span, focusId, seq);
   }, [selBar, focusId, displayTerm, runExplain]);
 
   const onFloatQuote = useCallback(() => {
@@ -642,6 +658,7 @@ export default function InquiryCard() {
     setSelBar({ text, x, y: Math.max(8, y - 40), turnId });
   }, []);
 
+  // PEL-163: short-explain float stays until explicit close — do not dismiss on outside click.
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       const t = e.target;
@@ -655,8 +672,6 @@ export default function InquiryCard() {
         return;
       }
       if (t.closest(".ai-html")) return;
-      floatSeqRef.current += 1;
-      setFloat(null);
       setSelBar(null);
       setChooser(null);
     };
@@ -927,58 +942,63 @@ export default function InquiryCard() {
         </p>
       ) : null}
 
-      {deleteAsk && focus ? (
-        <div
-          className="ic-delete-mask"
-          role="presentation"
-          onClick={() => {
-            if (!deleteBusy) setDeleteAsk(false);
-          }}
-        >
-          <div
-            className="ic-delete-dialog"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="ic-del-title"
-            aria-describedby="ic-del-body"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 id="ic-del-title" className="ic-delete-title">
-              {deleteChildCount > 0 ? "删除探究及子树？" : "删除这张探究？"}
-            </h2>
-            <p id="ic-del-body" className="ic-delete-body">
-              {deleteChildCount > 0
-                ? `将删除「${focus.title}」及其下 ${deleteChildCount} 张子探究（含对话与边），且无法撤销。不会改动 Obsidian 笔记。`
-                : `「${focus.title}」的对话与关联边将永久移除，且无法撤销。不会改动 Obsidian 笔记。`}
-              {nodes.length <= deleteChildCount + 1
-                ? " 删除后本宇宙将没有探究卡片。"
-                : ""}
-            </p>
-            <div className="ic-delete-actions">
-              <button
-                type="button"
-                className="ic-delete-btn ghost"
-                disabled={deleteBusy}
-                onClick={() => setDeleteAsk(false)}
+      {deleteAsk && focus
+        ? createPortal(
+            <div
+              className="ic-delete-mask"
+              role="presentation"
+              onClick={() => {
+                if (!deleteBusy) setDeleteAsk(false);
+              }}
+            >
+              <div
+                className="ic-delete-dialog"
+                role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="ic-del-title"
+                aria-describedby="ic-del-body"
+                onClick={(e) => e.stopPropagation()}
               >
-                取消
-              </button>
-              <button
-                type="button"
-                className="ic-delete-btn danger"
-                disabled={deleteBusy}
-                onClick={() => void confirmDeleteInquiry()}
-              >
-                {deleteBusy
-                  ? "删除中…"
-                  : deleteChildCount > 0
-                    ? "删除子树"
-                    : "删除"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+                <h2 id="ic-del-title" className="ic-delete-title">
+                  {deleteChildCount > 0
+                    ? "删除探究及子树？"
+                    : "删除这张探究？"}
+                </h2>
+                <p id="ic-del-body" className="ic-delete-body">
+                  {deleteChildCount > 0
+                    ? `将删除「${focus.title}」及其下 ${deleteChildCount} 张子探究（含对话与边），且无法撤销。不会改动 Obsidian 笔记。`
+                    : `「${focus.title}」的对话与关联边将永久移除，且无法撤销。不会改动 Obsidian 笔记。`}
+                  {nodes.length <= deleteChildCount + 1
+                    ? " 删除后本宇宙将没有探究卡片。"
+                    : ""}
+                </p>
+                <div className="ic-delete-actions">
+                  <button
+                    type="button"
+                    className="ic-delete-btn ghost"
+                    disabled={deleteBusy}
+                    onClick={() => setDeleteAsk(false)}
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    className="ic-delete-btn danger"
+                    disabled={deleteBusy}
+                    onClick={() => void confirmDeleteInquiry()}
+                  >
+                    {deleteBusy
+                      ? "删除中…"
+                      : deleteChildCount > 0
+                        ? "删除子树"
+                        : "删除"}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
       {float ? (
         <TermFloat
@@ -998,6 +1018,7 @@ export default function InquiryCard() {
             })
           }
           onQuote={onFloatQuote}
+          onMove={onFloatMove}
         />
       ) : null}
 

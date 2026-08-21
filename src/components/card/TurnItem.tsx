@@ -133,7 +133,7 @@ export default function TurnItem({
             className={`ic-round${bookOn ? " on" : ""}`}
             onClick={() => onToggleStar?.()}
           >
-            <IconBookmark />
+            <IconBookmark filled={bookOn} />
           </button>
           <span className="sep" />
           <button

@@ -15,8 +15,13 @@ body {
   font-family: var(--font);
   font-size: var(--font-size-root);
   color: var(--ink);
-  background: var(--bg-app);
+  background: var(--gradient-app, var(--bg-app));
   -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--selection-bg);
+  color: var(--selection-ink);
 }
 
 button {
@@ -45,7 +50,7 @@ button:focus-visible,
   display: block;
   height: 100%;
   min-height: 0;
-  background: var(--bg-app);
+  background: var(--gradient-app, var(--bg-app));
 }
 
 .left-rail,
@@ -84,7 +89,7 @@ body.soit-focus-mode .app-shell .workspace-main {
   padding-left: 0;
 }
 
-/* Floating chrome-less rail — sits on app bg, no panel plate */
+/* Floating rail — soft theme wash, still open to the stage */
 .left-rail {
   position: absolute;
   z-index: 8;
@@ -93,8 +98,13 @@ body.soit-focus-mode .app-shell .workspace-main {
   bottom: 0;
   width: var(--rail-w);
   border: 0;
-  border-right: none;
-  background: transparent;
+  border-right: 1px solid color-mix(in srgb, var(--line) 40%, transparent);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--rail-wash) 88%, transparent) 0%,
+    color-mix(in srgb, var(--rail-wash) 42%, transparent) 72%,
+    transparent 100%
+  );
   box-shadow: none;
   padding: 14px 10px 12px 12px;
   display: flex;
@@ -1215,10 +1225,41 @@ body.soit-focus-mode .app-shell .workspace-main {
   color: var(--ink-faint);
 }
 
+/* PEL-164: plain graph labels — text on paper, halo for contrast (no tab plate) */
 .graph-label {
-  font-size: 7px;
+  font-size: 9px;
+  font-weight: 500;
   fill: var(--ink-soft);
   pointer-events: none;
+  paint-order: stroke fill;
+  stroke: color-mix(in srgb, var(--bg-app) 92%, #fffdf8);
+  stroke-width: 2.5px;
+  stroke-linejoin: round;
+}
+
+.graph-node.hover-hot .graph-label {
+  fill: var(--ink);
+  font-weight: 650;
+}
+
+.graph-node.hover-hot .ring {
+  filter: brightness(1.06);
+  stroke: #5c5348;
+  stroke-width: 1.6;
+}
+
+.graph-node.hover-dim {
+  opacity: 0.22;
+}
+
+.graph-edge.hover-hot {
+  stroke: #8a8074;
+  stroke-width: 1.5;
+  opacity: 0.72;
+}
+
+.graph-edge.hover-dim {
+  opacity: 0.08;
 }
 
 /* Full map stage */
@@ -1935,14 +1976,14 @@ body.soit-focus-mode .app-shell .workspace-main {
 }
 
 .graph-edge {
-  stroke: #c4b7a4;
+  stroke: var(--graph-edge);
   stroke-width: 1;
   stroke-linecap: round;
   opacity: 0.32;
 }
 
 .graph-edge.hot {
-  stroke: #8a8074;
+  stroke: var(--graph-edge-active);
   stroke-width: 1.25;
   opacity: 0.55;
 }
@@ -1954,8 +1995,8 @@ body.soit-focus-mode .app-shell .workspace-main {
 
 /* Base ring first; focus/on overrides must win */
 .graph-node .ring {
-  fill: #f4eee4;
-  stroke: #9a9082;
+  fill: var(--graph-node-idle);
+  stroke: var(--line-strong);
   stroke-width: 1.5;
   transition:
     fill 0.18s ease,
@@ -1978,8 +2019,8 @@ body.soit-focus-mode .app-shell .workspace-main {
 }
 
 .graph-node.role-aggregate .ring {
-  fill: #efe6d8;
-  stroke: #8b5e34;
+  fill: color-mix(in srgb, var(--bg-card) 70%, var(--graph-node-idle));
+  stroke: var(--graph-node-diverge);
   stroke-dasharray: 3 2;
 }
 
@@ -2055,7 +2096,7 @@ body.soit-focus-mode .app-shell .workspace-main {
 }
 
 .graph-node .dot {
-  fill: #c45c26;
+  fill: var(--graph-unread);
   opacity: 0;
   pointer-events: none;
 }

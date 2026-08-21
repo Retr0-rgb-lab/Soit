@@ -119,9 +119,13 @@ export async function runCompletion(args: {
       text = "（模型返回为空）";
     }
     const aiHtml = completeResultToHtml({ ...result, text });
-    const think = result.marks?.length
-      ? `marks: ${result.marks.map((m) => m.term).join(", ")}`
-      : "";
+    // Prefer model thinking; fall back to a quiet marks note (still collapsed in UI).
+    const thinkFromModel = (result.think ?? "").trim();
+    const think =
+      thinkFromModel ||
+      (result.marks?.length
+        ? `可分叉术语：${result.marks.map((m) => m.term).join("、")}`
+        : "");
 
     await writeAi(aiHtml, think);
   } catch (err) {

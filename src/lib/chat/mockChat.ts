@@ -36,15 +36,39 @@ function pickMarks(userText: string, scope: unknown): ChatMark[] {
 function scopeHint(scope: unknown): string {
   if (!scope || typeof scope !== "object") return "";
   const s = scope as {
+    kind?: string;
+    lineage?: string[];
     span?: { text?: string };
     why?: string;
+    parent?: { title?: string; status?: string };
     parentStatus?: string;
+    parentCompact?: string | null;
+    parentCompactedTurnCount?: number;
+    parentRecent?: Array<{ user?: string }>;
+    parentBridge?: Array<{ user?: string }>;
   };
   const parts: string[] = [];
+  if (s.kind) parts.push(s.kind === "diverge" ? "发散" : "深挖");
+  if (s.lineage?.length) parts.push(`谱系 ${s.lineage.join("›")}`);
+  if (s.parent?.title) parts.push(`父卡「${s.parent.title}」`);
   if (s.span?.text) parts.push(`源跨度「${s.span.text}」`);
   if (s.why) parts.push(`原因：${s.why}`);
-  if (s.parentStatus) parts.push(`父状态 ${s.parentStatus}`);
-  return parts.length ? `（深挖范围：${parts.join(" · ")}）` : "";
+  const st = s.parent?.status ?? s.parentStatus;
+  if (st) parts.push(`父状态 ${st}`);
+  if (s.parentCompact?.trim()) {
+    const n = s.parentCompactedTurnCount ?? 0;
+    parts.push(n > 0 ? `父compact×${n}` : "父compact");
+  }
+  const recent = s.parentRecent?.length ? s.parentRecent : s.parentBridge;
+  if (recent?.length) {
+    const u = recent[recent.length - 1]?.user;
+    if (u) {
+      parts.push(
+        `父近轮完整「${u.slice(0, 32)}${u.length > 32 ? "…" : ""}」`,
+      );
+    }
+  }
+  return parts.length ? `（分叉语境：${parts.join(" · ")}）` : "";
 }
 
 function abortError(): DOMException {
@@ -112,7 +136,10 @@ export class MockChat implements ChatPort {
       `可继续点开 ${terms} 做深挖或发散。重生只改本轮，不长新卡。`,
     ].join("\n");
 
-    return { text, marks };
+    // Demo think payload so UI toggle can be exercised without a live model.
+    const think = `对齐问题意图：${preview.slice(0, 40)}；准备用 ${terms} 作可分叉锚点。`;
+
+    return { text, marks, think };
   }
 
   /**

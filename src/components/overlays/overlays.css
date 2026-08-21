@@ -26,8 +26,8 @@
 .ic-float {
   position: fixed;
   z-index: 50;
-  width: min(420px, calc(100vw - 32px));
-  max-height: min(360px, 50vh);
+  width: min(440px, calc(100vw - 32px));
+  max-height: min(400px, 55vh);
   background: var(--bg-card);
   border: 1px solid var(--line-strong);
   border-radius: 16px;
@@ -35,8 +35,22 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: ic-pop-in var(--motion-pop) var(--ease-out) both;
+  /* Pop-in only on first mount (.is-enter). Never re-run after drag end. */
   transform-origin: top left;
+  /* PEL-163: only close button dismisses — float stays while user works */
+  pointer-events: auto;
+}
+
+.ic-float.is-enter {
+  animation: ic-pop-in var(--motion-pop) var(--ease-out) both;
+}
+
+.ic-float.is-dragging {
+  /* Keep opacity/transform stable — do not touch animation property */
+  box-shadow: 0 22px 48px rgb(40 30 18 / 28%);
+  user-select: none;
+  cursor: grabbing;
+  will-change: left, top;
 }
 
 .ic-float-head {
@@ -46,11 +60,25 @@
   gap: 8px;
   padding: 10px 12px;
   border-bottom: 1px solid rgb(90 80 65 / 12%);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  background: color-mix(in srgb, var(--bg-muted) 55%, var(--bg-card));
 }
 
+.ic-float.is-dragging .ic-float-head {
+  cursor: grabbing;
+}
+
+.ic-float-title,
 .ic-float-head strong {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
 }
 
 .ic-float-tools {
@@ -61,8 +89,8 @@
 .ic-float-body {
   padding: 14px 16px;
   overflow: auto;
-  line-height: 1.55;
-  font-size: 13px;
+  line-height: 1.6;
+  font-size: 14px;
   color: var(--ink-soft);
 }
 
@@ -115,9 +143,14 @@
   background: rgb(90 80 65 / 8%);
 }
 
+/* PEL-163: short explain body — readable body size, never think chrome */
 .ic-float-explain {
   white-space: pre-wrap;
   word-break: break-word;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--ink);
+  letter-spacing: 0.01em;
 }
 
 .ic-muted {
@@ -202,6 +235,7 @@
 /* Large motion only when allowed; tokens.css still hard-caps reduce */
 @media (prefers-reduced-motion: reduce) {
   .ic-float,
+  .ic-float.is-enter,
   .ic-selbar,
   .ic-chooser,
   .ic-tip {

@@ -196,6 +196,72 @@ export default function GraphCanvas({
     return new Set(u);
   }, [laid]);
 
+  /** PEL-165: hover → same depth + ancestors + descendants */
+  const [hoverId, setHoverId] = useState<string | null>(null);
+
+  const childrenByParent = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const n of laid) {
+      if (!n.parentId) continue;
+      const list = m.get(n.parentId) ?? [];
+      list.push(n.id);
+      m.set(n.parentId, list);
+    }
+    return m;
+  }, [laid]);
+
+  const depthOf = useMemo(() => {
+    const d = new Map<string, number>();
+    const walk = (id: string): number => {
+      if (d.has(id)) return d.get(id)!;
+      const n = byId.get(id);
+      if (!n?.parentId || !byId.has(n.parentId)) {
+        d.set(id, 0);
+        return 0;
+      }
+      const v = walk(n.parentId) + 1;
+      d.set(id, v);
+      return v;
+    };
+    for (const n of laid) walk(n.id);
+    return d;
+  }, [laid, byId]);
+
+  const hoverHighlight = useMemo(() => {
+    if (!hoverId || !byId.has(hoverId)) return null;
+    const hiNodes = new Set<string>([hoverId]);
+    const edgeTo = new Set<string>(); // child id whose parent edge is hot
+    const seedDepth = depthOf.get(hoverId) ?? 0;
+
+    let cur = byId.get(hoverId);
+    const seenUp = new Set<string>();
+    while (cur && !seenUp.has(cur.id)) {
+      seenUp.add(cur.id);
+      hiNodes.add(cur.id);
+      if (cur.parentId && byId.has(cur.parentId)) {
+        edgeTo.add(cur.id);
+        cur = byId.get(cur.parentId);
+      } else break;
+    }
+
+    for (const n of laid) {
+      if ((depthOf.get(n.id) ?? -1) === seedDepth) hiNodes.add(n.id);
+    }
+
+    const stack = [...(childrenByParent.get(hoverId) ?? [])];
+    const seenDown = new Set<string>();
+    while (stack.length) {
+      const id = stack.pop()!;
+      if (seenDown.has(id)) continue;
+      seenDown.add(id);
+      hiNodes.add(id);
+      edgeTo.add(id);
+      for (const c of childrenByParent.get(id) ?? []) stack.push(c);
+    }
+
+    return { nodes: hiNodes, edgeTo };
+  }, [hoverId, byId, laid, depthOf, childrenByParent]);
+
   if (laid.length === 0) {
     return (
       <div className={`graph-canvas empty ${className ?? ""}`.trim()}>
@@ -232,10 +298,12 @@ export default function GraphCanvas({
             const pathish = (r: NodeRole) => r === "focus" || r === "path";
             const hot = pathish(rN) || pathish(rP);
             const field = !hot && (rN === "field" || rP === "field");
+            const hoverHot = hoverHighlight?.edgeTo.has(n.id) ?? false;
+            const hoverDim = Boolean(hoverHighlight) && !hoverHot;
             return (
               <path
                 key={`e-${n.id}`}
-                className={`graph-edge${hot ? " hot" : ""}${field ? " field" : ""}`}
+                className={`graph-edge${hot ? " hot" : ""}${field ? " field" : ""}${hoverHot ? " hover-hot" : ""}${hoverDim ? " hover-dim" : ""}`}
                 d={`M${p.x.toFixed(1)} ${p.y.toFixed(1)} C${p.x.toFixed(1)} ${midY.toFixed(1)}, ${n.x.toFixed(1)} ${midY.toFixed(1)}, ${n.x.toFixed(1)} ${n.y.toFixed(1)}`}
                 fill="none"
               />
@@ -244,6 +312,8 @@ export default function GraphCanvas({
         {laid.map((n) => {
           const role = roleOf(n, focusId);
           const on = isFocused(n, focusId);
+          const hoverHot = hoverHighlight?.nodes.has(n.id) ?? false;
+          const hoverDim = Boolean(hoverHighlight) && !hoverHot;
           return (
             <GraphNode
               key={n.id}
@@ -252,7 +322,10 @@ export default function GraphCanvas({
               on={on}
               showLabel={showLabelFor(role, mode)}
               pulse={pulseIds.has(n.id) && !on}
+              hoverHot={hoverHot}
+              hoverDim={hoverDim}
               onSelect={onSelect}
+              onHover={setHoverId}
             />
           );
         })}
@@ -275,19 +348,39 @@ function ringPaint(
   on: boolean,
 ): { fill: string; stroke: string; strokeWidth: number } {
   if (on || role === "focus") {
-    return { fill: "#2a241c", stroke: "#2a241c", strokeWidth: 1.1 };
+    return {
+      fill: "var(--graph-node-root)",
+      stroke: "var(--graph-node-root)",
+      strokeWidth: 1.1,
+    };
   }
   if (role === "path") {
-    return { fill: "#5c5348", stroke: "none", strokeWidth: 0 };
+    return {
+      fill: "var(--graph-node-path)",
+      stroke: "none",
+      strokeWidth: 0,
+    };
   }
   if (role === "aggregate") {
-    return { fill: "transparent", stroke: "#8b5e34", strokeWidth: 1.1 };
+    return {
+      fill: "transparent",
+      stroke: "var(--graph-node-diverge)",
+      strokeWidth: 1.1,
+    };
   }
   if (role === "field") {
-    return { fill: "#d9cfc0", stroke: "none", strokeWidth: 0 };
+    return {
+      fill: "var(--graph-node-idle)",
+      stroke: "none",
+      strokeWidth: 0,
+    };
   }
-  // context — sand fill, no hard ring
-  return { fill: "#c4b7a4", stroke: "none", strokeWidth: 0 };
+  // context — idle fill, no hard ring
+  return {
+    fill: "var(--graph-node-idle)",
+    stroke: "none",
+    strokeWidth: 0,
+  };
 }
 
 function GraphNode({
@@ -296,14 +389,20 @@ function GraphNode({
   on,
   showLabel,
   pulse,
+  hoverHot,
+  hoverDim,
   onSelect,
+  onHover,
 }: {
   n: LaidOutNode<GraphInput>;
   role: NodeRole;
   on: boolean;
   showLabel: boolean;
   pulse: boolean;
+  hoverHot: boolean;
+  hoverDim: boolean;
   onSelect: (id: string) => void;
+  onHover: (id: string | null) => void;
 }) {
   const r = radiusFor(role, on);
   const hit = Math.max(r, 14); // min hit radius in layout units
@@ -312,12 +411,14 @@ function GraphNode({
     n.title.length > 10 ? `${n.title.slice(0, 9)}…` : n.title;
   return (
     <g
-      className={`graph-node role-${role}${on ? " on" : ""}${n.unread ? " unread" : ""}${pulse ? " pulse" : ""}`}
+      className={`graph-node role-${role}${on ? " on" : ""}${n.unread ? " unread" : ""}${pulse ? " pulse" : ""}${hoverHot ? " hover-hot" : ""}${hoverDim ? " hover-dim" : ""}`}
       onClick={(e) => {
         e.stopPropagation();
         onSelect(n.id);
       }}
       onPointerDown={(e) => e.stopPropagation()}
+      onPointerEnter={() => onHover(n.id)}
+      onPointerLeave={() => onHover(null)}
       style={{ cursor: "pointer" }}
     >
       {/* invisible larger hit target */}
@@ -345,7 +446,7 @@ function GraphNode({
         cx={n.x + r - 1}
         cy={n.y - r + 1}
         r={2}
-        fill="#b8956c"
+        fill="var(--graph-unread)"
         opacity={on ? 0 : n.unread ? 1 : 0}
       />
       {showLabel && (
@@ -355,7 +456,8 @@ function GraphNode({
           y={n.y + r + 12}
           textAnchor="middle"
         >
-          {role === "aggregate" ? label : `${kindGlyph(n.kind)} ${label}`}
+          {/* PEL-164: plain title text (no glyph tab chrome) */}
+          {label}
         </text>
       )}
       <title>

@@ -9,7 +9,9 @@
 
 ## 摘要
 
-设置新增 **外观**：五主题（宣纸/抹茶/青瓷/墨夜/丹砂）+ 五字体族 + 四档字号。`index.html` 同步 boot 写 `html[data-theme|data-font|data-font-size]` + critical bg；`tokens.css` 映射色与字体；偏好 `localStorage` key `soit-appearance`。默认 paper/system/md。无 CDN 字体。
+设置新增 **外观**：十主题（宣纸/抹茶/青瓷/墨夜/丹砂 + 羊皮/蓝晒/藤紫/胡桃/石室）+ 五字体族 + 四档字号。`index.html` 同步 boot 写 `html[data-theme|data-font|data-font-size]` + critical bg；`tokens.css` 映射色与字体；偏好 `localStorage` key `soit-appearance`。默认 paper/system/md。无 CDN 字体。
+
+v3 扩展：每主题含表面阶梯（app/panel/card/elevated/muted/composer）、双 accent（主色 + counter）、header/rail wash、graph 节点色（root/deepen/diverge/path）、soft 渐变舞台。组件内部色差靠 token 而非单色洗染。
 
 ---
 
@@ -42,8 +44,13 @@ Settings 现有：空间 · 模型 · 运行时 · 技能 · 关于。
 | celadon | 青瓷 | 冷青灰 / 青瓷 accent |
 | ink | 墨夜 | 暖炭底 / 象牙字；`color-scheme: dark` |
 | cinnabar | 丹砂 | 近 paper + 朱红 accent |
+| vellum | 羊皮 | 干羊皮 / 牛血封泥 + 叶金 counter |
+| cyanotype | 蓝晒 | 普鲁士蓝印相 / 铁锈 counter |
+| wisteria | 藤紫 | 灰紫灰泥 / 梅紫 + 鼠尾草 |
+| walnut | 胡桃 | 暖木暗室 / 黄铜 + 绿灯罩；`color-scheme: dark` |
+| travertine | 石室 | 石灰石展厅 / 铜绿 + 哑光青铜 |
 
-覆盖：`--bg-app/panel/card/muted`、`--ink*`、`--line*`、`--accent*`、`--danger`、`--focus`、`--e1..e3`、`--e-float`、`--shadow-soft`。  
+覆盖：`--bg-app/panel/card/elevated/muted/composer`、`--ink*`、`--line*`、`--accent*`/`--accent-2*`、`--danger`、`--focus`、`--header-wash`/`--rail-wash`、`--graph-node-*`、`--gradient-app`、`--e1..e3`、`--e-float`、`--shadow-soft`。  
 不覆盖：layout/motion/inquiry/sheet 几何。
 
 ```css

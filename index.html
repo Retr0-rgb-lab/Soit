@@ -11,15 +11,31 @@
     <!-- FOUC-safe appearance boot: data-* + critical bg before CSS/module (spec v1.1 §2.3) -->
     <script>
       (function () {
-        var THEMES = { paper: 1, matcha: 1, celadon: 1, ink: 1, cinnabar: 1 };
+        var THEMES = {
+          paper: 1,
+          matcha: 1,
+          celadon: 1,
+          ink: 1,
+          cinnabar: 1,
+          vellum: 1,
+          cyanotype: 1,
+          wisteria: 1,
+          walnut: 1,
+          travertine: 1,
+        };
         var FONTS = { system: 1, song: 1, hei: 1, kai: 1, mono: 1 };
         var SIZES = { sm: 1, md: 1, lg: 1, xl: 1 };
         var BG = {
           paper: "#efe4d4",
           matcha: "#e2ebd9",
           celadon: "#dde8e5",
-          ink: "#161310",
+          ink: "#0a0a0a",
           cinnabar: "#f0e3da",
+          vellum: "#e6d9bf",
+          cyanotype: "#d2dee6",
+          wisteria: "#e5dde4",
+          walnut: "#1c1712",
+          travertine: "#e2ddd4",
         };
         var theme = "paper";
         var font = "system";

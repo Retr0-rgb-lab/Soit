@@ -63,14 +63,7 @@
   will-change: auto;
 }
 
-/* Vector rings stay sharp under CSS scale; boost contrast in global view */
-.focus-orbit--panzoom .fo-ring-stroke {
-  stroke: color-mix(in srgb, var(--ink) 28%, var(--line-strong));
-  stroke-width: 1.25;
-  opacity: 0.85;
-  vector-effect: non-scaling-stroke; /* keep ~1px crisp when world scales */
-}
-
+/* PEL-162: concentric rings removed — keep spoke contrast only */
 .focus-orbit--panzoom .fo-spoke--depth {
   opacity: 0.45;
   stroke-width: 1.75;
@@ -108,11 +101,17 @@
 }
 
 .focus-orbit--panzoom .fo-node__label {
-  max-width: 120px;
+  max-width: 140px;
   font-size: 13px;
   font-weight: 500;
   color: var(--ink-soft);
-  background: color-mix(in srgb, var(--bg-app) 94%, #fffdf8);
+  /* PEL-164: plain text on paper — no tab/pill plate */
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  text-shadow:
+    0 0 4px color-mix(in srgb, var(--bg-app) 92%, transparent),
+    0 1px 0 color-mix(in srgb, var(--bg-app) 80%, transparent);
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
 }
@@ -204,13 +203,7 @@
   pointer-events: none;
 }
 
-.fo-ring-stroke {
-  stroke: color-mix(in srgb, var(--line-strong) 42%, transparent);
-  stroke-width: 1;
-  opacity: 0.55;
-}
-
-/* Depth edges (parent → child) */
+/* Depth edges (parent → child) — rings intentionally omitted (PEL-162) */
 .fo-spoke--depth {
   stroke: color-mix(in srgb, var(--ink) 20%, var(--line-strong));
   stroke-width: 1.5;
@@ -230,6 +223,16 @@
   stroke: color-mix(in srgb, var(--ink) 50%, var(--line-strong));
   stroke-width: 2;
   opacity: 0.9;
+}
+
+.fo-spoke--depth.is-hover-hot {
+  stroke: color-mix(in srgb, var(--ink) 62%, var(--line-strong));
+  stroke-width: 2.25;
+  opacity: 0.95;
+}
+
+.fo-spoke--depth.is-hover-dim {
+  opacity: 0.1;
 }
 
 /* —— Uniform nodes (same size for all) —— */
@@ -302,16 +305,17 @@
   transform: translate(-50%, -50%);
 }
 
+/* PEL-164: Obsidian-like plain labels — text only, no pill/tab plate */
 .fo-node__label {
   position: absolute;
   left: 50%;
   top: calc(50% + 16px);
   display: block;
   width: max-content;
-  max-width: 96px;
-  padding: 2px 5px;
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--bg-app) 90%, transparent);
+  max-width: 104px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--ink-faint);
   font-size: 12px;
   font-weight: 450;
@@ -323,6 +327,9 @@
   text-overflow: ellipsis;
   transform: translateX(-50%);
   pointer-events: none;
+  text-shadow:
+    0 0 3px color-mix(in srgb, var(--bg-app) 90%, transparent),
+    0 1px 0 color-mix(in srgb, var(--bg-app) 75%, transparent);
   transition: color 0.14s ease, font-weight 0.14s ease, opacity 0.28s ease;
 }
 
@@ -336,8 +343,24 @@
   opacity: 1;
 }
 
-.fo-node:hover .fo-node__label {
+.fo-node:hover .fo-node__label,
+.fo-node.is-hover-hot .fo-node__label {
   color: var(--ink);
+}
+
+/* PEL-165 hover path/ring emphasis */
+.fo-node.is-hover-hot {
+  opacity: 1;
+  z-index: 5;
+}
+
+.fo-node.is-hover-hot .fo-node__dot {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 35%, transparent) !important;
+}
+
+.fo-node.is-hover-dim {
+  opacity: 0.18;
+  z-index: 1;
 }
 
 .fo-now {

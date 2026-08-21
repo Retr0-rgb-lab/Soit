@@ -1,26 +1,98 @@
-/* Theme v2 — wider surface ladder + counter-tones; chat tokens for bubbles.
-   Art direction: editorial material, not monochrome wash. */
+/* Theme v3 — surface ladder + counter-tones + component washes.
+   Art direction: editorial material, internal variation per theme (not monochrome wash).
+   Ten themes: paper · matcha · celadon · ink · cinnabar · vellum · cyanotype · wisteria · walnut · travertine */
 
+/* ── Shared token fallbacks (overridden per theme) ───────── */
+
+:root {
+  --bg-elevated: var(--bg-card);
+  --bg-composer: var(--bg-panel);
+  --bg-code: var(--code-bg);
+  --ink-invert: var(--bg-card);
+  --line-soft: color-mix(in srgb, var(--line) 55%, transparent);
+  --accent-hover: var(--accent);
+  --accent-muted: color-mix(in srgb, var(--accent) 16%, var(--bg-card));
+  --accent-2-soft: color-mix(in srgb, var(--accent-2) 22%, var(--bg-card));
+  --accent-2-hover: var(--accent-2);
+  --success: #4a6b42;
+  --success-soft: color-mix(in srgb, var(--success) 16%, var(--bg-card));
+  --warn: #a06a28;
+  --warn-soft: color-mix(in srgb, var(--warn) 16%, var(--bg-card));
+  --danger-soft: color-mix(in srgb, var(--danger) 14%, var(--bg-card));
+  --focus-ring: color-mix(in srgb, var(--focus) 42%, transparent);
+  --selection-bg: color-mix(in srgb, var(--accent) 16%, var(--bg-card));
+  --selection-ink: var(--ink);
+  --chat-assistant-bg: transparent;
+  --paper-tint: var(--bg-panel);
+  --paper-tint-2: var(--bg-muted);
+  --header-wash: color-mix(in srgb, var(--accent) 5%, var(--bg-card));
+  --rail-wash: color-mix(in srgb, var(--bg-panel) 70%, var(--bg-muted));
+  --gradient-app: var(--bg-app);
+  --gradient-card-sheen: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--bg-elevated) 70%, transparent) 0%,
+    transparent 44%
+  );
+  --graph-node-idle: var(--line-strong);
+  --graph-node-root: var(--ink);
+  --graph-node-deepen: var(--focus);
+  --graph-node-diverge: var(--accent-2);
+  --graph-node-path: var(--ink-soft);
+  --graph-edge: color-mix(in srgb, var(--line-strong) 72%, var(--ink-faint));
+  --graph-edge-active: color-mix(in srgb, var(--accent) 50%, var(--line-strong));
+  --graph-unread: var(--accent-2);
+  --graph-label: var(--ink-soft);
+  --graph-label-halo: color-mix(in srgb, var(--bg-app) 88%, transparent);
+}
+
+/* 宣纸 — deeper stage, clearer card lift, cool window focus */
 :root,
 html[data-theme="paper"] {
-  /* 宣纸 — deeper stage, clearer card lift, cool window focus */
   --bg-app: #efe4d4;
   --bg-panel: #f6f0e6;
   --bg-card: #fffbf4;
+  --bg-elevated: #fffef9;
   --bg-muted: #e8dccb;
+  --bg-composer: #f3ebe0;
   --ink: #2b241c;
   --ink-soft: #5a5045;
   --ink-faint: #8c8072;
+  --ink-invert: #fffbf4;
   --line: #d6c9b6;
   --line-strong: #bfae97;
   --accent: #8a5a32;
   --accent-soft: #ead7c0;
+  --accent-hover: #734a28;
   --accent-2: #3e6f8f;
+  --accent-2-soft: #d4e4ee;
+  --accent-2-hover: #325a74;
   --danger: #a33828;
+  --danger-soft: #f0d6d0;
+  --success: #4f6e48;
+  --warn: #9a6a2c;
   --focus: #3e6f8f;
   --chat-user-bg: #f0e4d2;
   --chat-user-ink: #2b241c;
   --code-bg: color-mix(in srgb, var(--ink) 6%, var(--bg-card));
+  --header-wash: color-mix(in srgb, var(--accent-2) 6%, var(--bg-card));
+  --rail-wash: color-mix(in srgb, var(--bg-panel) 68%, var(--bg-muted));
+  --paper-tint: #f8f1e6;
+  --paper-tint-2: #ebe0d0;
+  --graph-node-idle: #c4b7a4;
+  --graph-node-root: #2b241c;
+  --graph-node-deepen: #3e6f8f;
+  --graph-node-diverge: #8a5a32;
+  --graph-node-path: #5a5045;
+  --graph-unread: #b07a3c;
+  --gradient-app:
+    radial-gradient(120% 80% at 12% 0%, #f6eee2 0%, transparent 55%),
+    radial-gradient(90% 70% at 88% 100%, #e4d4bc 0%, transparent 50%),
+    var(--bg-app);
+  --gradient-card-sheen: linear-gradient(
+    165deg,
+    rgb(255 253 246 / 75%) 0%,
+    transparent 42%
+  );
 
   --e0: none;
   --e1:
@@ -42,20 +114,48 @@ html[data-theme="matcha"] {
   --bg-app: #e2ebd9;
   --bg-panel: #eef4e9;
   --bg-card: #f6faf2;
+  --bg-elevated: #fbfdf8;
   --bg-muted: #d5e3cc;
+  --bg-composer: #e8f0e2;
   --ink: #1f2c24;
   --ink-soft: #456050;
   --ink-faint: #6f8274;
+  --ink-invert: #f6faf2;
   --line: #bfd0b6;
   --line-strong: #9bb39a;
   --accent: #4f7340;
   --accent-soft: #d2e5c6;
+  --accent-hover: #3f5c34;
   --accent-2: #a67c52;
+  --accent-2-soft: #ebd8c4;
+  --accent-2-hover: #8c6842;
   --danger: #a33828;
+  --danger-soft: #f0d6d0;
+  --success: #3f6a48;
+  --warn: #9a6a28;
   --focus: #2f6b66;
   --chat-user-bg: #e4eedc;
   --chat-user-ink: #1f2c24;
   --code-bg: color-mix(in srgb, var(--ink) 6%, var(--bg-card));
+  --header-wash: color-mix(in srgb, var(--accent) 6%, var(--bg-card));
+  --rail-wash: color-mix(in srgb, var(--bg-panel) 65%, var(--bg-muted));
+  --paper-tint: #eef5ea;
+  --paper-tint-2: #dce8d4;
+  --graph-node-idle: #a8bca0;
+  --graph-node-root: #1f2c24;
+  --graph-node-deepen: #2f6b66;
+  --graph-node-diverge: #a67c52;
+  --graph-node-path: #456050;
+  --graph-unread: #a67c52;
+  --gradient-app:
+    radial-gradient(110% 75% at 10% 0%, #eef5e8 0%, transparent 52%),
+    radial-gradient(85% 65% at 92% 100%, #cfdcc6 0%, transparent 48%),
+    var(--bg-app);
+  --gradient-card-sheen: linear-gradient(
+    165deg,
+    rgb(255 255 250 / 65%) 0%,
+    transparent 42%
+  );
 
   --e0: none;
   --e1:
@@ -77,20 +177,48 @@ html[data-theme="celadon"] {
   --bg-app: #dde8e5;
   --bg-panel: #ebf3f1;
   --bg-card: #f5faf8;
+  --bg-elevated: #fafdfc;
   --bg-muted: #d0deda;
+  --bg-composer: #e6f0ed;
   --ink: #1a282c;
   --ink-soft: #455a5e;
   --ink-faint: #71868a;
+  --ink-invert: #f5faf8;
   --line: #b7c9c5;
   --line-strong: #96ada8;
   --accent: #3f7f72;
   --accent-soft: #c5e0d8;
+  --accent-hover: #32665c;
   --accent-2: #c4785a;
+  --accent-2-soft: #f0dcd2;
+  --accent-2-hover: #a86248;
   --danger: #a33828;
+  --danger-soft: #f0d6d0;
+  --success: #3d6b58;
+  --warn: #a87830;
   --focus: #3a6280;
   --chat-user-bg: #e2eeea;
   --chat-user-ink: #1a282c;
   --code-bg: color-mix(in srgb, var(--ink) 6%, var(--bg-card));
+  --header-wash: color-mix(in srgb, var(--accent) 5%, var(--bg-card));
+  --rail-wash: color-mix(in srgb, var(--bg-panel) 68%, var(--bg-muted));
+  --paper-tint: #eef6f3;
+  --paper-tint-2: #dceae6;
+  --graph-node-idle: #a8beb8;
+  --graph-node-root: #1a282c;
+  --graph-node-deepen: #3a6280;
+  --graph-node-diverge: #c4785a;
+  --graph-node-path: #455a5e;
+  --graph-unread: #c4785a;
+  --gradient-app:
+    radial-gradient(110% 75% at 12% 0%, #ebf4f1 0%, transparent 52%),
+    radial-gradient(85% 65% at 90% 100%, #c8d8d4 0%, transparent 48%),
+    var(--bg-app);
+  --gradient-card-sheen: linear-gradient(
+    170deg,
+    rgb(255 255 255 / 55%) 0%,
+    transparent 40%
+  );
 
   --e0: none;
   --e1:
@@ -107,40 +235,73 @@ html[data-theme="celadon"] {
   --shadow-soft: var(--e2);
 }
 
-/* 墨夜 — quiet card lift, soft body type, recessed user bubble (no glare) */
+/* 墨夜 — true black stage (no brown cast); white type ladder by content role */
 html[data-theme="ink"] {
   color-scheme: dark;
-  --bg-app: #161310;
-  --bg-panel: #1e1a16;
-  --bg-card: #221e19;
-  --bg-muted: #2a241e;
-  --ink: #d2c8b8;
-  --ink-soft: #a89f90;
-  --ink-faint: #7a7268;
-  --line: #3a342c;
-  --line-strong: #4f463c;
-  --accent: #c4a06a;
-  --accent-soft: #2e281f;
-  --accent-2: #6a9bb0;
-  --danger: #d16a54;
-  --focus: #6a9bb0;
-  /* Chat: never lighter than card — user is recessed */
-  --chat-user-bg: #1a1612;
-  --chat-user-ink: #c8bdb0;
-  --code-bg: #1a1612;
+  /* Surfaces: neutral black ladder only */
+  --bg-app: #0a0a0a;
+  --bg-panel: #111111;
+  --bg-card: #161616;
+  --bg-elevated: #1e1e1e;
+  --bg-muted: #1c1c1c;
+  --bg-composer: #101010;
+  /* Type: pure white body; softer greys for meta / chrome */
+  --ink: #ffffff;
+  --ink-soft: #c8c8c8;
+  --ink-faint: #8a8a8a;
+  --ink-invert: #0a0a0a;
+  --line: #2a2a2a;
+  --line-strong: #404040;
+  /* Accents stay cool punctuation — never tint the black stage brown */
+  --accent: #d4b88a;
+  --accent-soft: #222222;
+  --accent-hover: #e2c89a;
+  --accent-2: #7eb0c8;
+  --accent-2-soft: #152028;
+  --accent-2-hover: #96c4d8;
+  --danger: #e07060;
+  --danger-soft: #2a1816;
+  --success: #7aab78;
+  --warn: #d4b060;
+  --focus: #7eb0c8;
+  /* Chat: recessed well; user copy near-white (not pure glare white) */
+  --chat-user-bg: #0e0e0e;
+  --chat-user-ink: #f2f2f2;
+  --code-bg: #0e0e0e;
+  --header-wash: color-mix(in srgb, #ffffff 4%, var(--bg-card));
+  --rail-wash: color-mix(in srgb, var(--bg-panel) 78%, #050505);
+  --paper-tint: #1a1a1a;
+  --paper-tint-2: #121212;
+  --selection-bg: color-mix(in srgb, var(--accent-2) 28%, var(--bg-card));
+  --selection-ink: #ffffff;
+  --graph-node-idle: #4a4a4a;
+  --graph-node-root: #ffffff;
+  --graph-node-deepen: #7eb0c8;
+  --graph-node-diverge: #d4b88a;
+  --graph-node-path: #a8a8a8;
+  --graph-unread: #d4b88a;
+  --gradient-app:
+    radial-gradient(90% 60% at 18% 0%, #141414 0%, transparent 55%),
+    radial-gradient(70% 50% at 100% 80%, #050505 0%, transparent 45%),
+    var(--bg-app);
+  --gradient-card-sheen: linear-gradient(
+    165deg,
+    rgb(255 255 255 / 3.5%) 0%,
+    transparent 40%
+  );
 
   --e0: none;
   --e1:
-    0 1px 2px rgb(0 0 0 / 32%), 0 2px 6px rgb(0 0 0 / 20%);
+    0 1px 2px rgb(0 0 0 / 40%), 0 2px 6px rgb(0 0 0 / 28%);
   --e2:
-    0 1px 2px rgb(0 0 0 / 34%), 0 6px 16px rgb(0 0 0 / 30%);
+    0 1px 2px rgb(0 0 0 / 42%), 0 6px 16px rgb(0 0 0 / 38%);
   --e3:
-    0 1px 0 rgb(255 248 236 / 4%) inset,
-    1px 2px 4px rgb(0 0 0 / 30%),
-    2px 10px 22px rgb(0 0 0 / 34%),
-    4px 16px 32px rgb(0 0 0 / 26%);
+    0 1px 0 rgb(255 255 255 / 4%) inset,
+    1px 2px 4px rgb(0 0 0 / 40%),
+    2px 10px 22px rgb(0 0 0 / 42%),
+    4px 16px 32px rgb(0 0 0 / 32%);
   --e-float:
-    0 8px 24px rgb(0 0 0 / 42%), 0 16px 32px rgb(0 0 0 / 30%);
+    0 8px 24px rgb(0 0 0 / 50%), 0 16px 32px rgb(0 0 0 / 36%);
   --shadow-soft: var(--e2);
 }
 
@@ -149,20 +310,48 @@ html[data-theme="cinnabar"] {
   --bg-app: #f0e3da;
   --bg-panel: #f8f1ea;
   --bg-card: #fffbf7;
+  --bg-elevated: #fffefc;
   --bg-muted: #ebd8ce;
+  --bg-composer: #f5eae2;
   --ink: #2a201c;
   --ink-soft: #5c4a44;
   --ink-faint: #8a756e;
+  --ink-invert: #fffbf7;
   --line: #dcc8be;
   --line-strong: #c4a898;
   --accent: #b03a2e;
   --accent-soft: #f2d6ce;
+  --accent-hover: #922e24;
   --accent-2: #9a7b4f;
+  --accent-2-soft: #ebe0cc;
+  --accent-2-hover: #826640;
   --danger: #8c2a22;
+  --danger-soft: #f0d4cc;
+  --success: #4f6e48;
+  --warn: #a87828;
   --focus: #3d6a88;
   --chat-user-bg: #f3e4da;
   --chat-user-ink: #2a201c;
   --code-bg: color-mix(in srgb, var(--ink) 6%, var(--bg-card));
+  --header-wash: color-mix(in srgb, var(--accent) 5%, var(--bg-card));
+  --rail-wash: color-mix(in srgb, var(--bg-panel) 68%, var(--bg-muted));
+  --paper-tint: #faf0e8;
+  --paper-tint-2: #eedfd4;
+  --graph-node-idle: #c8b0a4;
+  --graph-node-root: #2a201c;
+  --graph-node-deepen: #3d6a88;
+  --graph-node-diverge: #b03a2e;
+  --graph-node-path: #5c4a44;
+  --graph-unread: #b03a2e;
+  --gradient-app:
+    radial-gradient(110% 75% at 12% 0%, #f6ebe4 0%, transparent 52%),
+    radial-gradient(85% 65% at 90% 100%, #e4cec2 0%, transparent 48%),
+    var(--bg-app);
+  --gradient-card-sheen: linear-gradient(
+    165deg,
+    rgb(255 251 247 / 75%) 0%,
+    transparent 42%
+  );
 
   --e0: none;
   --e1:
@@ -176,6 +365,322 @@ html[data-theme="cinnabar"] {
     4px 18px 36px rgb(42 32 28 / 4%);
   --e-float:
     0 8px 24px rgb(42 32 28 / 12%), 0 16px 32px rgb(42 32 28 / 8%);
+  --shadow-soft: var(--e2);
+}
+
+/* 羊皮 — dry parchment + oxblood seal + leaf-gold counter */
+html[data-theme="vellum"] {
+  --bg-app: #e6d9bf;
+  --bg-panel: #efe4cc;
+  --bg-card: #faf3e4;
+  --bg-elevated: #fffdf6;
+  --bg-muted: #ddd0b0;
+  --bg-composer: #f3ead6;
+  --ink: #2a2218;
+  --ink-soft: #5a4c3a;
+  --ink-faint: #8a7860;
+  --ink-invert: #faf3e4;
+  --line: #cfc0a0;
+  --line-strong: #b5a084;
+  --accent: #7a3b2e;
+  --accent-soft: #edd4c6;
+  --accent-hover: #632f24;
+  --accent-2: #9a7b3c;
+  --accent-2-soft: #ebe0c0;
+  --accent-2-hover: #826632;
+  --danger: #9c2f24;
+  --danger-soft: #f0d4cc;
+  --success: #4a6b42;
+  --warn: #a06a28;
+  --focus: #4a6678;
+  --chat-user-bg: #efe2cc;
+  --chat-user-ink: #2a2218;
+  --code-bg: color-mix(in srgb, var(--ink) 5.5%, var(--bg-card));
+  --header-wash: color-mix(in srgb, var(--accent-2) 6%, var(--bg-card));
+  --rail-wash: color-mix(in srgb, var(--bg-panel) 72%, var(--bg-muted));
+  --paper-tint: #f7efdc;
+  --paper-tint-2: #ebe0c8;
+  --graph-node-idle: #c4b498;
+  --graph-node-root: #7a3b2e;
+  --graph-node-deepen: #4a6678;
+  --graph-node-diverge: #9a7b3c;
+  --graph-node-path: #8a6a48;
+  --graph-unread: #9a7b3c;
+  --gradient-app:
+    radial-gradient(120% 80% at 12% 0%, #f0e4cc 0%, transparent 55%),
+    radial-gradient(90% 70% at 88% 100%, #dcc9a8 0%, transparent 50%),
+    var(--bg-app);
+  --gradient-card-sheen: linear-gradient(
+    165deg,
+    rgb(255 253 246 / 80%) 0%,
+    transparent 42%
+  );
+
+  --e0: none;
+  --e1:
+    0 1px 2px rgb(42 34 24 / 5%), 0 2px 6px rgb(42 34 24 / 4%);
+  --e2:
+    0 1px 2px rgb(42 34 24 / 5%), 0 6px 16px rgb(42 34 24 / 7%);
+  --e3:
+    0 1px 0 rgb(255 253 246 / 75%) inset,
+    1px 2px 4px rgb(42 34 24 / 4%),
+    2px 10px 24px rgb(42 34 24 / 6%),
+    4px 18px 36px rgb(42 34 24 / 4%);
+  --e-float:
+    0 8px 24px rgb(42 34 24 / 12%), 0 16px 32px rgb(42 34 24 / 8%);
+  --shadow-soft: var(--e2);
+}
+
+/* 蓝晒 — Prussian process print + iron-rust counter */
+html[data-theme="cyanotype"] {
+  --bg-app: #d2dee6;
+  --bg-panel: #e2ebf0;
+  --bg-card: #f2f7f9;
+  --bg-elevated: #fafcfd;
+  --bg-muted: #c2d2dc;
+  --bg-composer: #e8f0f4;
+  --ink: #1a2a32;
+  --ink-soft: #3d5560;
+  --ink-faint: #6a808a;
+  --ink-invert: #f2f7f9;
+  --line: #b3c5ce;
+  --line-strong: #8fa5b0;
+  --accent: #2f5f78;
+  --accent-soft: #c5dce6;
+  --accent-hover: #244c61;
+  --accent-2: #b56a48;
+  --accent-2-soft: #edd9ce;
+  --accent-2-hover: #9a563a;
+  --danger: #a83c38;
+  --danger-soft: #f0d4d0;
+  --success: #3d6b58;
+  --warn: #b07a30;
+  --focus: #2f5f78;
+  --chat-user-bg: #e0ebf0;
+  --chat-user-ink: #1a2a32;
+  --code-bg: color-mix(in srgb, var(--ink) 5.5%, var(--bg-card));
+  --header-wash: color-mix(in srgb, var(--accent) 5%, var(--bg-card));
+  --rail-wash: color-mix(in srgb, var(--bg-panel) 70%, #c8d8e2);
+  --paper-tint: #eaf2f6;
+  --paper-tint-2: #dce8ee;
+  --graph-node-idle: #9bb0bc;
+  --graph-node-root: #2f5f78;
+  --graph-node-deepen: #3d6b58;
+  --graph-node-diverge: #b56a48;
+  --graph-node-path: #5a7a8a;
+  --graph-unread: #b56a48;
+  --gradient-app:
+    radial-gradient(100% 70% at 8% 10%, #e8f1f5 0%, transparent 50%),
+    radial-gradient(80% 60% at 92% 90%, #c5d5e0 0%, transparent 48%),
+    var(--bg-app);
+  --gradient-card-sheen: linear-gradient(
+    170deg,
+    rgb(255 255 255 / 55%) 0%,
+    transparent 40%
+  );
+
+  --e0: none;
+  --e1:
+    0 1px 2px rgb(26 42 50 / 5%), 0 2px 6px rgb(26 42 50 / 4%);
+  --e2:
+    0 1px 2px rgb(26 42 50 / 5%), 0 6px 16px rgb(26 42 50 / 7%);
+  --e3:
+    0 1px 0 rgb(255 255 255 / 55%) inset,
+    1px 2px 4px rgb(26 42 50 / 4%),
+    2px 10px 24px rgb(26 42 50 / 6%),
+    4px 18px 36px rgb(26 42 50 / 4%);
+  --e-float:
+    0 8px 24px rgb(26 42 50 / 12%), 0 16px 32px rgb(26 42 50 / 8%);
+  --shadow-soft: var(--e2);
+}
+
+/* 藤紫 — dusty mauve plaster + plum + sage counter */
+html[data-theme="wisteria"] {
+  --bg-app: #e5dde4;
+  --bg-panel: #efe8ee;
+  --bg-card: #faf6f9;
+  --bg-elevated: #fffbfd;
+  --bg-muted: #d9cfd8;
+  --bg-composer: #f3eef3;
+  --ink: #2a2228;
+  --ink-soft: #5a4e56;
+  --ink-faint: #887880;
+  --ink-invert: #faf6f9;
+  --line: #cdc2cb;
+  --line-strong: #b3a2ad;
+  --accent: #6b4570;
+  --accent-soft: #e5d4e4;
+  --accent-hover: #56385a;
+  --accent-2: #5e7a62;
+  --accent-2-soft: #d8e4da;
+  --accent-2-hover: #4c6450;
+  --danger: #a04048;
+  --danger-soft: #f0d4d6;
+  --success: #4a6e52;
+  --warn: #a87838;
+  --focus: #4a6280;
+  --chat-user-bg: #eee4ec;
+  --chat-user-ink: #2a2228;
+  --code-bg: color-mix(in srgb, var(--ink) 5.5%, var(--bg-card));
+  --header-wash: color-mix(in srgb, var(--accent) 5%, var(--bg-card));
+  --rail-wash: color-mix(in srgb, var(--bg-panel) 68%, var(--bg-muted));
+  --paper-tint: #f5eef4;
+  --paper-tint-2: #e8dfe6;
+  --graph-node-idle: #b8aab6;
+  --graph-node-root: #6b4570;
+  --graph-node-deepen: #4a6280;
+  --graph-node-diverge: #5e7a62;
+  --graph-node-path: #8a6a82;
+  --graph-unread: #6b4570;
+  --gradient-app:
+    radial-gradient(110% 75% at 15% 0%, #f0e8ef 0%, transparent 52%),
+    radial-gradient(85% 65% at 90% 100%, #d4c8d6 0%, transparent 50%),
+    var(--bg-app);
+  --gradient-card-sheen: linear-gradient(
+    165deg,
+    rgb(255 251 253 / 70%) 0%,
+    transparent 44%
+  );
+
+  --e0: none;
+  --e1:
+    0 1px 2px rgb(42 34 40 / 5%), 0 2px 6px rgb(42 34 40 / 4%);
+  --e2:
+    0 1px 2px rgb(42 34 40 / 5%), 0 6px 16px rgb(42 34 40 / 7%);
+  --e3:
+    0 1px 0 rgb(255 251 253 / 70%) inset,
+    1px 2px 4px rgb(42 34 40 / 4%),
+    2px 10px 24px rgb(42 34 40 / 6%),
+    4px 18px 36px rgb(42 34 40 / 4%);
+  --e-float:
+    0 8px 24px rgb(42 34 40 / 12%), 0 16px 32px rgb(42 34 40 / 8%);
+  --shadow-soft: var(--e2);
+}
+
+/* 胡桃 — warm timber night + brass + green-glass counter */
+html[data-theme="walnut"] {
+  color-scheme: dark;
+  --bg-app: #1c1712;
+  --bg-panel: #261f18;
+  --bg-card: #2e261e;
+  --bg-elevated: #3a3026;
+  --bg-muted: #3c3228;
+  --bg-composer: #261f18;
+  --ink: #e2d6c6;
+  --ink-soft: #b2a492;
+  --ink-faint: #8a7c6c;
+  --ink-invert: #1c1712;
+  --line: #4a3f34;
+  --line-strong: #635646;
+  --accent: #c9a06a;
+  --accent-soft: #3d3426;
+  --accent-hover: #d4b07c;
+  --accent-2: #6d8f78;
+  --accent-2-soft: #2a3830;
+  --accent-2-hover: #82a48c;
+  --danger: #d07060;
+  --danger-soft: #3a2824;
+  --success: #7a9e72;
+  --warn: #d4a05a;
+  --focus: #7a9eaa;
+  --chat-user-bg: #241e17;
+  --chat-user-ink: #d4c8b8;
+  --code-bg: #241e17;
+  --header-wash: color-mix(in srgb, var(--accent) 6%, var(--bg-card));
+  --rail-wash: color-mix(in srgb, var(--bg-panel) 80%, #1a1510);
+  --paper-tint: #342c24;
+  --paper-tint-2: #2a221a;
+  --graph-node-idle: #5a4e42;
+  --graph-node-root: #c9a06a;
+  --graph-node-deepen: #6d8f78;
+  --graph-node-diverge: #7a9eaa;
+  --graph-node-path: #a88860;
+  --graph-unread: #d4a05a;
+  --gradient-app:
+    radial-gradient(90% 60% at 20% 0%, #2a221a 0%, transparent 55%),
+    radial-gradient(70% 50% at 100% 80%, #18140f 0%, transparent 45%),
+    var(--bg-app);
+  --gradient-card-sheen: linear-gradient(
+    165deg,
+    rgb(255 236 210 / 4%) 0%,
+    transparent 40%
+  );
+
+  --e0: none;
+  --e1:
+    0 1px 2px rgb(0 0 0 / 34%), 0 2px 6px rgb(0 0 0 / 22%);
+  --e2:
+    0 1px 2px rgb(0 0 0 / 36%), 0 6px 16px rgb(0 0 0 / 32%);
+  --e3:
+    0 1px 0 rgb(255 236 210 / 4%) inset,
+    1px 2px 4px rgb(0 0 0 / 32%),
+    2px 10px 22px rgb(0 0 0 / 36%),
+    4px 16px 32px rgb(0 0 0 / 28%);
+  --e-float:
+    0 8px 24px rgb(0 0 0 / 44%), 0 16px 32px rgb(0 0 0 / 32%);
+  --shadow-soft: var(--e2);
+}
+
+/* 石室 — limestone gallery + oxidized copper + muted bronze */
+html[data-theme="travertine"] {
+  --bg-app: #e2ddd4;
+  --bg-panel: #ece8df;
+  --bg-card: #f6f4ee;
+  --bg-elevated: #fcfbf8;
+  --bg-muted: #d4cfc4;
+  --bg-composer: #eeeadf;
+  --ink: #242420;
+  --ink-soft: #525048;
+  --ink-faint: #7e7a70;
+  --ink-invert: #f6f4ee;
+  --line: #c6c1b4;
+  --line-strong: #a8a294;
+  --accent: #5c6e62;
+  --accent-soft: #d4ddd6;
+  --accent-hover: #4a5a50;
+  --accent-2: #8b6b4a;
+  --accent-2-soft: #e6ddd0;
+  --accent-2-hover: #73583c;
+  --danger: #9c4038;
+  --danger-soft: #f0d6d2;
+  --success: #4d7356;
+  --warn: #a07830;
+  --focus: #4a6670;
+  --chat-user-bg: #e8e4da;
+  --chat-user-ink: #242420;
+  --code-bg: color-mix(in srgb, var(--ink) 5%, var(--bg-card));
+  --header-wash: color-mix(in srgb, var(--accent) 4%, var(--bg-card));
+  --rail-wash: color-mix(in srgb, var(--bg-panel) 75%, var(--bg-muted));
+  --paper-tint: #f0ede5;
+  --paper-tint-2: #e4e0d6;
+  --graph-node-idle: #b0aaa0;
+  --graph-node-root: #5c6e62;
+  --graph-node-deepen: #4a6670;
+  --graph-node-diverge: #8b6b4a;
+  --graph-node-path: #6a7a72;
+  --graph-unread: #8b6b4a;
+  --gradient-app:
+    radial-gradient(100% 70% at 10% 0%, #ebe8e0 0%, transparent 50%),
+    radial-gradient(80% 60% at 95% 95%, #d6d0c4 0%, transparent 48%),
+    var(--bg-app);
+  --gradient-card-sheen: linear-gradient(
+    168deg,
+    rgb(255 255 252 / 65%) 0%,
+    transparent 42%
+  );
+
+  --e0: none;
+  --e1:
+    0 1px 2px rgb(36 36 32 / 5%), 0 2px 6px rgb(36 36 32 / 4%);
+  --e2:
+    0 1px 2px rgb(36 36 32 / 5%), 0 6px 16px rgb(36 36 32 / 7%);
+  --e3:
+    0 1px 0 rgb(255 255 252 / 70%) inset,
+    1px 2px 4px rgb(36 36 32 / 4%),
+    2px 10px 24px rgb(36 36 32 / 6%),
+    4px 18px 36px rgb(36 36 32 / 4%);
+  --e-float:
+    0 8px 24px rgb(36 36 32 / 11%), 0 16px 32px rgb(36 36 32 / 7%);
   --shadow-soft: var(--e2);
 }
 

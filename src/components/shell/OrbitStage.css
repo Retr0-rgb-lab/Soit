@@ -45,8 +45,8 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  /* Clear fixed settings gear (38px + 14px inset + gap) — same idea as .mode-map .map-stage-actions */
-  padding: 14px 68px 12px 20px;
+  /* Clear map-mode rail toggle (collapsed strip ~48px). Settings gear is bottom-left. */
+  padding: 14px 20px 12px calc(var(--rail-w-collapsed, 48px) + 16px);
   pointer-events: none;
   background: linear-gradient(
     180deg,
@@ -189,18 +189,38 @@
   transition: opacity var(--motion-focus, 0.32s) var(--ease-soft);
 }
 
-/* Global mode: use full main width (still leave rail chrome strip if expanded) */
+/* Map: only the collapse toggle stays in the top-left — hide brand/vault so
+   they don't stack on 「全局视角」 (PEL-167). */
+.app-shell.mode-map .left-rail {
+  z-index: 8;
+  width: var(--rail-w-collapsed, 48px);
+  padding: 12px 6px;
+  align-items: center;
+}
+
+.app-shell.mode-map .rail-brand,
+.app-shell.mode-map .rail-brand-text,
+.app-shell.mode-map .rail-scroll,
+.app-shell.mode-map .rail-head .rail-logo {
+  display: none;
+}
+
+.app-shell.mode-map .rail-head {
+  justify-content: center;
+  width: 100%;
+}
+
+.app-shell.mode-map .rail-toggle {
+  margin: 0;
+}
+
+/* Global mode: use full main width */
 .app-shell.mode-map .workspace-main {
   position: relative;
   display: flex;
   flex-direction: column;
   /* pull canvas under the floating rail padding so graph can use full paper */
   padding-left: 0;
-}
-
-.app-shell.mode-map .left-rail {
-  /* keep toggle reachable; graph draws full-bleed under/beside rail */
-  z-index: 8;
 }
 
 @media (prefers-reduced-motion: reduce) {

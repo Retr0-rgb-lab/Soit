@@ -77,6 +77,9 @@ export default function FocusOrbit({
   const edges = model.edges ?? [];
   const cone = useMemo(() => new Set(model.coneIds ?? []), [model.coneIds]);
 
+  /** PEL-165: hover → same ring + path to root + descendants to leaves. */
+  const [hoverId, setHoverId] = useState<string | null>(null);
+
   const navPoints = useMemo(
     () => world.map((n) => ({ id: n.id, x: n.x, y: n.y })),
     [world],
@@ -89,6 +92,59 @@ export default function FocusOrbit({
     for (const n of world) m.set(n.id, n);
     return m;
   }, [world]);
+
+  const childrenByParent = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const n of world) {
+      if (!n.parentId) continue;
+      const list = m.get(n.parentId) ?? [];
+      list.push(n.id);
+      m.set(n.parentId, list);
+    }
+    return m;
+  }, [world]);
+
+  const hoverHighlight = useMemo(() => {
+    if (!hoverId) return null;
+    const seed = byId.get(hoverId);
+    if (!seed) return null;
+    const hiNodes = new Set<string>([hoverId]);
+    const edgeKeys = new Set<string>();
+
+    // Path to root
+    let cur: OrbitWorldNode | undefined = seed;
+    const seenUp = new Set<string>();
+    while (cur && !seenUp.has(cur.id)) {
+      seenUp.add(cur.id);
+      hiNodes.add(cur.id);
+      if (cur.parentId) {
+        edgeKeys.add(`${cur.parentId}->${cur.id}`);
+        cur = byId.get(cur.parentId);
+      } else {
+        break;
+      }
+    }
+
+    // Same ring (same depth)
+    for (const n of world) {
+      if (n.depth === seed.depth) hiNodes.add(n.id);
+    }
+
+    // Path to leaves (all descendants)
+    const stack = [...(childrenByParent.get(hoverId) ?? [])];
+    const seenDown = new Set<string>();
+    while (stack.length) {
+      const id = stack.pop()!;
+      if (seenDown.has(id)) continue;
+      seenDown.add(id);
+      hiNodes.add(id);
+      const parent = byId.get(id)?.parentId;
+      if (parent) edgeKeys.add(`${parent}->${id}`);
+      for (const c of childrenByParent.get(id) ?? []) stack.push(c);
+    }
+
+    return { nodes: hiNodes, edgeKeys };
+  }, [hoverId, byId, world, childrenByParent]);
 
   const focusNode = byId.get(model.focusId) ?? world[0] ?? null;
 
@@ -285,11 +341,6 @@ export default function FocusOrbit({
   }
 
   const focusTitle = focusNode?.title ?? "—";
-  const maxDepth = Math.max(0, ...world.map((n) => n.depth));
-  const ringGap = (() => {
-    const d1 = world.find((n) => n.depth === 1);
-    return d1 ? Math.hypot(d1.x, d1.y) : 56;
-  })();
 
   const camX = panZoom ? view.x : autoCam.x;
   const camY = panZoom ? view.y : autoCam.y;
@@ -355,23 +406,14 @@ export default function FocusOrbit({
             height={800}
             aria-hidden
           >
-            {Array.from({ length: maxDepth }, (_, i) => {
-              const d = i + 1;
-              return (
-                <circle
-                  key={`ring-${d}`}
-                  className="fo-ring-stroke"
-                  cx={0}
-                  cy={0}
-                  r={d * ringGap}
-                  fill="none"
-                />
-              );
-            })}
+            {/* PEL-162: no concentric depth rings — edges only */}
             {edges.map((e) => {
               const a = byId.get(e.fromId);
               const b = byId.get(e.toId);
               if (!a || !b) return null;
+              const edgeKey = `${e.fromId}->${e.toId}`;
+              const hoverHot = hoverHighlight?.edgeKeys.has(edgeKey) ?? false;
+              const hoverDim = Boolean(hoverHighlight) && !hoverHot;
               const onPath = cone.has(e.fromId) && cone.has(e.toId);
               const active =
                 e.fromId === model.focusId || e.toId === model.focusId;
@@ -382,6 +424,8 @@ export default function FocusOrbit({
                     "fo-spoke fo-spoke--depth",
                     onPath ? "is-cone" : "is-dim",
                     active ? "is-active" : "",
+                    hoverHot ? "is-hover-hot" : "",
+                    hoverDim ? "is-hover-dim" : "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
@@ -397,6 +441,8 @@ export default function FocusOrbit({
           {world.map((n) => {
             const isFocus = n.id === model.focusId;
             const inCone = cone.has(n.id);
+            const hoverHot = hoverHighlight?.nodes.has(n.id) ?? false;
+            const hoverDim = Boolean(hoverHighlight) && !hoverHot;
             const len = Math.hypot(n.x, n.y) || 1;
             const ox = n.depth === 0 ? 0 : (n.x / len) * 22;
             const oy = n.depth === 0 ? 22 : (n.y / len) * 22;
@@ -411,6 +457,8 @@ export default function FocusOrbit({
                   // Global view: keep all nodes readable (no heavy fog)
                   panZoom ? "is-cone" : inCone ? "is-cone" : "is-dim",
                   n.unread ? "is-unread" : "",
+                  hoverHot ? "is-hover-hot" : "",
+                  hoverDim ? "is-hover-dim" : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
@@ -424,6 +472,10 @@ export default function FocusOrbit({
                 aria-label={`${n.kind === "deepen" ? "深挖" : n.kind === "diverge" ? "发散" : "根"} ${n.title}`}
                 aria-current={isFocus ? "true" : undefined}
                 onPointerDown={(e) => e.stopPropagation()}
+                onPointerEnter={() => setHoverId(n.id)}
+                onPointerLeave={() =>
+                  setHoverId((cur) => (cur === n.id ? null : cur))
+                }
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelect(n.id);
@@ -434,17 +486,21 @@ export default function FocusOrbit({
                   aria-hidden
                   data-focus={isFocus ? "1" : "0"}
                   style={{
-                    background: isFocus ? "#2a241c" : "#fffdf8",
+                    background: isFocus
+                      ? "var(--graph-node-root)"
+                      : "var(--bg-card)",
                     borderColor: isFocus
-                      ? "#2a241c"
+                      ? "var(--graph-node-root)"
                       : n.kind === "diverge"
-                        ? "#8b5e34"
-                        : "#5c5348",
+                        ? "var(--graph-node-diverge)"
+                        : n.kind === "deepen"
+                          ? "var(--graph-node-deepen)"
+                          : "var(--graph-node-path)",
                     boxShadow: isFocus
-                      ? "0 0 0 3px rgba(61, 107, 140, 0.32)"
+                      ? "0 0 0 3px color-mix(in srgb, var(--focus) 32%, transparent)"
                       : n.unread
-                        ? "0 0 0 2px rgba(139, 94, 52, 0.4)"
-                        : "0 0 0 1px rgba(42, 36, 28, 0.06)",
+                        ? "0 0 0 2px color-mix(in srgb, var(--graph-unread) 40%, transparent)"
+                        : "0 0 0 1px color-mix(in srgb, var(--ink) 6%, transparent)",
                   }}
                 />
                 <span

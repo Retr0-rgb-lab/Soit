@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   IconDeepen,
   IconDiverge,
@@ -31,12 +32,32 @@ interface Props {
   onDiverge: () => void;
   /** Quote full float.span into composer chip. */
   onQuote: () => void;
+  /** Persist drag position into parent state (optional). */
+  onMove?: (x: number, y: number) => void;
 }
+
+const FLOAT_W = 440;
+const FLOAT_H = 300;
 
 function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
 }
 
+function clampPos(x: number, y: number): { x: number; y: number } {
+  const maxX = Math.max(8, window.innerWidth - FLOAT_W);
+  const maxY = Math.max(8, window.innerHeight - FLOAT_H);
+  return {
+    x: clamp(x, 8, maxX),
+    y: clamp(y, 8, maxY),
+  };
+}
+
+/**
+ * Short-explain float (PEL-163):
+ * - Draggable by header tab
+ * - Closes only via explicit close (parent must not dismiss on outside click)
+ * - Body shows only formal explain text (no think chrome)
+ */
 export default function TermFloat({
   float,
   onClose,
@@ -44,15 +65,109 @@ export default function TermFloat({
   onDeepen,
   onDiverge,
   onQuote,
+  onMove,
 }: Props) {
-  const left = clamp(float.x, 8, window.innerWidth - 440);
-  const top = clamp(float.y, 8, window.innerHeight - 300);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+  } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  /** One-shot mount pop-in; cleared after animation so drag end never restarts it. */
+  const [enterAnim, setEnterAnim] = useState(true);
+
+  const pos = clampPos(float.x, float.y);
+
+  // Keep on-screen when viewport resizes.
+  useEffect(() => {
+    const onResize = () => {
+      const next = clampPos(float.x, float.y);
+      if (next.x !== float.x || next.y !== float.y) {
+        onMove?.(next.x, next.y);
+      }
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [float.x, float.y, onMove]);
+
+  const onHeadPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (e.button !== 0) return;
+      const t = e.target;
+      if (t instanceof Element && t.closest("button")) return;
+      e.preventDefault();
+      // Drag must not re-trigger enter animation
+      setEnterAnim(false);
+      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+      dragRef.current = {
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        origX: float.x,
+        origY: float.y,
+      };
+      setDragging(true);
+    },
+    [float.x, float.y],
+  );
+
+  const onHeadPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      const d = dragRef.current;
+      if (!d || d.pointerId !== e.pointerId) return;
+      const next = clampPos(
+        d.origX + (e.clientX - d.startX),
+        d.origY + (e.clientY - d.startY),
+      );
+      onMove?.(next.x, next.y);
+    },
+    [onMove],
+  );
+
+  const endDrag = useCallback((e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    dragRef.current = null;
+    setDragging(false);
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   return (
-    <div className="ic-float" style={{ left, top }} role="dialog" aria-label={float.term}>
-      <div className="ic-float-head">
-        <strong>{float.term}</strong>
-        <div className="ic-float-tools">
+    <div
+      ref={rootRef}
+      className={[
+        "ic-float",
+        enterAnim ? "is-enter" : "",
+        dragging ? "is-dragging" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      style={{ left: pos.x, top: pos.y }}
+      role="dialog"
+      aria-label={float.term}
+      aria-modal="false"
+      onAnimationEnd={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (e.animationName.includes("ic-pop-in")) setEnterAnim(false);
+      }}
+    >
+      <div
+        className="ic-float-head"
+        onPointerDown={onHeadPointerDown}
+        onPointerMove={onHeadPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        data-tip="拖动移动"
+      >
+        <strong className="ic-float-title">{float.term}</strong>
+        <div className="ic-float-tools" onPointerDown={(e) => e.stopPropagation()}>
           <button
             type="button"
             className="ic-round"
@@ -106,8 +221,10 @@ export default function TermFloat({
             </button>
           </div>
         ) : null}
-        {float.status === "ready" ? <p className="ic-float-explain">{float.body}</p> : null}
-        <p className="ic-muted">短解释不建卡；要继续探究再选深挖 / 发散。</p>
+        {float.status === "ready" ? (
+          <p className="ic-float-explain">{float.body}</p>
+        ) : null}
+        <p className="ic-muted">短解释不建卡；要继续探究再选深挖 / 发散。拖动标题栏可移动。</p>
       </div>
     </div>
   );

@@ -58,6 +58,21 @@ describe("parseAppearance", () => {
     };
     expect(parseAppearance(prefs)).toEqual(prefs);
   });
+
+  it("accepts the five v3 themes", () => {
+    for (const theme of [
+      "vellum",
+      "cyanotype",
+      "wisteria",
+      "walnut",
+      "travertine",
+    ] as const) {
+      expect(
+        parseAppearance({ theme, font: "system", fontSize: "md" }),
+      ).toEqual({ theme, font: "system", fontSize: "md" });
+      expect(THEME_CRITICAL_BG[theme]).toMatch(/^#[0-9a-f]{6}$/i);
+    }
+  });
 });
 
 describe("readAppearance / writeAppearance", () => {
@@ -103,11 +118,11 @@ describe("applyAppearanceToDocument", () => {
     expect(root.dataset.theme).toBe("ink");
     expect(root.dataset.font).toBe("mono");
     expect(root.dataset.fontSize).toBe("lg");
-    // jsdom may serialize hex as rgb(); ink #161310
+    // jsdom may serialize hex as rgb(); ink #0a0a0a
     expect(root.style.backgroundColor.replace(/\s/g, "").toLowerCase()).toMatch(
-      /^(#161310|rgb\(22,19,16\))$/,
+      /^(#0a0a0a|rgb\(10,10,10\))$/,
     );
-    expect(THEME_CRITICAL_BG.ink).toBe("#161310");
+    expect(THEME_CRITICAL_BG.ink).toBe("#0a0a0a");
   });
 
   it("invalid prefs apply as defaults", () => {

@@ -9,7 +9,9 @@
 
 ## 摘要
 
-设置新增 **外观**：五主题（宣纸/抹茶/青瓷/墨夜/丹砂）+ 五字体族 + 四档字号。`index.html` 同步 boot 写 `html[data-theme|data-font|data-font-size]` + critical bg；`tokens.css` 映射色与字体；偏好 `localStorage` key `soit-appearance`。默认 paper/system/md。无 CDN 字体。
+设置新增 **外观**：十主题（宣纸/抹茶/青瓷/墨夜/丹砂 + 羊皮/蓝晒/藤紫/胡桃/石室）+ 五字体族 + 四档字号。`index.html` 同步 boot 写 `html[data-theme|data-font|data-font-size]` + critical bg；`tokens.css` 映射色与字体；偏好 `localStorage` key `soit-appearance`。默认 paper/system/md。无 CDN 字体。
+
+v3 扩展：每主题含表面阶梯、双 accent、header/rail wash、graph 节点色、soft 渐变舞台。
 
 ---
 

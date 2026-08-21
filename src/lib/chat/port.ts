@@ -27,6 +27,8 @@ export interface ChatCompleteInput {
 export interface ChatCompleteResult {
   text: string;
   marks?: ChatMark[];
+  /** Optional model thinking / chain-of-thought (hidden by default in UI). */
+  think?: string;
 }
 
 /** Short explain input — span/selection gloss; does not write turns or vault. */

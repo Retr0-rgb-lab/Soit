@@ -2,6 +2,7 @@ import { touchSession } from "../lib/liveSet";
 import type { Turn } from "../types";
 import { runCompletion } from "./runCompletion";
 import {
+  compactMetaForCard,
   isUniverseSource,
   messagesFromTurns,
   nextId,
@@ -107,6 +108,7 @@ export function createChatActions(
       const messages = messagesFromTurns(turns, {
         untilIndex: turnIndex + 1,
         includeAssistantAtUntil: false,
+        compactMeta: compactMetaForCard(s0, cardId),
       });
       // Ensure the regenerated turn's user message is present.
       if (!messages.some((m) => m.role === "user" && m.content === target.user)) {
@@ -266,6 +268,7 @@ export function createChatActions(
             const messages = messagesFromTurns(turns, {
               untilIndex: turns.length,
               includeAssistantAtUntil: false,
+              compactMeta: compactMetaForCard(s1, focusId),
             });
             const scope = scopeForCard(s1, focusId);
             await runCompletion({
@@ -309,6 +312,7 @@ export function createChatActions(
         const messages = messagesFromTurns(turns, {
           untilIndex: turns.length,
           includeAssistantAtUntil: false,
+          compactMeta: compactMetaForCard(s1, cardId),
         });
         const scope = scopeForCard(s1, cardId);
         await runCompletion({

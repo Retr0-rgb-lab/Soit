@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatPort } from "../lib/chat";
+import { __resetExplainCacheForTests } from "../lib/explainCache";
 
 const resolveExplainPort = vi.fn();
 const resolvePort = vi.fn();
@@ -14,6 +15,10 @@ vi.mock("../lib/chat", async (importOriginal) => {
 });
 
 import { explainSpan } from "./explainActions";
+
+beforeEach(() => {
+  __resetExplainCacheForTests();
+});
 
 afterEach(() => {
   resolveExplainPort.mockReset();
@@ -34,6 +39,29 @@ describe("explainSpan", () => {
       expect.objectContaining({ cardId: "c1", span: "函子" }),
     );
     expect(port.complete).not.toHaveBeenCalled();
+    expect(resolvePort).not.toHaveBeenCalled();
+  });
+
+  it("caches per card and skips model on second hit", async () => {
+    const explain = vi.fn(async () => ({ text: "cached body" }));
+    resolveExplainPort.mockResolvedValue({ complete: vi.fn(), explain } satisfies ChatPort);
+
+    await explainSpan({ cardId: "c1", span: "函子" });
+    await explainSpan({ cardId: "c1", span: "函子" });
+    expect(explain).toHaveBeenCalledOnce();
+
+    // other card still calls model
+    await explainSpan({ cardId: "c2", span: "函子" });
+    expect(explain).toHaveBeenCalledTimes(2);
+    expect(resolvePort).not.toHaveBeenCalled();
+  });
+
+  it("skipCache forces a fresh model call", async () => {
+    const explain = vi.fn(async () => ({ text: "v1" }));
+    resolveExplainPort.mockResolvedValue({ complete: vi.fn(), explain } satisfies ChatPort);
+    await explainSpan({ cardId: "c1", span: "x" });
+    await explainSpan({ cardId: "c1", span: "x", skipCache: true });
+    expect(explain).toHaveBeenCalledTimes(2);
     expect(resolvePort).not.toHaveBeenCalled();
   });
 

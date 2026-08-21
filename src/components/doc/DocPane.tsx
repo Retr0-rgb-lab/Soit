@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatDocAnchorQuote } from "../../lib/composerPayload";
+import { getExplainCached } from "../../lib/explainCache";
 import { explainSpan } from "../../state/explainActions";
 import { useWorkspace } from "../../state/workspaceStore";
 import type { SourceSpan } from "../../types";
@@ -99,7 +100,7 @@ export default function DocPane({
     return () => window.clearTimeout(t);
   }, [toast]);
 
-  // Dismiss overlays on outside mousedown (bar/float/chooser stay interactive).
+  // PEL-163: keep TermFloat until close button; outside click only clears sel/chooser.
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       const t = e.target;
@@ -112,8 +113,6 @@ export default function DocPane({
       ) {
         return;
       }
-      floatSeqRef.current += 1;
-      setFloat(null);
       setSelBar(null);
       setChooser(null);
     };
@@ -165,7 +164,7 @@ export default function DocPane({
   );
 
   const runExplain = useCallback(
-    async (span: string, seq: number) => {
+    async (span: string, seq: number, opts?: { skipCache?: boolean }) => {
       if (!focusId) {
         if (floatSeqRef.current !== seq) return;
         setFloat((prev) =>
@@ -181,7 +180,11 @@ export default function DocPane({
         return;
       }
       try {
-        const text = await explainSpan({ cardId: focusId, span });
+        const text = await explainSpan({
+          cardId: focusId,
+          span,
+          skipCache: opts?.skipCache,
+        });
         if (floatSeqRef.current !== seq) return;
         setFloat((prev) =>
           prev
@@ -213,6 +216,10 @@ export default function DocPane({
     },
     [focusId],
   );
+
+  const onFloatMove = useCallback((x: number, y: number) => {
+    setFloat((prev) => (prev ? { ...prev, x, y } : null));
+  }, []);
 
   const onBodyMouseUp = useCallback(
     (e: React.MouseEvent) => {
@@ -255,18 +262,19 @@ export default function DocPane({
     setSelBar(null);
     setChooser(null);
     const seq = ++floatSeqRef.current;
+    const cached = focusId ? getExplainCached(focusId, span) : null;
     setFloat({
       term: displayTerm(span),
       span,
-      body: "",
-      status: "loading",
+      body: cached ?? "",
+      status: cached ? "ready" : "loading",
       x: x + 12,
       y: y + 12,
       source: "selection",
       turnId: lastTurnId || undefined,
     });
-    void runExplain(span, seq);
-  }, [selBar, displayTerm, lastTurnId, runExplain]);
+    if (!cached) void runExplain(span, seq);
+  }, [selBar, displayTerm, lastTurnId, runExplain, focusId]);
 
   const onFloatRetry = useCallback(() => {
     if (!float) return;
@@ -281,7 +289,7 @@ export default function DocPane({
           }
         : null,
     );
-    void runExplain(float.span, seq);
+    void runExplain(float.span, seq, { skipCache: true });
   }, [float, runExplain]);
 
   const closeFloat = useCallback(() => {
@@ -390,7 +398,11 @@ export default function DocPane({
 
         {(status === "ready" || status === "closing") && ref ? (
           ref.kind === "md" || ref.kind === "text" ? (
-            <MdTextView kind={ref.kind} text={textContent ?? ""} />
+            <MdTextView
+              kind={ref.kind}
+              text={textContent ?? ""}
+              pathHint={ref.pathRel}
+            />
           ) : (
             <PdfGuide docRef={ref} />
           )
@@ -414,6 +426,7 @@ export default function DocPane({
             quoteSelection(float.span);
             closeFloat();
           }}
+          onMove={onFloatMove}
         />
       ) : null}
 

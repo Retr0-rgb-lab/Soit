@@ -5,6 +5,7 @@ import type {
   ChatPort,
 } from "./port";
 import type { ChatConfig } from "./config";
+import { splitThinkContent, stripThinkForExplain } from "./splitThink";
 import { buildInquirySystemPrompt } from "./systemPrompt";
 
 const EXPLAIN_SPAN_MAX = 500;
@@ -14,6 +15,7 @@ const EXPLAIN_SYSTEM = [
   "你是探究卡上的短解释助手。",
   "用 2–4 句中文解释用户给出的词或选区，帮助先读懂再决定是否深挖。",
   "禁止大纲、列表、标题、代码块；禁止 [[双括号]] 标记；不要建议建卡。",
+  "直接给出解释正文；禁止输出思维链、思考过程、推理步骤或 <think> 标签。",
 ].join("");
 
 /**
@@ -64,7 +66,7 @@ export class OpenAICompatChat implements ChatPort {
     return parseAssistantContent(raw);
   }
 
-  /** Short explain — low temp, truncated span/output; no marks pipeline. */
+  /** Short explain — low temp, truncated span/output; no marks / no think. */
   async explain(input: ChatExplainInput): Promise<{ text: string }> {
     const base = this.config.baseUrl.replace(/\/+$/, "");
     const url = `${base}/chat/completions`;
@@ -81,7 +83,7 @@ export class OpenAICompatChat implements ChatPort {
     }
     messages.push({
       role: "user",
-      content: `请解释下列词或选区（2–4 句）：\n${span}`,
+      content: `请解释下列词或选区（2–4 句，只要正文）：\n${span}`,
     });
 
     const res = await fetch(url, {
@@ -109,7 +111,8 @@ export class OpenAICompatChat implements ChatPort {
       choices?: Array<{ message?: { content?: string | null } }>;
     };
     const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
-    const text = raw.slice(0, EXPLAIN_OUT_MAX);
+    // PEL-163: hard-hide any leaked chain-of-thought from short explain.
+    const text = stripThinkForExplain(raw).slice(0, EXPLAIN_OUT_MAX);
     if (!text) {
       throw new Error("Chat API returned empty explain");
     }
@@ -117,11 +120,15 @@ export class OpenAICompatChat implements ChatPort {
   }
 }
 
-/** Parse [[term]] markers into structured marks; strip brackets from text. */
+/**
+ * Parse [[term]] markers into structured marks; strip brackets from text.
+ * Also peels thinking blocks into `think` (PEL-160).
+ */
 export function parseAssistantContent(raw: string): ChatCompleteResult {
+  const split = splitThinkContent(raw);
   const marks: { term: string }[] = [];
   const seen = new Set<string>();
-  const text = raw.replace(/\[\[([^\]]+)\]\]/g, (_full, term: string) => {
+  const text = split.text.replace(/\[\[([^\]]+)\]\]/g, (_full, term: string) => {
     const t = String(term).trim();
     if (t && !seen.has(t)) {
       seen.add(t);
@@ -129,7 +136,11 @@ export function parseAssistantContent(raw: string): ChatCompleteResult {
     }
     return t;
   });
-  return { text, marks: marks.length ? marks : undefined };
+  return {
+    text,
+    marks: marks.length ? marks : undefined,
+    think: split.think || undefined,
+  };
 }
 
 export function createOpenAICompatChat(config: ChatConfig): ChatPort {

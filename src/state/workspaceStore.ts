@@ -323,7 +323,17 @@ async function finishDocLoad(
       });
       return;
     }
-    const kind = resolved.kind as VaultDocKind;
+    let kind = resolved.kind as VaultDocKind;
+    // PEL-156: path extension wins when probe mis-tags markdown as plain text.
+    const relLower = resolved.pathRel.replace(/\\/g, "/").toLowerCase();
+    if (
+      (kind === "text" || kind === "unsupported") &&
+      (relLower.endsWith(".md") ||
+        relLower.endsWith(".markdown") ||
+        relLower.endsWith(".mdx"))
+    ) {
+      kind = "md";
+    }
     const ref: DocRef = {
       pathRel: resolved.pathRel,
       displayName: resolved.displayName ?? resolved.pathRel.split("/").pop() ?? resolved.pathRel,
