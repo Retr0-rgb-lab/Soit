@@ -24,7 +24,7 @@ Project-wide constraints: root `AGENTS.md`. Product rules: `知识库/AGENTS.md`
 - **`shellPhase`** (orthogonal to `workspaceMode` focus/map): `picker` \| `entering` \| `workspace` \| `leaving` \| `error`. Mount: hall phases → `WorkspacePicker`; `workspace`/`leaving` → `AppShell`. Actions: `enter` / `leave` / `switchVault` / `forgetRecent` via `state/spaceNav.ts` + navEpoch (`beginBootLoad`).
 - **First paint before IO:** never block mount on vault/DB/network (`App.tsx`). Boot may `closeUniverse` if Host already bound, then stay on hall.
 - **Host boundary:** all Tauri `invoke` goes through `lib/host.ts`. UI must not import `@tauri-apps/*` elsewhere.
-- **Load matrix:** product hall/unbound uses empty nodes (no demo-card flood). Bound empty vault → `EmptyWorkspace` CTA. `demo` seed only when `source === "demo"` in browser/dev paths that intentionally use it.
+- **Load matrix:** product hall/unbound uses empty nodes (no demo-card flood, no fake vault rows, no demo-enter CTA). Bound empty vault → `EmptyWorkspace` CTA. `demoSnapshot()` is unit-tests only — never product boot/enter.
 - **No CDN fonts/CSS** in this tree. Stack is system UI (`styles/tokens.css` `--font`).
 - Visual tokens live in `styles/tokens.css`; component CSS stays next to its folder (`card.css`, `overlays.css`, shell styles in `app.css` as established).
 - Prefer warm paper UI language already in tokens — do not restyle toward Explore pastel clones.

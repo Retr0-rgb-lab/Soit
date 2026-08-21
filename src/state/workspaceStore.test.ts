@@ -163,7 +163,7 @@ describe("workspaceStore", () => {
     const s = useWorkspace.getState();
     expect(s.focusId).toBe("c2");
     expect(s.highlightSpan?.text).toBe("函子");
-    expect(s.highlightSpan?.turnId).toBe("c2_t0");
+    expect(s.highlightSpan?.turnId).toBe("c2_t2");
   });
 
   it("spawnInquiry keeps full text and doc anchors on edge source", async () => {
@@ -255,7 +255,7 @@ describe("workspaceStore", () => {
       useWorkspaceStore.getState().turnsByCardId.c3!.find((t) => t.id === c3First.id),
     ).toBeUndefined();
     expect(useWorkspaceStore.getState().turnsByCardId.c1!.length).toBe(1);
-    expect(useWorkspaceStore.getState().turnsByCardId.c2!.length).toBe(1);
+    expect(useWorkspaceStore.getState().turnsByCardId.c2!.length).toBe(3);
   });
 
   it("deleteInquiry leaf focuses parent and strips edges/turns", async () => {
@@ -999,7 +999,7 @@ describe("workspaceStore materialsRail (M3)", () => {
 describe("layoutGraph", () => {
   it("places demo nodes inside viewBox 0..200 x 0..300", () => {
     const laid = layoutGraph(demoSnapshot().nodes);
-    expect(laid.length).toBe(5);
+    expect(laid.length).toBe(6);
     for (const n of laid) {
       expect(n.x).toBeGreaterThanOrEqual(0);
       expect(n.x).toBeLessThanOrEqual(200);

@@ -37,7 +37,6 @@ export default function MaterialsList({
   const selectedPathRel = useWorkspace((s) => s.materialsRail.selectedPathRel);
   const importBusy = useWorkspace((s) => s.materialsRail.importBusy);
   const vaultPath = useWorkspace((s) => s.vaultPath);
-  const source = useWorkspace((s) => s.source);
   const closeMaterialsRail = useWorkspace((s) => s.closeMaterialsRail);
   const setCompanionSection = useWorkspace((s) => s.setCompanionSection);
   const refreshMaterials = useWorkspace((s) => s.refreshMaterials);
@@ -48,7 +47,7 @@ export default function MaterialsList({
   const shellPhase = useWorkspace((s) => s.shellPhase);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const unbound = !vaultPath && source !== "demo";
+  const unbound = !vaultPath;
   const leaveBusy =
     spaceBusy || shellPhase === "entering" || shellPhase === "leaving";
 

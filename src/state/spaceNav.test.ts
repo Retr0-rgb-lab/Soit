@@ -282,29 +282,18 @@ describe("spaceNav shellPhase", () => {
     expect(useWorkspaceStore.getState().shellPhase).toBe("picker");
   });
 
-  it("enterDemo loads seeded mock cards without openUniverse or lastVault write", async () => {
-    hostMocks.setSessionConfig.mockClear();
-    hostMocks.openUniverse.mockClear();
-    await useWorkspaceStore.getState().enterDemo();
+  it("enter maps browser/tauri-missing errors to 需要桌面版 + unbound empty", async () => {
+    hostMocks.openUniverse.mockResolvedValue({
+      ok: false,
+      path: "E:\\vaults\\a",
+      error: "open_universe requires tauri (browser stays on demo)",
+    });
+    await useWorkspaceStore.getState().enter("E:\\vaults\\a");
     const s = useWorkspaceStore.getState();
-    expect(s.shellPhase).toBe("workspace");
-    expect(s.source).toBe("demo");
-    expect(s.vaultPath).toMatch(/^demo:\/\//);
-    expect(s.nodes.length).toBeGreaterThanOrEqual(5);
-    expect(s.nodes.some((n) => n.id === "c3")).toBe(true);
-    expect(s.focusId).toBe("c3");
-    expect(hostMocks.openUniverse).not.toHaveBeenCalled();
-    expect(hostMocks.setSessionConfig).not.toHaveBeenCalled();
-  });
-
-  it("leave from demo → picker without closeUniverse", async () => {
-    await useWorkspaceStore.getState().enterDemo();
-    hostMocks.closeUniverse.mockClear();
-    await useWorkspaceStore.getState().leave();
-    const s = useWorkspaceStore.getState();
-    expect(s.shellPhase).toBe("picker");
+    expect(s.shellPhase).toBe("error");
     expect(s.vaultPath).toBeNull();
+    expect(s.enterError).toBe("需要桌面版");
     expect(s.nodes).toEqual([]);
-    expect(hostMocks.closeUniverse).not.toHaveBeenCalled();
+    expect(s.source).toBe("demo");
   });
 });

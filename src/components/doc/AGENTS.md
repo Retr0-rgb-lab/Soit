@@ -19,7 +19,7 @@ Parent: `src/AGENTS.md`. Spec SSoT: `docs/superpowers/specs/2026-08-20-doc-compa
 
 - Session state lives in `workspaceStore.docSession` (`openDoc` / `closeDoc` / `setDocLayout` / `retryDoc`). Pure FSM: `lib/docSession.ts`.
 - AppShell owns the center-stage matrix; **never** mount Doc with Orbit (map / `loadSnapshot` → store `force_close`).
-- Open entry: Composer tool + command palette → `soit:open-doc` → `OpenDocPopover`; MaterialsRail → `selectMaterial` → `openDoc`. No `window.prompt`; no `<input type="file">` as main path (materials import is separate). Mock path: `demo/welcome.md`.
+- Open entry: Composer tool + command palette → `soit:open-doc` → `OpenDocPopover`; MaterialsRail → `selectMaterial` → `openDoc`. No `window.prompt`; no `<input type="file">` as main path (materials import is separate). UI example path: `notes/intro.md`; browser host fixture for tests remains `demo/welcome.md`.
 - **Layout / fraction (SPE §2.6):** DocPane does not expose 加宽. Sash drag/double-click live in `components/shell/SplitSash.tsx` (`--doc-fraction` / localStorage).
 - P0 pdf = guide only. Embedded pdfjs is out of scope here.
 - **Selection:** DocPane owns selBar/chooser/float; reuse `SelectionBar` / `DirectionChooser` / `TermFloat`. Quote → `formatDocAnchorQuote` → `soit:set-composer-quote` (InquiryCard sets composer chip). Spawn via **`spawnInquiry` full text** + `docPath`/`docKind`/`docPage?`; disable deepen/diverge when focus card has no turns (toast「先在卡内有一轮对话」).

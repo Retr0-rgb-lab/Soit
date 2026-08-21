@@ -43,13 +43,14 @@ describe("treeNav", () => {
   });
 
   it("collectSubtreeIds includes self and descendants", () => {
-    const leaf = collectSubtreeIds(nodes, "c3");
-    expect([...leaf].sort()).toEqual(["c3"]);
+    const midC3 = collectSubtreeIds(nodes, "c3");
+    expect([...midC3].sort()).toEqual(["c3", "c6"]);
     const mid = collectSubtreeIds(nodes, "c2");
     expect(mid.has("c2")).toBe(true);
     expect(mid.has("c3")).toBe(true);
     expect(mid.has("c4")).toBe(true);
     expect(mid.has("c5")).toBe(true);
+    expect(mid.has("c6")).toBe(true);
     expect(mid.has("c1")).toBe(false);
     expect(collectSubtreeIds(nodes, "missing").size).toBe(0);
   });

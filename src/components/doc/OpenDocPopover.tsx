@@ -46,7 +46,6 @@ function pushRecent(path: string): void {
 export default function OpenDocPopover({ open, onClose }: Props) {
   const openDoc = useWorkspace((s) => s.openDoc);
   const vaultPath = useWorkspace((s) => s.vaultPath);
-  const source = useWorkspace((s) => s.source);
   const leave = useWorkspace((s) => s.leave);
   const spaceBusy = useWorkspace((s) => s.spaceBusy);
   const shellPhase = useWorkspace((s) => s.shellPhase);
@@ -56,7 +55,7 @@ export default function OpenDocPopover({ open, onClose }: Props) {
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const unbound = !vaultPath && source !== "demo";
+  const unbound = !vaultPath;
   const leaveBusy =
     spaceBusy || shellPhase === "entering" || shellPhase === "leaving";
 
@@ -121,7 +120,7 @@ export default function OpenDocPopover({ open, onClose }: Props) {
         ) : (
           <p className="open-doc-pop__hint">
             输入相对 vault 的路径（如{" "}
-            <code>demo/welcome.md</code>
+            <code>notes/intro.md</code>
             ）。只读陪读，编辑请回 Obsidian。
           </p>
         )}
@@ -154,7 +153,7 @@ export default function OpenDocPopover({ open, onClose }: Props) {
               className="open-doc-pop__input"
               value={path}
               onChange={(e) => setPath(e.target.value)}
-              placeholder="demo/welcome.md"
+              placeholder="notes/intro.md"
               aria-label="文档路径"
               autoComplete="off"
               spellCheck={false}

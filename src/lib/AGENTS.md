@@ -11,7 +11,7 @@ Parent: `src/AGENTS.md`.
 | File | Responsibility |
 |------|----------------|
 | `host.ts` | Only bridge to Tauri commands; **mock** when `window` has no Tauri internals |
-| `demoSeed.ts` / `stressSeed.ts` | In-memory snapshots for browser/dev and stress |
+| `demoSeed.ts` / `stressSeed.ts` | In-memory snapshots for **unit tests** / stress (`demoSnapshot` not hall UI) |
 | `graphLayout.ts` | Node positions for graph SVG |
 | `mapScope.ts` | Map LOD scopes (`cone` / `working` / `atlas` / `growth`), roles, caps |
 | `liveSet.ts` | Live-thread pin set + session touch |
@@ -69,8 +69,8 @@ Parent: `src/AGENTS.md`.
   - **Recent full:** last **1–2** parent turns complete (not 280-char clips)
   - Child `recentTurns` stay child-only; long **same-card** threads compact older turns inside `messagesFromTurns`
   - Never dump full parent transcript into child messages
-- **Load matrix** (`App.tsx`): never silent-inject `demoSnapshot()` on boot. Unbound → empty graph (`unboundEmptySnapshot`); `empty`/`universe` from Host as-is. `demoSnapshot()` is tests-only.
-- Browser path (no Tauri): mock bootstrap + demo snapshot; turn/card host helpers throw (store must not call them off universe path).
+- **Load matrix** (`App.tsx`): never silent-inject `demoSnapshot()` on boot. Unbound → empty graph (`unboundEmptySnapshot`); `empty`/`universe` from Host as-is. `demoSnapshot()` is unit-tests only.
+- Browser path (no Tauri): mock bootstrap + unbound empty snapshot; openUniverse fails ("需要桌面版"); no fake hall vault rows; no product demo-universe CTA; turn/card host helpers throw (store must not call them off universe path).
 - Prefer pure input→output helpers; side effects only in `host.ts` (dynamic `import("@tauri-apps/api/core")`).
 - Co-locate `*.test.ts` next to the module; keep Vitest env `node` unless a test truly needs DOM.
 

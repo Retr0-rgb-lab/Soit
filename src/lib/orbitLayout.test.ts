@@ -75,7 +75,7 @@ describe("buildOrbitModel — focus-local cone", () => {
     expect(atC3.center?.id).toBe("c2"); // alias
     // same layer under 范畴论入门 — NOT global root as hub
     expect(atC3.layer.map((i) => i.id)).toEqual(["c3", "c4", "c5"]);
-    expect(atC3.children).toEqual([]);
+    expect(atC3.children.map((i) => i.id)).toEqual(["c6"]);
   });
 
   it("focus c2: hub = c1; layer = [c2]; children = c3/c4/c5", () => {

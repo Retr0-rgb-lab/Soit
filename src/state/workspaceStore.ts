@@ -141,8 +141,6 @@ export interface WorkspaceState {
   setVaultPath: (path: string | null) => void;
   /** Open vault → workspace (hall §2.5). */
   enter: (path: string) => Promise<void>;
-  /** Browser FE mock workspace with seeded cards (no lastVault write). */
-  enterDemo: () => Promise<void>;
   /** Close vault → picker; does not clear lastVault. */
   leave: () => Promise<void>;
   /** Close then open another vault in one nav transaction. */
@@ -426,7 +424,6 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     setVaultPath: (path) => set({ vaultPath: path }),
 
     enter: space.enter,
-    enterDemo: space.enterDemo,
     leave: space.leave,
     switch: space.switch,
     forget: space.forget,

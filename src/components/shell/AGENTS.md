@@ -10,7 +10,7 @@ Hall contract: `docs/superpowers/specs/2026-08-20-workspace-hall-spec.md` v1.1.
 
 | File | Role |
 |------|------|
-| `WorkspacePicker.tsx` | **Hall** fullscreen: recent vaults (≤8), path paste, enter / forget; busy+error on same surface |
+| `WorkspacePicker.tsx` | **Hall** fullscreen: real `sessionConfig` recents (≤8), path paste, enter / forget; busy+error on same surface; browser empty list +「需要桌面版」(no mock paths / demo enter CTAs) |
 | `AppShell.tsx` | **Workspace** shell only when `shellPhase ∈ {workspace, leaving}`; rail collapse (`Ctrl+B`); **settings gear bottom-left**; **right-edge triangle** opens companion; center matrix; Esc |
 | `CompanionPane.tsx` | **One** right slot: materials list **or** DocPane preview (never both as two columns) |
 | `MaterialsRail.tsx` | List body only (`MaterialsList`); embedded in CompanionPane; unbound → leave/hall CTA (not settings·空间 as sole door) |

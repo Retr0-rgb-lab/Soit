@@ -1,14 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  MOCK_HALL_LAST_VAULT,
-  MOCK_HALL_WORKSPACES,
-} from "../../lib/demoSeed";
 import { useWorkspace } from "../../state/workspaceStore";
 
 function vaultLeaf(path: string): string {
-  if (path.startsWith("demo://")) {
-    return path.slice("demo://".length) || "演示工作区";
-  }
   const leaf =
     path.replace(/\\/g, "/").split("/").filter(Boolean).pop() ?? path;
   return leaf || path;
@@ -28,7 +21,7 @@ function isDesktopHost(): boolean {
 
 /**
  * Hall — choose vault before AppShell (workspace-hall §2.3).
- * No three-pane chrome, no demo universe, no CDN fonts.
+ * Real sessionConfig recents only; no fake vault rows / demo-universe CTAs.
  */
 export default function WorkspacePicker() {
   const sessionConfig = useWorkspace((s) => s.sessionConfig);
@@ -36,36 +29,21 @@ export default function WorkspacePicker() {
   const spaceBusy = useWorkspace((s) => s.spaceBusy);
   const enterError = useWorkspace((s) => s.enterError);
   const enter = useWorkspace((s) => s.enter);
-  const enterDemo = useWorkspace((s) => s.enterDemo);
   const forget = useWorkspace((s) => s.forget);
   const dismissEnterError = useWorkspace((s) => s.dismissEnterError);
 
-  const sessionRecents = sessionConfig?.recentVaults ?? [];
-  const sessionLast = sessionConfig?.lastVault ?? null;
+  const recents = sessionConfig?.recentVaults ?? [];
+  const lastVault = sessionConfig?.lastVault ?? null;
 
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [userPicked, setUserPicked] = useState(false);
   const [pathInput, setPathInput] = useState("");
   const [showOpenForm, setShowOpenForm] = useState(false);
   const [menuPath, setMenuPath] = useState<string | null>(null);
-  /** Browser layout mocks dismissed via ⋯ so list can go empty. */
-  const [hiddenMocks, setHiddenMocks] = useState<string[]>([]);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   const desktop = useMemo(() => isDesktopHost(), []);
   const busy = spaceBusy || shellPhase === "entering";
-
-  /** Browser: seed mock workspaces when session has none (layout preview). */
-  const usingHallMocks =
-    !desktop && sessionRecents.length === 0;
-  const recents = useMemo(() => {
-    if (!usingHallMocks) return sessionRecents;
-    const hide = new Set(hiddenMocks);
-    return MOCK_HALL_WORKSPACES.filter((p) => !hide.has(p));
-  }, [usingHallMocks, sessionRecents, hiddenMocks]);
-  const lastVault = usingHallMocks
-    ? MOCK_HALL_LAST_VAULT
-    : sessionLast;
   const listEmpty = recents.length === 0;
   const openFormVisible = listEmpty || showOpenForm;
 
@@ -97,19 +75,10 @@ export default function WorkspacePicker() {
   };
 
   const enterSelectedWorkspace = () => {
-    if (busy) return;
+    if (!desktop || busy) return;
     const p = selectedPath?.trim();
     if (!p) return;
-    // Browser / mock hall rows → in-memory demo cards (no real vault).
-    if (!desktop || usingHallMocks) {
-      void enterDemo();
-      return;
-    }
     void enter(p);
-  };
-
-  const onEnterSelected = () => {
-    enterSelectedWorkspace();
   };
 
   const onEnterPath = () => {
@@ -122,11 +91,7 @@ export default function WorkspacePicker() {
   };
 
   const onRetry = () => {
-    if (busy) return;
-    if (!desktop) {
-      void enterDemo();
-      return;
-    }
+    if (!desktop || busy) return;
     const p = (selectedPath ?? pathInput).trim();
     if (!p) return;
     void enter(p);
@@ -134,17 +99,18 @@ export default function WorkspacePicker() {
 
   const onForget = (path: string) => {
     setMenuPath(null);
-    if (usingHallMocks) {
-      setHiddenMocks((h) => (h.includes(path) ? h : [...h, path]));
-      if (selectedPath === path) setUserPicked(false);
-      return;
-    }
     void forget(path).then(() => {
       if (selectedPath === path) {
         setUserPicked(false);
       }
     });
   };
+
+  const enterLabel = busy
+    ? "打开中…"
+    : desktop
+      ? "进入"
+      : "需要桌面版";
 
   return (
     <div className="workspace-picker" aria-label="选择工作区">
@@ -159,11 +125,7 @@ export default function WorkspacePicker() {
 
         {!desktop ? (
           <div className="workspace-picker__banner is-info" role="status">
-            <span>
-              {usingHallMocks
-                ? "浏览器布局预览：下列为示意工作区（非本机真库）。点「进入」会打开内存演示卡片。"
-                : "浏览器预览无法打开本机库。点「进入」将打开内存演示卡片；真库请用桌面版。"}
-            </span>
+            <span>浏览器预览无法打开本机库。真库请用桌面版。</span>
           </div>
         ) : null}
 
@@ -211,11 +173,7 @@ export default function WorkspacePicker() {
                     onClick={() => selectPath(path)}
                     onDoubleClick={() => {
                       selectPath(path);
-                      if (busy) return;
-                      if (!desktop || usingHallMocks) {
-                        void enterDemo();
-                        return;
-                      }
+                      if (!desktop || busy) return;
                       void enter(path);
                     }}
                   >
@@ -224,11 +182,6 @@ export default function WorkspacePicker() {
                         {vaultLeaf(path)}
                         {isLast ? (
                           <span className="workspace-picker__badge">上次</span>
-                        ) : null}
-                        {usingHallMocks ? (
-                          <span className="workspace-picker__badge is-mock">
-                            示意
-                          </span>
                         ) : null}
                       </span>
                       <span className="workspace-picker__item-path" title={path}>
@@ -297,7 +250,7 @@ export default function WorkspacePicker() {
                 className="workspace-picker__btn primary"
                 disabled={busy || !desktop || !pathInput.trim()}
               >
-                {busy ? "打开中…" : desktop ? "进入" : "需要桌面版"}
+                {enterLabel}
               </button>
               {!listEmpty ? (
                 <button
@@ -316,14 +269,10 @@ export default function WorkspacePicker() {
             <button
               type="button"
               className="workspace-picker__btn primary"
-              disabled={busy || !selectedPath?.trim()}
-              onClick={() => onEnterSelected()}
+              disabled={busy || !desktop || !selectedPath?.trim()}
+              onClick={() => enterSelectedWorkspace()}
             >
-              {busy
-                ? "打开中…"
-                : !desktop || usingHallMocks
-                  ? "进入演示"
-                  : "进入"}
+              {enterLabel}
             </button>
             <button
               type="button"
@@ -333,32 +282,8 @@ export default function WorkspacePicker() {
             >
               打开本机文件夹
             </button>
-            {!desktop ? (
-              <button
-                type="button"
-                className="workspace-picker__btn ghost"
-                disabled={busy}
-                onClick={() => void enterDemo()}
-              >
-                直接进演示卡片
-              </button>
-            ) : null}
           </div>
         )}
-
-        {desktop ? (
-          <p className="workspace-picker__hint">
-            开发调试也可进入内存演示（不写 lastVault）：
-            <button
-              type="button"
-              className="workspace-picker__link"
-              disabled={busy}
-              onClick={() => void enterDemo()}
-            >
-              演示工作区
-            </button>
-          </p>
-        ) : null}
 
         {busy ? (
           <p className="workspace-picker__busy" aria-live="polite">

@@ -59,33 +59,7 @@ export function unboundEmptySnapshot(): WorkspaceSnapshot {
   };
 }
 
-/**
- * Browser FE mock vault label (not a real path; never written to lastVault).
- * Left rail leaf + materials unbound checks use vaultPath / source=demo.
- */
-export const DEMO_WORKSPACE_PATH = "demo://Soit演示工作区";
-
-export function isDemoWorkspacePath(path: string | null | undefined): boolean {
-  return (path ?? "").trim() === DEMO_WORKSPACE_PATH;
-}
-
-/**
- * Browser-only hall layout fixtures — look like real vault paths so the
- * picker list/selection/badge chrome can be reviewed without a desktop vault.
- * Not written to Host session; entering any of them runs enterDemo().
- */
-export const MOCK_HALL_WORKSPACES: readonly string[] = [
-  "E:\\Notes\\线性代数",
-  "E:\\Vaults\\范畴论笔记",
-  "D:\\Obsidian\\研究日志",
-  "E:\\Notes\\机器学习·入门",
-  "C:\\Users\\demo\\Documents\\Soit-实验室",
-];
-
-/** Prefer first entry as “上次” for layout (badge). */
-export const MOCK_HALL_LAST_VAULT = MOCK_HALL_WORKSPACES[0]!;
-
-/** In-memory demo universe for browser FE testing (hall → enterDemo). */
+/** In-memory demo universe for unit tests only (not product boot/enter). */
 export function demoSnapshot(): WorkspaceSnapshot {
   return {
     source: "demo",
