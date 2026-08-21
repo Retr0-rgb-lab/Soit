@@ -6,6 +6,7 @@
 
 import {
   DEFAULT_CHAT_CONFIG,
+  hasApiKey,
   normalizeChatConfig,
   type ChatConfig,
   writeChatConfigToLocalStorage,
@@ -42,6 +43,8 @@ export interface ModelSettings {
   models: ModelEntry[];
   /** Conversation model; null = Mock. */
   activeModelId: string | null;
+  /** Short-explain slot; null = follow activeModelId. */
+  explainModelId: string | null;
 }
 
 export function emptyModelSettings(): ModelSettings {
@@ -50,6 +53,7 @@ export function emptyModelSettings(): ModelSettings {
     providers: [],
     models: [],
     activeModelId: null,
+    explainModelId: null,
   };
 }
 
@@ -118,6 +122,7 @@ export function migrateChatConfigToSettings(cfg: ChatConfig): ModelSettings {
     providers: [provider],
     models: [model],
     activeModelId: modelEntryId,
+    explainModelId: null,
   };
 }
 
@@ -200,11 +205,22 @@ export function normalizeModelSettings(raw: unknown): ModelSettings {
       }
     }
 
+    let explainModelId: string | null = null;
+    const explainRaw = raw.explainModelId;
+    if (typeof explainRaw === "string" && explainRaw.trim()) {
+      const eid = explainRaw.trim();
+      const entry = models.find((m) => m.id === eid);
+      if (entry && entry.enabled) {
+        explainModelId = eid;
+      }
+    }
+
     return {
       version: MODEL_SETTINGS_VERSION,
       providers,
       models,
       activeModelId,
+      explainModelId,
     };
   }
 
@@ -251,6 +267,36 @@ export function activeModelLabel(settings: ModelSettings): string | null {
   const s = normalizeModelSettings(settings);
   if (!s.activeModelId) return null;
   const entry = s.models.find((m) => m.id === s.activeModelId);
+  if (!entry) return null;
+  return (entry.label && entry.label.trim()) || entry.modelId;
+}
+
+/**
+ * Project ModelSettings → ChatConfig for short-explain.
+ * Missing / disabled / empty-key slot follows the conversation model.
+ * Empty key does not independently Mock (unlike resolveChatConfig).
+ */
+export function resolveExplainConfig(settings: ModelSettings): ChatConfig {
+  const s = normalizeModelSettings(settings);
+  if (!s.explainModelId) return resolveChatConfig(s);
+  const entry = s.models.find((m) => m.id === s.explainModelId);
+  if (!entry || !entry.enabled) return resolveChatConfig(s);
+  const provider = s.providers.find((p) => p.id === entry.providerId);
+  if (!provider) return resolveChatConfig(s);
+  const cfg = normalizeChatConfig({
+    baseUrl: provider.baseUrl,
+    model: entry.modelId,
+    apiKey: provider.apiKey,
+  });
+  if (!hasApiKey(cfg)) return resolveChatConfig(s);
+  return cfg;
+}
+
+/** Display label for explain slot; null slot → null (UI: follow chat). */
+export function explainModelLabel(settings: ModelSettings): string | null {
+  const s = normalizeModelSettings(settings);
+  if (!s.explainModelId) return null;
+  const entry = s.models.find((m) => m.id === s.explainModelId);
   if (!entry) return null;
   return (entry.label && entry.label.trim()) || entry.modelId;
 }
@@ -332,6 +378,7 @@ export function upsertFromChatConfig(
     providers,
     models,
     activeModelId: activeId,
+    explainModelId: s.explainModelId,
   });
 }
 

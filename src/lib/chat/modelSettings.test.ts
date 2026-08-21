@@ -7,11 +7,13 @@ import {
 import {
   activeModelLabel,
   emptyModelSettings,
+  explainModelLabel,
   migrateChatConfigToSettings,
   MODEL_SETTINGS_LS_KEY,
   normalizeModelSettings,
   readModelSettingsFromLocalStorage,
   resolveChatConfig,
+  resolveExplainConfig,
   upsertFromChatConfig,
   writeModelSettingsToLocalStorage,
   type ModelSettings,
@@ -53,6 +55,7 @@ describe("emptyModelSettings", () => {
     expect(s.providers).toEqual([]);
     expect(s.models).toEqual([]);
     expect(s.activeModelId).toBeNull();
+    expect(s.explainModelId).toBeNull();
   });
 });
 
@@ -268,5 +271,149 @@ describe("activeModelLabel", () => {
     };
     expect(activeModelLabel(labeled)).toBe("快");
     expect(activeModelLabel(emptyModelSettings())).toBeNull();
+  });
+});
+
+function twoSlotSettings(explainKey = "sk-explain"): ModelSettings {
+  return normalizeModelSettings({
+    version: 1,
+    providers: [
+      {
+        id: "p-chat",
+        name: "ChatProv",
+        baseUrl: "https://api.openai.com/v1",
+        apiKey: "sk-chat",
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      {
+        id: "p-explain",
+        name: "ExplainProv",
+        baseUrl: "https://api.deepseek.com/v1",
+        apiKey: explainKey,
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ],
+    models: [
+      {
+        id: "m-chat",
+        providerId: "p-chat",
+        modelId: "gpt-4o",
+        enabled: true,
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      {
+        id: "m-explain",
+        providerId: "p-explain",
+        modelId: "deepseek-chat",
+        enabled: true,
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ],
+    activeModelId: "m-chat",
+    explainModelId: "m-explain",
+  });
+}
+
+describe("explainModelId / resolveExplainConfig", () => {
+  it("legacy JSON without key → null slot; chat resolve unchanged", () => {
+    const raw = {
+      version: 1,
+      providers: [
+        {
+          id: "p1",
+          name: "P",
+          baseUrl: "https://x.com/v1",
+          apiKey: "k",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      models: [
+        {
+          id: "m1",
+          providerId: "p1",
+          modelId: "m",
+          enabled: true,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      activeModelId: "m1",
+    };
+    const s = normalizeModelSettings(raw);
+    expect(s.explainModelId).toBeNull();
+    expect(resolveChatConfig(s)).toEqual({
+      baseUrl: "https://x.com/v1",
+      model: "m",
+      apiKey: "k",
+    });
+    expect(resolveExplainConfig(s)).toEqual(resolveChatConfig(s));
+    expect(explainModelLabel(s)).toBeNull();
+  });
+
+  it("independent slot with key → API modelId, not catalog id", () => {
+    const s = twoSlotSettings();
+    expect(s.explainModelId).toBe("m-explain");
+    const cfg = resolveExplainConfig(s);
+    expect(cfg.model).toBe("deepseek-chat");
+    expect(cfg.model).not.toBe(s.explainModelId);
+    expect(cfg.baseUrl).toBe("https://api.deepseek.com/v1");
+    expect(cfg.apiKey).toBe("sk-explain");
+    expect(cfg).not.toEqual(resolveChatConfig(s));
+    expect(explainModelLabel(s)).toBe("deepseek-chat");
+  });
+
+  it("null / disabled / deleted slot follows chat", () => {
+    const base = twoSlotSettings();
+
+    const followNull: ModelSettings = { ...base, explainModelId: null };
+    expect(resolveExplainConfig(followNull)).toEqual(resolveChatConfig(followNull));
+
+    const disabled: ModelSettings = {
+      ...base,
+      models: base.models.map((m) =>
+        m.id === "m-explain" ? { ...m, enabled: false } : m,
+      ),
+    };
+    expect(normalizeModelSettings(disabled).explainModelId).toBeNull();
+    expect(resolveExplainConfig(disabled)).toEqual(resolveChatConfig(disabled));
+
+    const deleted: ModelSettings = {
+      ...base,
+      models: base.models.filter((m) => m.id !== "m-explain"),
+    };
+    expect(normalizeModelSettings(deleted).explainModelId).toBeNull();
+    expect(resolveExplainConfig(deleted)).toEqual(resolveChatConfig(deleted));
+  });
+
+  it("empty explain key follows chat; slot id is kept", () => {
+    const s = twoSlotSettings("");
+    expect(s.explainModelId).toBe("m-explain");
+    const chat = resolveChatConfig(s);
+    const explain = resolveExplainConfig(s);
+    expect(explain.model).toBe(chat.model);
+    expect(explain.apiKey).toBe(chat.apiKey);
+    expect(explain).toEqual(chat);
+    expect(chat.apiKey).toBe("sk-chat");
+  });
+
+  it("upsertFromChatConfig keeps explainModelId after key change", () => {
+    const s = twoSlotSettings();
+    expect(s.explainModelId).toBe("m-explain");
+    const next = upsertFromChatConfig(s, {
+      baseUrl: "https://api.openai.com/v1",
+      model: "gpt-4o",
+      apiKey: "sk-new",
+    });
+    expect(next.explainModelId).toBe("m-explain");
+    expect(next.providers.find((p) => p.id === "p-chat")!.apiKey).toBe("sk-new");
+  });
+
+  it("emptyModelSettings().explainModelId === null", () => {
+    expect(emptyModelSettings().explainModelId).toBeNull();
   });
 });

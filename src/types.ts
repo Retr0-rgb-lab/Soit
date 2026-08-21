@@ -172,7 +172,10 @@ export interface ModelSettings {
   version: 1;
   providers: Provider[];
   models: ModelEntry[];
+  /** Conversation slot; null = Mock. */
   activeModelId: string | null;
+  /** Short-explain slot; null = follow activeModelId. */
+  explainModelId: string | null;
 }
 
 /** Host `append_turn` args (camelCase JSON). */

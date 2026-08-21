@@ -44,12 +44,14 @@ export {
   MODEL_SETTINGS_VERSION,
   activeModelLabel,
   emptyModelSettings,
+  explainModelLabel,
   migrateChatConfigToSettings,
   newEntityId,
   normalizeModelSettings,
   providerNameFromBaseUrl,
   readModelSettingsFromLocalStorage,
   resolveChatConfig,
+  resolveExplainConfig,
   upsertFromChatConfig,
   writeModelSettingsToLocalStorage,
 } from "./modelSettings";
@@ -60,6 +62,19 @@ export {
   parseAssistantContent,
 } from "./openaiCompat";
 export { buildInquirySystemPrompt } from "./systemPrompt";
+export {
+  KEEP_RECENT_TURNS,
+  COMPACT_BODY_MAX_CHARS,
+  buildStructuredCompact,
+  compactThread,
+  formatRecentDialogue,
+  splitKeepRecent,
+} from "./contextCompact";
+export type {
+  CompactMeta,
+  CompactTurn,
+  ThreadCompactResult,
+} from "./contextCompact";
 
 export type PortKind = "mock" | "openai";
 
