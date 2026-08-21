@@ -632,6 +632,15 @@ body.soit-focus-mode .app-shell .workspace-main {
   border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
+.workspace-picker__badge.is-mock {
+  color: var(--ink-faint);
+  background: var(--bg-muted);
+  border-color: var(--line);
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-weight: 550;
+}
+
 .workspace-picker__item-path {
   font-size: 11.5px;
   font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;

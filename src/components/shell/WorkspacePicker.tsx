@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  MOCK_HALL_LAST_VAULT,
+  MOCK_HALL_WORKSPACES,
+} from "../../lib/demoSeed";
 import { useWorkspace } from "../../state/workspaceStore";
 
 function vaultLeaf(path: string): string {
+  if (path.startsWith("demo://")) {
+    return path.slice("demo://".length) || "演示工作区";
+  }
   const leaf =
     path.replace(/\\/g, "/").split("/").filter(Boolean).pop() ?? path;
   return leaf || path;
@@ -33,18 +40,32 @@ export default function WorkspacePicker() {
   const forget = useWorkspace((s) => s.forget);
   const dismissEnterError = useWorkspace((s) => s.dismissEnterError);
 
-  const recents = sessionConfig?.recentVaults ?? [];
-  const lastVault = sessionConfig?.lastVault ?? null;
+  const sessionRecents = sessionConfig?.recentVaults ?? [];
+  const sessionLast = sessionConfig?.lastVault ?? null;
 
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [userPicked, setUserPicked] = useState(false);
   const [pathInput, setPathInput] = useState("");
   const [showOpenForm, setShowOpenForm] = useState(false);
   const [menuPath, setMenuPath] = useState<string | null>(null);
+  /** Browser layout mocks dismissed via ⋯ so list can go empty. */
+  const [hiddenMocks, setHiddenMocks] = useState<string[]>([]);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   const desktop = useMemo(() => isDesktopHost(), []);
   const busy = spaceBusy || shellPhase === "entering";
+
+  /** Browser: seed mock workspaces when session has none (layout preview). */
+  const usingHallMocks =
+    !desktop && sessionRecents.length === 0;
+  const recents = useMemo(() => {
+    if (!usingHallMocks) return sessionRecents;
+    const hide = new Set(hiddenMocks);
+    return MOCK_HALL_WORKSPACES.filter((p) => !hide.has(p));
+  }, [usingHallMocks, sessionRecents, hiddenMocks]);
+  const lastVault = usingHallMocks
+    ? MOCK_HALL_LAST_VAULT
+    : sessionLast;
   const listEmpty = recents.length === 0;
   const openFormVisible = listEmpty || showOpenForm;
 
@@ -75,11 +96,20 @@ export default function WorkspacePicker() {
     setMenuPath(null);
   };
 
-  const onEnterSelected = () => {
-    if (!desktop || busy) return;
+  const enterSelectedWorkspace = () => {
+    if (busy) return;
     const p = selectedPath?.trim();
     if (!p) return;
+    // Browser / mock hall rows → in-memory demo cards (no real vault).
+    if (!desktop || usingHallMocks) {
+      void enterDemo();
+      return;
+    }
     void enter(p);
+  };
+
+  const onEnterSelected = () => {
+    enterSelectedWorkspace();
   };
 
   const onEnterPath = () => {
@@ -92,7 +122,11 @@ export default function WorkspacePicker() {
   };
 
   const onRetry = () => {
-    if (!desktop || busy) return;
+    if (busy) return;
+    if (!desktop) {
+      void enterDemo();
+      return;
+    }
     const p = (selectedPath ?? pathInput).trim();
     if (!p) return;
     void enter(p);
@@ -100,6 +134,11 @@ export default function WorkspacePicker() {
 
   const onForget = (path: string) => {
     setMenuPath(null);
+    if (usingHallMocks) {
+      setHiddenMocks((h) => (h.includes(path) ? h : [...h, path]));
+      if (selectedPath === path) setUserPicked(false);
+      return;
+    }
     void forget(path).then(() => {
       if (selectedPath === path) {
         setUserPicked(false);
@@ -121,19 +160,10 @@ export default function WorkspacePicker() {
         {!desktop ? (
           <div className="workspace-picker__banner is-info" role="status">
             <span>
-              浏览器预览无法打开本机库。可用下方<strong>演示工作区</strong>
-              测卡片、轨道与设置；真库请用桌面版。
+              {usingHallMocks
+                ? "浏览器布局预览：下列为示意工作区（非本机真库）。点「进入」会打开内存演示卡片。"
+                : "浏览器预览无法打开本机库。点「进入」将打开内存演示卡片；真库请用桌面版。"}
             </span>
-            <div className="workspace-picker__banner-actions">
-              <button
-                type="button"
-                className="workspace-picker__btn primary"
-                disabled={busy}
-                onClick={() => void enterDemo()}
-              >
-                {busy ? "打开中…" : "进入演示工作区"}
-              </button>
-            </div>
           </div>
         ) : null}
 
@@ -181,7 +211,12 @@ export default function WorkspacePicker() {
                     onClick={() => selectPath(path)}
                     onDoubleClick={() => {
                       selectPath(path);
-                      if (desktop && !busy) void enter(path);
+                      if (busy) return;
+                      if (!desktop || usingHallMocks) {
+                        void enterDemo();
+                        return;
+                      }
+                      void enter(path);
                     }}
                   >
                     <span className="workspace-picker__item-main">
@@ -189,6 +224,11 @@ export default function WorkspacePicker() {
                         {vaultLeaf(path)}
                         {isLast ? (
                           <span className="workspace-picker__badge">上次</span>
+                        ) : null}
+                        {usingHallMocks ? (
+                          <span className="workspace-picker__badge is-mock">
+                            示意
+                          </span>
                         ) : null}
                       </span>
                       <span className="workspace-picker__item-path" title={path}>
@@ -276,10 +316,14 @@ export default function WorkspacePicker() {
             <button
               type="button"
               className="workspace-picker__btn primary"
-              disabled={busy || !desktop || !selectedPath?.trim()}
+              disabled={busy || !selectedPath?.trim()}
               onClick={() => onEnterSelected()}
             >
-              {busy ? "打开中…" : desktop ? "进入" : "需要桌面版"}
+              {busy
+                ? "打开中…"
+                : !desktop || usingHallMocks
+                  ? "进入演示"
+                  : "进入"}
             </button>
             <button
               type="button"
@@ -289,6 +333,16 @@ export default function WorkspacePicker() {
             >
               打开本机文件夹
             </button>
+            {!desktop ? (
+              <button
+                type="button"
+                className="workspace-picker__btn ghost"
+                disabled={busy}
+                onClick={() => void enterDemo()}
+              >
+                直接进演示卡片
+              </button>
+            ) : null}
           </div>
         )}
 

@@ -69,6 +69,22 @@ export function isDemoWorkspacePath(path: string | null | undefined): boolean {
   return (path ?? "").trim() === DEMO_WORKSPACE_PATH;
 }
 
+/**
+ * Browser-only hall layout fixtures — look like real vault paths so the
+ * picker list/selection/badge chrome can be reviewed without a desktop vault.
+ * Not written to Host session; entering any of them runs enterDemo().
+ */
+export const MOCK_HALL_WORKSPACES: readonly string[] = [
+  "E:\\Notes\\线性代数",
+  "E:\\Vaults\\范畴论笔记",
+  "D:\\Obsidian\\研究日志",
+  "E:\\Notes\\机器学习·入门",
+  "C:\\Users\\demo\\Documents\\Soit-实验室",
+];
+
+/** Prefer first entry as “上次” for layout (badge). */
+export const MOCK_HALL_LAST_VAULT = MOCK_HALL_WORKSPACES[0]!;
+
 /** In-memory demo universe for browser FE testing (hall → enterDemo). */
 export function demoSnapshot(): WorkspaceSnapshot {
   return {
