@@ -1,12 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChatPort } from "../lib/chat";
 
+const resolveExplainPort = vi.fn();
 const resolvePort = vi.fn();
 
 vi.mock("../lib/chat", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/chat")>();
   return {
     ...actual,
+    resolveExplainPort: (...args: unknown[]) => resolveExplainPort(...args),
     resolvePort: (...args: unknown[]) => resolvePort(...args),
   };
 });
@@ -14,6 +16,7 @@ vi.mock("../lib/chat", async (importOriginal) => {
 import { explainSpan } from "./explainActions";
 
 afterEach(() => {
+  resolveExplainPort.mockReset();
   resolvePort.mockReset();
 });
 
@@ -23,7 +26,7 @@ describe("explainSpan", () => {
       complete: vi.fn(),
       explain: vi.fn(async () => ({ text: "（MockExplain）函子：说明" })),
     };
-    resolvePort.mockResolvedValue(port);
+    resolveExplainPort.mockResolvedValue(port);
 
     const text = await explainSpan({ cardId: "c1", span: "函子" });
     expect(text).toBe("（MockExplain）函子：说明");
@@ -31,6 +34,7 @@ describe("explainSpan", () => {
       expect.objectContaining({ cardId: "c1", span: "函子" }),
     );
     expect(port.complete).not.toHaveBeenCalled();
+    expect(resolvePort).not.toHaveBeenCalled();
   });
 
   it("falls back to complete when explain is missing", async () => {
@@ -40,7 +44,7 @@ describe("explainSpan", () => {
         marks: [{ term: "x" }],
       })),
     };
-    resolvePort.mockResolvedValue(port);
+    resolveExplainPort.mockResolvedValue(port);
 
     const text = await explainSpan({ cardId: "c1", span: "范畴" });
     expect(text).toBe("fallback gloss");
@@ -48,6 +52,7 @@ describe("explainSpan", () => {
     const arg = vi.mocked(port.complete).mock.calls[0]![0];
     expect(arg.messages.some((m) => m.role === "system")).toBe(true);
     expect(arg.messages.some((m) => m.content.includes("范畴"))).toBe(true);
+    expect(resolvePort).not.toHaveBeenCalled();
   });
 
   it("throws on empty span", async () => {
@@ -60,7 +65,7 @@ describe("explainSpan", () => {
   it("forwards signal to explain", async () => {
     const controller = new AbortController();
     const explain = vi.fn(async () => ({ text: "ok" }));
-    resolvePort.mockResolvedValue({ complete: vi.fn(), explain } satisfies ChatPort);
+    resolveExplainPort.mockResolvedValue({ complete: vi.fn(), explain } satisfies ChatPort);
 
     await explainSpan({
       cardId: "c1",
@@ -70,5 +75,6 @@ describe("explainSpan", () => {
     expect(explain).toHaveBeenCalledWith(
       expect.objectContaining({ signal: controller.signal }),
     );
+    expect(resolvePort).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,5 @@
 import {
-  resolvePort,
+  resolveExplainPort,
   type ChatMessage,
 } from "../lib/chat";
 
@@ -26,7 +26,7 @@ export async function explainSpan(opts: ExplainSpanOpts): Promise<string> {
     throw new Error("explainSpan: empty span");
   }
 
-  const port = await resolvePort();
+  const port = await resolveExplainPort();
 
   if (typeof port.explain === "function") {
     const result = await port.explain({
