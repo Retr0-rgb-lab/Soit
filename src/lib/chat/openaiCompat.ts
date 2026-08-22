@@ -44,6 +44,7 @@ export class OpenAICompatChat implements ChatPort {
         role: "system",
         content: buildInquirySystemPrompt(input.scope, {
           toolsEnabled: Boolean(input.tools?.length || input.toolsEnabled),
+          webSearchEnabled: input.webSearchEnabled,
         }),
       });
     }

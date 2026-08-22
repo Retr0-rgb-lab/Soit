@@ -111,6 +111,7 @@ function defaultPrefs(over: Record<string, unknown> = {}) {
     toolsEnabled: true,
     maxToolRounds: 3,
     webSearchBackend: "off" as const,
+    webSearchEnabled: false,
     tavilyApiKey: "",
     allowLoopbackFetch: false,
     ...over,
@@ -255,6 +256,125 @@ describe("runToolAwareCompletion", () => {
     expect(getState().turnsByCardId[cardId]?.[0]?.aiHtml).toContain(
       "plain answer",
     );
+  });
+
+  it("injects all three tools when toolsEnabled + webSearchEnabled", async () => {
+    const cardId = "c1";
+    const turnId = "t1";
+    const { get, set } = makeStore(turnId, cardId);
+    toolsMocks.getToolsPrefs.mockResolvedValue(
+      defaultPrefs({ toolsEnabled: true, webSearchEnabled: true }),
+    );
+    let seen: string[] | undefined;
+    const port: ChatPort = {
+      async complete(input: ChatCompleteInput) {
+        seen = (input.tools ?? []).map((t) => t.name);
+        return { text: "ok", think: "" };
+      },
+    };
+    chatPortMocks.resolvePort.mockResolvedValue(port);
+    await runToolAwareCompletion({
+      get,
+      set,
+      cardId,
+      turnId,
+      messages: [{ role: "user", content: "hi" }],
+      scope: undefined,
+      gen: "g1",
+      signal: new AbortController().signal,
+    });
+    expect(seen?.sort()).toEqual(["fetch_url", "vault_search", "web_search"]);
+  });
+
+  it("injects vault_search + fetch_url only when button off", async () => {
+    const cardId = "c1";
+    const turnId = "t1";
+    const { get, set } = makeStore(turnId, cardId);
+    toolsMocks.getToolsPrefs.mockResolvedValue(
+      defaultPrefs({ toolsEnabled: true, webSearchEnabled: false }),
+    );
+    let seen: string[] | undefined;
+    const port: ChatPort = {
+      async complete(input: ChatCompleteInput) {
+        seen = (input.tools ?? []).map((t) => t.name);
+        return { text: "ok", think: "" };
+      },
+    };
+    chatPortMocks.resolvePort.mockResolvedValue(port);
+    await runToolAwareCompletion({
+      get,
+      set,
+      cardId,
+      turnId,
+      messages: [{ role: "user", content: "hi" }],
+      scope: undefined,
+      gen: "g1",
+      signal: new AbortController().signal,
+    });
+    expect(seen?.sort()).toEqual(["fetch_url", "vault_search"]);
+  });
+
+  it("injects only web_search when button on + tools off", async () => {
+    const cardId = "c1";
+    const turnId = "t1";
+    const { get, set } = makeStore(turnId, cardId);
+    toolsMocks.getToolsPrefs.mockResolvedValue(
+      defaultPrefs({ toolsEnabled: false, webSearchEnabled: true }),
+    );
+    let seen: string[] | undefined;
+    let opts: { toolsEnabled?: boolean; webSearchEnabled?: boolean } = {};
+    const port: ChatPort = {
+      async complete(input: ChatCompleteInput) {
+        seen = (input.tools ?? []).map((t) => t.name);
+        opts = {
+          toolsEnabled: input.toolsEnabled,
+          webSearchEnabled: input.webSearchEnabled,
+        };
+        return { text: "ok", think: "" };
+      },
+    };
+    chatPortMocks.resolvePort.mockResolvedValue(port);
+    await runToolAwareCompletion({
+      get,
+      set,
+      cardId,
+      turnId,
+      messages: [{ role: "user", content: "hi" }],
+      scope: undefined,
+      gen: "g1",
+      signal: new AbortController().signal,
+    });
+    expect(seen).toEqual(["web_search"]);
+    expect(opts.toolsEnabled).toBe(true);
+    expect(opts.webSearchEnabled).toBe(true);
+  });
+
+  it("injects no tools when both off", async () => {
+    const cardId = "c1";
+    const turnId = "t1";
+    const { get, set } = makeStore(turnId, cardId);
+    toolsMocks.getToolsPrefs.mockResolvedValue(
+      defaultPrefs({ toolsEnabled: false, webSearchEnabled: false }),
+    );
+    let seen: string[] | undefined;
+    const port: ChatPort = {
+      async complete(input: ChatCompleteInput) {
+        seen = (input.tools ?? []).map((t) => t.name);
+        return { text: "ok", think: "" };
+      },
+    };
+    chatPortMocks.resolvePort.mockResolvedValue(port);
+    await runToolAwareCompletion({
+      get,
+      set,
+      cardId,
+      turnId,
+      messages: [{ role: "user", content: "hi" }],
+      scope: undefined,
+      gen: "g1",
+      signal: new AbortController().signal,
+    });
+    expect(seen).toEqual([]);
   });
 
   it("does not write when gen is superseded mid-loop", async () => {

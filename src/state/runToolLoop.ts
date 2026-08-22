@@ -162,7 +162,12 @@ export async function runToolAwareCompletion(args: {
     if (signal.aborted || !stillCurrent(get, cardId, turnId, gen)) return;
 
     const toolsOn = prefs.toolsEnabled;
-    const tools = toolsOn ? INQUIRY_TOOL_DEFS : undefined;
+    const webSearchOn = prefs.webSearchEnabled === true;
+    const filtered = INQUIRY_TOOL_DEFS.filter((t) =>
+      t.name === "web_search" ? webSearchOn : toolsOn,
+    );
+    // Keep the existing contract: no tools → undefined (toolChoice falls to "none").
+    const tools = filtered.length ? filtered : undefined;
     const maxRounds = prefs.maxToolRounds;
 
     let wire: ChatWireMessage[] = messagesToWire(withSkills);
@@ -184,7 +189,8 @@ export async function runToolAwareCompletion(args: {
         signal,
         tools,
         toolChoice: tools ? "auto" : "none",
-        toolsEnabled: toolsOn,
+        toolsEnabled: toolsOn || webSearchOn,
+        webSearchEnabled: webSearchOn,
       });
 
       if (signal.aborted || !stillCurrent(get, cardId, turnId, gen)) return;
@@ -308,7 +314,8 @@ export async function runToolAwareCompletion(args: {
         scope,
         signal,
         toolChoice: "none",
-        toolsEnabled: toolsOn,
+        toolsEnabled: toolsOn || webSearchOn,
+        webSearchEnabled: webSearchOn,
       });
       if (final.think?.trim()) {
         process.push({

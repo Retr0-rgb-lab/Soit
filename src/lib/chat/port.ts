@@ -55,6 +55,8 @@ export interface ChatCompleteInput {
   toolChoice?: "auto" | "none";
   /** Whether tools are enabled (affects system prompt). */
   toolsEnabled?: boolean;
+  /** Whether the composer web-search button is on (affects system prompt). */
+  webSearchEnabled?: boolean;
 }
 
 export interface ChatCompleteResult {
