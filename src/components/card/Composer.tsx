@@ -32,8 +32,15 @@ import {
 import {
   getChatConfig,
   getModelSettings,
+  getToolsPrefs,
   setModelSettings,
+  setToolsPrefs,
 } from "../../lib/host";
+import {
+  defaultToolsPrefs,
+  effectiveWebSearchBackend,
+  type ToolsPrefs,
+} from "../../lib/tools";
 import { rankPaletteNodes } from "../../lib/paletteRank";
 import { kindGlyph } from "../../lib/treeNav";
 import { useWorkspace } from "../../state/workspaceStore";
@@ -41,6 +48,7 @@ import {
   IconAttach,
   IconAt,
   IconModel,
+  IconSearch,
   IconSend,
   IconX,
 } from "./icons";
@@ -97,6 +105,10 @@ export default function Composer({
     emptyModelSettings(),
   );
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const [toolsPrefs, setToolsPrefsState] = useState<ToolsPrefs>(
+    defaultToolsPrefs(),
+  );
+  const [wsBusy, setWsBusy] = useState(false);
   const [modelSwitching, setModelSwitching] = useState(false);
 
   const nodes = useWorkspace((s) => s.nodes);
@@ -150,9 +162,22 @@ export default function Composer({
     }
   }, []);
 
+  const reloadToolsPrefs = useCallback(async () => {
+    try {
+      const p = await getToolsPrefs();
+      setToolsPrefsState(p);
+    } catch {
+      /* keep last known */
+    }
+  }, []);
+
   useEffect(() => {
     void reloadConfig();
   }, [reloadConfig]);
+
+  useEffect(() => {
+    void reloadToolsPrefs();
+  }, [reloadToolsPrefs]);
 
   useEffect(() => {
     const onChanged = () => {
@@ -196,6 +221,33 @@ export default function Composer({
       }),
     );
   }, []);
+
+  const wsOn = toolsPrefs.webSearchEnabled === true;
+  const wsBackend = effectiveWebSearchBackend(toolsPrefs);
+  const wsBackendLabel =
+    wsBackend === "ddg"
+      ? "DuckDuckGo"
+      : wsBackend === "tavily"
+        ? "Tavily"
+        : "关";
+
+  const toggleWebSearch = useCallback(async () => {
+    if (wsBusy) return;
+    setWsBusy(true);
+    try {
+      // Fresh read → avoid clobbering concurrent Settings-panel writes.
+      const fresh = await getToolsPrefs();
+      const next = await setToolsPrefs({
+        ...fresh,
+        webSearchEnabled: !fresh.webSearchEnabled,
+      });
+      setToolsPrefsState(next);
+    } catch {
+      await reloadToolsPrefs();
+    } finally {
+      setWsBusy(false);
+    }
+  }, [wsBusy, reloadToolsPrefs]);
 
   useEffect(() => {
     const el = taRef.current;
@@ -626,6 +678,21 @@ export default function Composer({
 
           <div className="ic-dock-toolbar">
             <div className="ic-dock-tools">
+              <button
+                type="button"
+                className={`ic-tool-btn ic-ws-btn${wsOn ? " on" : ""}`}
+                data-tip={
+                  wsOn
+                    ? `网页搜索：开（${wsBackendLabel}）`
+                    : "网页搜索：关，点击开启"
+                }
+                aria-label={wsOn ? "关闭网页搜索" : "开启网页搜索"}
+                aria-pressed={wsOn}
+                disabled={wsBusy}
+                onClick={() => void toggleWebSearch()}
+              >
+                <IconSearch />
+              </button>
               <div className="ic-model-wrap" ref={modelMenuRef}>
                 <button
                   type="button"
