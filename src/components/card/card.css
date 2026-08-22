@@ -1461,8 +1461,7 @@ body.has-selbar .ic-turn-bar {
   content: "▾ ";
 }
 
-/* Think prose + tool detail: body type on card paper, no nested panel */
-.ic-process-detail-body,
+/* Tool detail: raw content, kept in a scrollable pre. */
 .ic-process-detail pre {
   margin: 6px 0 0;
   padding: 0;
@@ -1477,6 +1476,18 @@ body.has-selbar .ic-turn-bar {
   background: transparent;
   border: 0;
   border-radius: 0;
+}
+
+/* Think detail: rendered safe md subset (same look as .ai-html), softer ink. */
+.ic-process-detail-body {
+  margin: 6px 0 0;
+  padding: 0;
+  max-height: 14rem;
+  overflow: auto;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--ink-soft) 90%, var(--ink));
 }
 
 /* Marks inside trusted demo HTML — no glow ring */

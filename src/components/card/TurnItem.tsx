@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ProcessStep, Turn } from "../../types";
 import { isProcessBusy, processEntryLabel } from "../../lib/tools";
+import { renderAssistantHtml } from "../../lib/chat";
 import {
   IconBookmark,
   IconChev,
@@ -72,6 +73,18 @@ export default function TurnItem({
       : legacyThinkAsProcess(thinkText);
   const showProcess = processSteps.length > 0;
   const processBusy = isProcessBusy(turn.process, thinkText);
+
+  // Think detail is raw model markdown — render through the same safe subset
+  // as the formal answer (headings / lists / GFM tables / code / math).
+  const thinkHtmlById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of processSteps) {
+      if (s.kind === "think" && s.detail) {
+        map.set(s.id, renderAssistantHtml(s.detail));
+      }
+    }
+    return map;
+  }, [processSteps]);
 
   // New turn id → reset closed; never auto-open from store.
   useEffect(() => {
@@ -225,7 +238,12 @@ export default function TurnItem({
                       </div>
                       {step.detail && step.kind === "think" ? (
                         <div className="ic-process-detail-body">
-                          {step.detail}
+                          <div
+                            className="ai-html"
+                            dangerouslySetInnerHTML={{
+                              __html: thinkHtmlById.get(step.id) ?? "",
+                            }}
+                          />
                         </div>
                       ) : step.detail ? (
                         <details className="ic-process-detail">
