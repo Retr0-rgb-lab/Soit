@@ -7,6 +7,7 @@ export interface ToolsPrefs {
   toolsEnabled: boolean;
   maxToolRounds: number;
   webSearchBackend: WebSearchBackend;
+  webSearchEnabled: boolean;
   tavilyApiKey: string;
   allowLoopbackFetch: boolean;
 }
@@ -27,6 +28,7 @@ export function defaultToolsPrefs(): ToolsPrefs {
     toolsEnabled: true,
     maxToolRounds: 3,
     webSearchBackend: "off",
+    webSearchEnabled: false,
     tavilyApiKey: "",
     allowLoopbackFetch: false,
   };
@@ -52,8 +54,17 @@ export function normalizeToolsPrefs(raw: unknown): ToolsPrefs {
     toolsEnabled: o.toolsEnabled !== false,
     maxToolRounds,
     webSearchBackend,
+    webSearchEnabled: o.webSearchEnabled === true,
     tavilyApiKey:
       typeof o.tavilyApiKey === "string" ? o.tavilyApiKey : d.tavilyApiKey,
     allowLoopbackFetch: o.allowLoopbackFetch === true,
   };
+}
+
+/** Effective backend: button off → off; on + off → ddg. Never writes back. */
+export function effectiveWebSearchBackend(
+  prefs: ToolsPrefs,
+): WebSearchBackend {
+  if (!prefs.webSearchEnabled) return "off";
+  return prefs.webSearchBackend === "off" ? "ddg" : prefs.webSearchBackend;
 }

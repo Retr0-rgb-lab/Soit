@@ -7,6 +7,7 @@ import {
 
 export {
   defaultToolsPrefs,
+  effectiveWebSearchBackend,
   normalizeToolsPrefs,
   TOOLS_PREFS_LS_KEY,
   type ToolsPrefs,
