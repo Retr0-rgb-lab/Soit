@@ -1,6 +1,6 @@
 //! Web search backends: off / DuckDuckGo HTML / Tavily.
 
-use super::prefs::{ToolsPrefsDto, WebSearchBackend};
+use super::prefs::{effective_web_search_backend, ToolsPrefsDto, WebSearchBackend};
 use regex::Regex;
 use serde_json::{json, Value};
 use std::time::Duration;
@@ -18,9 +18,9 @@ pub fn web_search(query: &str, prefs: &ToolsPrefsDto) -> Result<(String, String,
     return Err("query too long".into());
   }
 
-  match prefs.web_search_backend {
+  match effective_web_search_backend(prefs) {
     WebSearchBackend::Off => Err(
-      "网页搜索已关闭。可在设置 → 工具 中启用 DuckDuckGo 或 Tavily，或改用 vault_search / fetch_url。"
+      "网页搜索已关闭。点作曲条的搜索按钮开启，或改用 vault_search / fetch_url。"
         .into(),
     ),
     WebSearchBackend::Ddg => search_ddg(q),
@@ -243,5 +243,28 @@ mod tests {
   fn off_errors() {
     let prefs = ToolsPrefsDto::default();
     assert!(web_search("test", &prefs).is_err());
+  }
+
+  #[test]
+  fn enabled_tavily_without_key_errors() {
+    let prefs = ToolsPrefsDto {
+      web_search_enabled: true,
+      web_search_backend: WebSearchBackend::Tavily,
+      tavily_api_key: String::new(),
+      ..Default::default()
+    };
+    let err = web_search("test", &prefs).unwrap_err();
+    assert!(err.contains("Tavily API Key"), "err = {err}");
+  }
+
+  #[test]
+  fn disabled_ddg_still_errors() {
+    let prefs = ToolsPrefsDto {
+      web_search_enabled: false,
+      web_search_backend: WebSearchBackend::Ddg,
+      ..Default::default()
+    };
+    let err = web_search("test", &prefs).unwrap_err();
+    assert!(err.contains("网页搜索已关闭"), "err = {err}");
   }
 }

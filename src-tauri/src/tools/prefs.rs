@@ -5,7 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum WebSearchBackend {
   Off,
@@ -30,6 +30,8 @@ pub struct ToolsPrefsDto {
   #[serde(default)]
   pub web_search_backend: WebSearchBackend,
   #[serde(default)]
+  pub web_search_enabled: bool,
+  #[serde(default)]
   pub tavily_api_key: String,
   #[serde(default)]
   pub allow_loopback_fetch: bool,
@@ -50,6 +52,7 @@ impl Default for ToolsPrefsDto {
       tools_enabled: true,
       max_tool_rounds: 3,
       web_search_backend: WebSearchBackend::Off,
+      web_search_enabled: false,
       tavily_api_key: String::new(),
       allow_loopback_fetch: false,
     }
@@ -66,6 +69,18 @@ impl ToolsPrefsDto {
       self.max_tool_rounds = 5;
     }
     self
+  }
+}
+
+/// Effective backend: button off → Off；button on + Off → Ddg fallback.
+/// Never mutates the stored backend choice.
+pub fn effective_web_search_backend(prefs: &ToolsPrefsDto) -> WebSearchBackend {
+  if !prefs.web_search_enabled {
+    return WebSearchBackend::Off;
+  }
+  match prefs.web_search_backend {
+    WebSearchBackend::Off => WebSearchBackend::Ddg,
+    other => other,
   }
 }
 
@@ -123,6 +138,32 @@ mod tests {
     assert_eq!(
       ToolsPrefsDto::default().web_search_backend,
       WebSearchBackend::Off
+    );
+  }
+
+  #[test]
+  fn effective_backend_matrix() {
+    let base = ToolsPrefsDto::default();
+    // 关 → Off
+    assert_eq!(
+      effective_web_search_backend(&base),
+      WebSearchBackend::Off
+    );
+    // 开 + Off → Ddg
+    let on = ToolsPrefsDto {
+      web_search_enabled: true,
+      ..Default::default()
+    };
+    assert_eq!(effective_web_search_backend(&on), WebSearchBackend::Ddg);
+    // 开 + Tavily → Tavily
+    let tavily = ToolsPrefsDto {
+      web_search_enabled: true,
+      web_search_backend: WebSearchBackend::Tavily,
+      ..Default::default()
+    };
+    assert_eq!(
+      effective_web_search_backend(&tavily),
+      WebSearchBackend::Tavily
     );
   }
 }
