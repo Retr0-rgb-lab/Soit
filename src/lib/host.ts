@@ -801,7 +801,9 @@ async function browserMockInvokeTool(
   } catch {
     /* empty */
   }
-  const prefs = (await import("./tools/prefs")).readToolsPrefsFromLocalStorage();
+  const { effectiveWebSearchBackend, readToolsPrefsFromLocalStorage } =
+    await import("./tools/prefs");
+  const prefs = readToolsPrefsFromLocalStorage();
   if (!prefs.toolsEnabled) {
     return {
       ok: false,
@@ -844,9 +846,9 @@ async function browserMockInvokeTool(
     }
   }
   if (name === "web_search") {
-    if (prefs.webSearchBackend === "off") {
-      const err =
-        "网页搜索已关闭。可在设置 → 工具 中启用 DuckDuckGo 或 Tavily。";
+    const effective = effectiveWebSearchBackend(prefs);
+    if (effective === "off") {
+      const err = "网页搜索已关闭。点作曲条的搜索按钮开启。";
       return {
         ok: false,
         title: "网页搜索",
@@ -858,7 +860,7 @@ async function browserMockInvokeTool(
     return {
       ok: true,
       title: "网页搜索",
-      summary: "browser mock · 1 条",
+      summary: `browser mock (${effective}) · 1 条`,
       content: JSON.stringify(
         {
           query: args.query,
