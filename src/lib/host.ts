@@ -705,6 +705,26 @@ export async function readVaultText(
   });
 }
 
+export interface GetPdfPreviewUrlResult {
+  ok: boolean;
+  url?: string;
+  error?: string;
+}
+
+/**
+ * Lazy vault PDF preview URL (PEL-156 P1). Desktop: 127.0.0.1 loopback server.
+ * Browser mock: no server — error so UI falls back to PdfGuide.
+ */
+export async function getPdfPreviewUrl(
+  pathRel: string,
+): Promise<GetPdfPreviewUrlResult> {
+  if (!hasTauri()) {
+    return { ok: false, error: "桌面版支持内嵌 PDF 预览" };
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<GetPdfPreviewUrlResult>("get_pdf_preview_url", { pathRel });
+}
+
 /**
  * Lazy list files under vault `materials/` (materials-rail SPE §2.2).
  * Browser mock: includes `demo/welcome.md` + in-memory imports (SPE §2.5).
