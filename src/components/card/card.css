@@ -778,11 +778,14 @@
 .ic-icon-tray-rail > .ic-round:nth-child(5) {
   transition-delay: 112ms;
 }
+.ic-icon-tray-rail > .ic-round:nth-child(6) {
+  transition-delay: 140ms;
+}
 
 .ic-icon-tray:hover .ic-icon-tray-rail,
 .ic-icon-tray:focus-within .ic-icon-tray-rail,
 .ic-icon-tray.is-open .ic-icon-tray-rail {
-  max-width: 220px;
+  max-width: 260px;
   opacity: 1;
   transform: none;
   pointer-events: auto;

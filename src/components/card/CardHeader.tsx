@@ -72,22 +72,36 @@ const CardHeader = forwardRef<HTMLDivElement, Props>(function CardHeader(
 ) {
   const [crumbsExpanded, setCrumbsExpanded] = useState(false);
   const [titleDraft, setTitleDraft] = useState(title);
+  const inputRef = useRef<HTMLInputElement>(null);
   const committedRef = useRef(false);
 
   useEffect(() => {
-    if (renaming) {
-      setTitleDraft(title);
-      committedRef.current = false;
-    }
+    if (!renaming) return;
+    setTitleDraft(title);
+    committedRef.current = false;
+    // Focus + select after paint. `autoFocus` can mis-fire in WebView2 and
+    // blur immediately (closing the input before the user sees it).
+    const raf = requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (el) {
+        el.focus();
+        el.select();
+      }
+    });
+    return () => cancelAnimationFrame(raf);
   }, [renaming, title]);
 
-  const finishRename = (commit: boolean) => {
+  const commitRename = () => {
     if (committedRef.current) return;
     committedRef.current = true;
-    if (commit) {
-      const next = titleDraft.trim();
-      if (next && next !== title) onRename?.(next);
-    }
+    const next = titleDraft.trim();
+    if (next && next !== title) onRename?.(next);
+    onRenamingChange?.(false);
+  };
+
+  const cancelRename = () => {
+    if (committedRef.current) return;
+    committedRef.current = true;
     onRenamingChange?.(false);
   };
 
@@ -181,20 +195,20 @@ const CardHeader = forwardRef<HTMLDivElement, Props>(function CardHeader(
           </nav>
           {renaming ? (
             <input
+              ref={inputRef}
               className="ic-title-input"
               value={titleDraft}
-              autoFocus
               aria-label="重命名探究"
               spellCheck={false}
               onChange={(e) => setTitleDraft(e.target.value)}
-              onBlur={() => finishRename(true)}
+              onBlur={() => commitRename()}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  finishRename(true);
+                  commitRename();
                 } else if (e.key === "Escape") {
                   e.preventDefault();
-                  finishRename(false);
+                  cancelRename();
                 }
               }}
             />
