@@ -784,7 +784,9 @@ describe("PdfView", () => {
       error: "桌面版支持内嵌 PDF 预览",
     });
     render(<PdfView docRef={docRef} />);
-    expect(await screen.findByText(/内嵌预览不可用/)).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: "PDF 内嵌预览不可用" }),
+    ).toBeTruthy();
     expect(document.querySelector("iframe")).toBeNull();
   });
 });
