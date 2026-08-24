@@ -279,7 +279,6 @@ fn handle_connection(mut stream: TcpStream, vault_canon: &std::path::Path, token
 #[cfg(test)]
 mod tests {
   use super::*;
-  use std::io::Read as _;
   use std::time::{SystemTime, UNIX_EPOCH};
 
   fn temp_vault(label: &str) -> PathBuf {

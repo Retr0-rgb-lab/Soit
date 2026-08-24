@@ -140,16 +140,16 @@ pub fn start_pdf_server(vault_canon: PathBuf) -> Result<PdfServerHandle, String>
     .port();
   let token = new_token();
   let shutdown = Arc::new(AtomicBool::new(false));
+  let accept_loop = listener
+    .try_clone()
+    .map_err(|e| format!("pdf listener clone: {e}"))?;
   let handle = PdfServerHandle {
     port,
     token: token.clone(),
     vault_canon: vault_canon.clone(),
-    listener: listener
-      .try_clone()
-      .map_err(|e| format!("pdf listener clone: {e}"))?,
+    listener, // handle owns the ORIGINAL listener; thread holds the clone
     shutdown: shutdown.clone(),
   };
-  let accept_loop = listener;
   std::thread::spawn(move || {
     loop {
       if shutdown.load(Ordering::Relaxed) {
@@ -169,6 +169,15 @@ pub fn start_pdf_server(vault_canon: PathBuf) -> Result<PdfServerHandle, String>
     }
   });
   Ok(handle)
+}
+
+impl Drop for PdfServerHandle {
+  fn drop(&mut self) {
+    // Signal the accept loop; it exits ≤50ms later, dropping its listener
+    // clone — then the handle's own listener field closes the last socket
+    // handle and frees the port.
+    self.shutdown.store(true, Ordering::Relaxed);
+  }
 }
 
 fn write_simple(stream: &mut TcpStream, code: u16, ctype: &str, body: &str) {
@@ -492,7 +501,7 @@ pub mod pdf_server;
 - [ ] **Step 4: 跑测试确认通过**
 
 Run: `cd src-tauri && cargo test doc::pdf_server`
-Expected: PASS（8 个测试）。再 `cargo test` 全量确认无回归。
+Expected: PASS（7 个测试）。再 `cargo test` 全量确认无回归。
 
 - [ ] **Step 5: 提交**
 
@@ -551,7 +560,7 @@ c) `close_universe` 函数体，`*g = None;` 之后加：
 
 ```rust
   if let Ok(mut ps) = state.pdf_server.lock() {
-    *ps = None; // drop handle → listener closed → accept threads exit
+    *ps = None; // Drop 置 shutdown 标志 → 线程退出 → 端口释放
   }
 ```
 
@@ -652,7 +661,7 @@ commands.allow = ["get_pdf_preview_url"]
 - [ ] **Step 4: 编译 + 测试**
 
 Run: `cd src-tauri && cargo test`
-Expected: 全绿（Task 1 的 8 个 + 既有全部）。`cargo check` 无警告新增。
+Expected: 全绿（Task 1 的 7 个 + 既有全部）。`cargo check` 无警告新增。
 
 - [ ] **Step 5: 提交**
 
@@ -957,7 +966,7 @@ Expected: tsc 无错；vite build 成功。
 - [ ] **Step 3: Rust 全量**
 
 Run: `cd src-tauri && cargo test`
-Expected: 全部 PASS（新增 pdf_server 8 条）。
+Expected: 全部 PASS（新增 pdf_server 7 条）。
 
 - [ ] **Step 4: 桌面实测（重启 tauri dev 以载入新 Rust）**
 
