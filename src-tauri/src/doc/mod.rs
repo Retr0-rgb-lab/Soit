@@ -1,6 +1,7 @@
 //! Vault document resolve + text read (PEL-156) and materials list/import.
 
 pub mod materials;
+pub mod pdf_server;
 
 use serde::Serialize;
 use std::fs;
