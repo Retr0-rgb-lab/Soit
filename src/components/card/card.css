@@ -589,6 +589,26 @@
   line-height: 1.2;
 }
 
+.ic-title-input {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-weight: 600;
+  font-size: clamp(18px, 2.2vw, 24px);
+  line-height: 1.2;
+  color: var(--ink);
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 2px 8px;
+  margin: 0;
+}
+
+.ic-title-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-muted);
+}
+
 .ic-meta {
   margin: 6px 0 0;
   display: flex;

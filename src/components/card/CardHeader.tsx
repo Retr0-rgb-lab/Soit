@@ -1,6 +1,8 @@
 import {
   forwardRef,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
@@ -40,6 +42,12 @@ interface Props {
    * Explore-like: 0 = full chrome, 1 = title faded after scroll down.
    */
   chromeFade?: number;
+  /** Rename mode — renders an inline title input instead of <h1>. */
+  renaming?: boolean;
+  /** Commit a new title (trimmed; caller decides persistence). */
+  onRename?: (title: string) => void;
+  /** Exit rename mode after commit/cancel. */
+  onRenamingChange?: (renaming: boolean) => void;
 }
 
 const CardHeader = forwardRef<HTMLDivElement, Props>(function CardHeader(
@@ -56,17 +64,39 @@ const CardHeader = forwardRef<HTMLDivElement, Props>(function CardHeader(
     onDragSurfacePointerCancel,
     parent,
     chromeFade = 0,
+    renaming = false,
+    onRename,
+    onRenamingChange,
   },
   ref,
 ) {
   const [crumbsExpanded, setCrumbsExpanded] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(title);
+  const committedRef = useRef(false);
+
+  useEffect(() => {
+    if (renaming) {
+      setTitleDraft(title);
+      committedRef.current = false;
+    }
+  }, [renaming, title]);
+
+  const finishRename = (commit: boolean) => {
+    if (committedRef.current) return;
+    committedRef.current = true;
+    if (commit) {
+      const next = titleDraft.trim();
+      if (next && next !== title) onRename?.(next);
+    }
+    onRenamingChange?.(false);
+  };
 
   const visible = useMemo(() => {
     if (crumbsExpanded) return crumbs;
     return collapseCrumbs(crumbs);
   }, [crumbs, crumbsExpanded]);
 
-  const dragEnabled = Boolean(onDragSurfacePointerDown);
+  const dragEnabled = Boolean(onDragSurfacePointerDown) && !renaming;
   const fade = chromeFadeStyle(chromeFade);
   const fadeStyle = fade as CSSProperties;
 
@@ -89,10 +119,10 @@ const CardHeader = forwardRef<HTMLDivElement, Props>(function CardHeader(
       >
         <div
           className={`titles${dragEnabled ? " ic-drag-surface" : ""}`}
-          onPointerDown={onDragSurfacePointerDown}
-          onPointerMove={onDragSurfacePointerMove}
-          onPointerUp={onDragSurfacePointerUp}
-          onPointerCancel={onDragSurfacePointerCancel}
+          onPointerDown={dragEnabled ? onDragSurfacePointerDown : undefined}
+          onPointerMove={dragEnabled ? onDragSurfacePointerMove : undefined}
+          onPointerUp={dragEnabled ? onDragSurfacePointerUp : undefined}
+          onPointerCancel={dragEnabled ? onDragSurfacePointerCancel : undefined}
           title={
             dragEnabled
               ? "拖标题：甩开切换 · 按住片刻在拖动处打开小窗"
@@ -149,7 +179,28 @@ const CardHeader = forwardRef<HTMLDivElement, Props>(function CardHeader(
               </button>
             )}
           </nav>
-          <h1>{title}</h1>
+          {renaming ? (
+            <input
+              className="ic-title-input"
+              value={titleDraft}
+              autoFocus
+              aria-label="重命名探究"
+              spellCheck={false}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={() => finishRename(true)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  finishRename(true);
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  finishRename(false);
+                }
+              }}
+            />
+          ) : (
+            <h1>{title}</h1>
+          )}
           {(status || question) && (
             <div className="ic-meta">
               {status ? (

@@ -208,6 +208,8 @@ export interface WorkspaceState {
    * Returns next focus id ("" if universe emptied).
    */
   deleteInquiry: (cardId?: string) => Promise<string>;
+  /** Rename an inquiry card's title (user-editable name). */
+  renameCard: (cardId: string, title: string) => Promise<void>;
   toggleTurnCollapsed: (turnId: string, cardId?: string) => Promise<void>;
   /** Fire-and-forget OK; returns when assistant turn is filled via ChatPort. */
   appendUserMessage: (text: string, quote?: string) => Promise<void>;
@@ -673,6 +675,37 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
           }
         } catch (err) {
           console.error("[soit] set_turn_starred host failed", err);
+        }
+        return;
+      }
+      patchLocal();
+    },
+
+    renameCard: async (cardId, title) => {
+      const s = get();
+      const id = cardId.trim();
+      const next = title.trim();
+      if (!id || !next) return;
+      if (!s.nodes.some((n) => n.id === id)) return;
+
+      const patchLocal = () => {
+        set({
+          nodes: get().nodes.map((n) =>
+            n.id === id ? { ...n, title: next } : n,
+          ),
+        });
+      };
+
+      if (isUniverseSource(s.source)) {
+        try {
+          const { updateCard: hostUpdate } = await import("../lib/host");
+          const res = await hostUpdate({ cardId: id, title: next });
+          if (res.snapshot) {
+            get().loadSnapshot(res.snapshot);
+            return;
+          }
+        } catch (err) {
+          console.error("[soit] update_card host failed", err);
         }
         return;
       }

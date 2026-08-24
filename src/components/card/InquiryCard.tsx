@@ -25,6 +25,7 @@ import {
   IconFocusExit,
   IconJump,
   IconMap,
+  IconRename,
   IconTrash,
 } from "./icons";
 import TurnHistoryRail from "./TurnHistoryRail";
@@ -54,6 +55,7 @@ export default function InquiryCard() {
   const regenerateTurn = useWorkspace((s) => s.regenerateTurn);
   const deleteTurn = useWorkspace((s) => s.deleteTurn);
   const deleteInquiry = useWorkspace((s) => s.deleteInquiry);
+  const renameCard = useWorkspace((s) => s.renameCard);
   const toggleTurnCollapsed = useWorkspace((s) => s.toggleTurnCollapsed);
   const setTurnStarred = useWorkspace((s) => s.setTurnStarred);
   const appendUserMessage = useWorkspace((s) => s.appendUserMessage);
@@ -125,6 +127,8 @@ export default function InquiryCard() {
   const [focusMode, setFocusMode] = useState(false);
   /** Confirm delete inquiry (+ subtree). */
   const [deleteAsk, setDeleteAsk] = useState(false);
+  /** Inline title rename mode. */
+  const [renaming, setRenaming] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   /** Explore-like: title chrome fades as body scrolls down (0..1). */
   const [chromeFade, setChromeFade] = useState(0);
@@ -234,6 +238,7 @@ export default function InquiryCard() {
     setSpawnError(null);
     setDeleteAsk(false);
     setDeleteBusy(false);
+    setRenaming(false);
     setActiveTurnId(null);
     setHistoryOpen(false);
     setChromeFade(0);
@@ -817,6 +822,9 @@ export default function InquiryCard() {
                 onDragSurfacePointerUp={onDragSurfacePointerUp}
                 onDragSurfacePointerCancel={onDragSurfacePointerCancel}
                 chromeFade={chromeFade}
+                renaming={renaming}
+                onRename={(t) => void renameCard(focusId, t)}
+                onRenamingChange={setRenaming}
               />
               <div className="ic-body">
                 <div
@@ -899,6 +907,15 @@ export default function InquiryCard() {
                     onClick={() => onDeepen(focus.title)}
                   >
                     <IconDeepen />
+                  </button>
+                  <button
+                    type="button"
+                    className="ic-round"
+                    data-tip="重命名"
+                    aria-label="重命名探究"
+                    onClick={() => setRenaming(true)}
+                  >
+                    <IconRename />
                   </button>
                   <button
                     type="button"

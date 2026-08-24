@@ -166,6 +166,16 @@ describe("workspaceStore", () => {
     expect(s.highlightSpan?.turnId).toBe("c2_t2");
   });
 
+  it("renameCard updates the focused card title (demo path)", async () => {
+    useWorkspaceStore.getState().loadSnapshot(demoSnapshot());
+    const focus = useWorkspaceStore.getState().focusId;
+    await useWorkspaceStore.getState().renameCard(focus, "新名字");
+    const node = useWorkspaceStore
+      .getState()
+      .nodes.find((n) => n.id === focus)!;
+    expect(node.title).toBe("新名字");
+  });
+
   it("spawnInquiry keeps full text and doc anchors on edge source", async () => {
     const parent = useWorkspaceStore.getState().focusId;
     const full =
