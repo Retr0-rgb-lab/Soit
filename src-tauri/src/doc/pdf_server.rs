@@ -15,7 +15,11 @@ const MAX_HEAD_BYTES: usize = 8 * 1024;
 pub struct PdfServerHandle {
   pub port: u16,
   pub token: String,
+  /// Reserved for future vault-range assertions; intentionally not read today.
+  #[allow(dead_code)]
   pub vault_canon: PathBuf,
+  /// Anchor holding the original socket — dropping the handle closes the port.
+  #[allow(dead_code)]
   listener: TcpListener,
   shutdown: Arc<AtomicBool>,
 }

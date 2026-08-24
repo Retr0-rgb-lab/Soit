@@ -10,7 +10,7 @@ Project-wide: root `AGENTS.md`. IPC types mirrored in `../src/types.ts` and `../
 |------|------|
 | `src/lib.rs` | App state, commands, `run()`, command-level tests |
 | `src/universe/` | SQLite open/migrate/snapshot/mutations (`mod`, `dto`, `ids`, `schema`, `snapshot`, `mutations`) |
-| `src/doc/` | Vault doc resolve + UTF-8 text read (PEL-156 path sandbox; no PDF bytes) + `materials/` list/import |
+| `src/doc/` | Vault doc resolve + UTF-8 text read (PEL-156 path sandbox; no PDF bytes) + `pdf_server.rs` (loopback PDF preview, P1) + `materials/` list/import |
 | `src/obsidian/` | `concepts/` precipitate + `inquiry/` residue (no full transcripts) |
 | `src/skills.rs` | SKILL.md index, seed, enable/disable, inject text (soft cap 32768) |
 | `src/chat_config.rs` | BYOK JSON (`soit-chat.json`) under app config dir (not universe.db); `ModelSettings` includes optional `explainModelId` |
@@ -54,6 +54,7 @@ Project-wide: root `AGENTS.md`. IPC types mirrored in `../src/types.ts` and `../
 | `invoke_inquiry_tool` | Run one tool (`vault_search` / `fetch_url` / `web_search`); requires open universe where path-bound; returns structured result JSON |
 | `resolve_vault_doc` | PEL-156: `{ path }` → `{ ok, pathRel, pathAbs, kind, displayName, size, error? }`; kind `md\|text\|pdf\|unsupported`; requires open universe |
 | `read_vault_text` | PEL-156: `{ pathRel, maxBytes? }` → `{ ok, text?, error? }`; default max **1_500_000** bytes; oversize / non-UTF-8 → error (no silent truncate) |
+| `get_pdf_preview_url` | PEL-156 P1: `{ pathRel }` → `{ ok, url? }` loopback PDF preview URL; lazy server start; requires open universe; sandbox + kind=pdf + per-vault token |
 | `list_vault_materials` | Materials-rail: lazy list under `vault/materials/`; caps depth/entries; **not** called from bootstrap / `open_universe` |
 | `import_vault_material` | Materials-rail: `{ fileName, bytesBase64 }` → write under `materials/` (≤**2MB** decoded); collision `stem (n).ext`; reject path seps / `..` in name |
 | `select_vault` | Thin wrapper → `open_universe` (compat) |
@@ -85,6 +86,7 @@ Doc companion FE contract: `docs/superpowers/specs/2026-08-20-doc-companion-view
 - **Materials:** only `vault/materials/**`; import decoded size ≤ 2_097_152; never scan whole vault; never open materials DB on cold start.
 - Production source files ≤800 LOC (`universe/` split enforces this).
 - Run `cargo test` / `cargo check` from this directory.
+- **PDF preview server:** bind 127.0.0.1 only, random port, per-vault token; start on `open_universe` success, shutdown on `close_universe`; never at bootstrap; no `data:`/`blob:` PDF; zero new Cargo deps.
 
 ## Do not
 
