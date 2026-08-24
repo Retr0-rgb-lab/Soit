@@ -11,7 +11,7 @@ import SelectionBar, {
 import TermFloat, { type TermFloatState } from "../overlays/TermFloat";
 import "../overlays/overlays.css";
 import MdTextView from "./MdTextView";
-import PdfGuide from "./PdfGuide";
+import PdfView from "./PdfView";
 import "./doc.css";
 
 function copyText(text: string) {
@@ -404,7 +404,7 @@ export default function DocPane({
               pathHint={ref.pathRel}
             />
           ) : (
-            <PdfGuide docRef={ref} />
+            <PdfView docRef={ref} />
           )
         ) : null}
       </div>

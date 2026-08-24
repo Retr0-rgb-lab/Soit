@@ -37,7 +37,7 @@ export default function PdfGuide({ docRef }: Props) {
   return (
     <div className="pdf-guide" role="status">
       <h3 className="pdf-guide__title">
-        {isPdf ? "PDF 暂不内嵌预览" : "暂不支持预览此类型"}
+        {isPdf ? "PDF 内嵌预览不可用" : "暂不支持预览此类型"}
       </h3>
       <dl className="pdf-guide__meta">
         <div>
@@ -57,7 +57,7 @@ export default function PdfGuide({ docRef }: Props) {
       </dl>
       <p className="pdf-guide__note">
         {isPdf
-          ? "P0 请用系统阅读器或 Obsidian 打开该文件。内嵌 PDF 预览后置；不会把整份 PDF 塞进对话。"
+          ? "内嵌预览不可用（浏览器预览或服务启动失败）。桌面版通常可直接内嵌；也可用系统阅读器或 Obsidian 打开该文件。不会把整份 PDF 塞进对话。"
           : "当前仅支持 Markdown / 纯文本陪读。可用系统应用打开原文件。"}
       </p>
       <div className="pdf-guide__actions">
