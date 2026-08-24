@@ -20,6 +20,8 @@ pub(crate) struct AppState {
   pub(crate) universe: Mutex<Option<Universe>>,
   /// At most one external runtime handoff (mock/CLI).
   pub(crate) runtime_handoff: runtime::HandoffControl,
+  /// Lazy PDF preview server (PEL-156 P1) — one per open vault; None = off.
+  pub(crate) pdf_server: Mutex<Option<doc::pdf_server::PdfServerHandle>>,
 }
 
 impl Default for AppState {
@@ -27,6 +29,7 @@ impl Default for AppState {
     Self {
       universe: Mutex::new(None),
       runtime_handoff: runtime::HandoffControl::default(),
+      pdf_server: Mutex::new(None),
     }
   }
 }
@@ -78,6 +81,7 @@ fn open_universe_impl(
   match Universe::open(p) {
     Ok(u) => {
       let bound_path = u.vault_path.to_string_lossy().to_string();
+      let vault_canon = u.vault_path.clone();
       // Wave E — seed/index skills + plugins placeholder (non-fatal if fails).
       if let Err(e) = skills::ensure_on_open(&u.vault_path) {
         log::warn!("skills ensure_on_open: {e}");
@@ -96,6 +100,19 @@ fn open_universe_impl(
       match state.universe.lock() {
         Ok(mut g) => {
           *g = Some(u);
+          // P1 PDF embed — (re)start loopback preview server for this vault.
+          match state.pdf_server.lock() {
+            Ok(mut ps) => {
+              *ps = match doc::pdf_server::start_pdf_server(vault_canon.clone()) {
+                Ok(h) => Some(h),
+                Err(e) => {
+                  log::warn!("pdf preview server start failed: {e}");
+                  None
+                }
+              };
+            }
+            Err(_) => log::warn!("pdf server lock poisoned"),
+          }
           if let Some(app) = app {
             if let Err(e) = session_config::write_last_vault(app, Some(&bound_path)) {
               log::warn!("set last_vault after open: {e}");
@@ -206,6 +223,9 @@ fn close_universe(state: State<'_, AppState>) -> Result<(), String> {
     .lock()
     .map_err(|_| "universe lock poisoned".to_string())?;
   *g = None;
+  if let Ok(mut ps) = state.pdf_server.lock() {
+    *ps = None; // Drop 置 shutdown 标志 → 线程退出 → 端口释放
+  }
   Ok(())
 }
 
@@ -527,6 +547,7 @@ pub fn run() {
       runtime::cancel_runtime_handoff,
       doc::resolve_vault_doc,
       doc::read_vault_text,
+      doc::get_pdf_preview_url,
       doc::materials::list_vault_materials,
       doc::materials::import_vault_material,
       ping

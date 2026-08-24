@@ -192,3 +192,8 @@ commands.allow = ["set_tools_prefs"]
 identifier = "allow-invoke-inquiry-tool"
 description = "Allow invoke_inquiry_tool (vault_search / fetch_url / web_search)"
 commands.allow = ["invoke_inquiry_tool"]
+
+[[permission]]
+identifier = "allow-get-pdf-preview-url"
+description = "Allow get_pdf_preview_url command (vault PDF loopback preview; PEL-156 P1)"
+commands.allow = ["get_pdf_preview_url"]

@@ -38,6 +38,7 @@
     "allow-cancel-runtime-handoff",
     "allow-resolve-vault-doc",
     "allow-read-vault-text",
+    "allow-get-pdf-preview-url",
     "allow-list-vault-materials",
     "allow-import-vault-material",
     "allow-get-tools-prefs",

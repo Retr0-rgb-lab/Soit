@@ -299,6 +299,77 @@ pub fn read_vault_text(
   }
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetPdfPreviewUrlResult {
+  pub ok: bool,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub url: Option<String>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub error: Option<String>,
+}
+
+impl GetPdfPreviewUrlResult {
+  fn err(msg: impl Into<String>) -> Self {
+    Self {
+      ok: false,
+      url: None,
+      error: Some(msg.into()),
+    }
+  }
+}
+
+/// Lazy PDF preview URL (PEL-156 P1). Loopback server + per-vault token; sandbox first.
+#[tauri::command]
+pub fn get_pdf_preview_url(
+  path_rel: String,
+  state: State<'_, AppState>,
+) -> GetPdfPreviewUrlResult {
+  let (vault_canon, abs) = {
+    let g = match state.universe.lock() {
+      Ok(g) => g,
+      Err(_) => return GetPdfPreviewUrlResult::err("universe lock poisoned"),
+    };
+    let u = match g.as_ref() {
+      Some(u) => u,
+      None => return GetPdfPreviewUrlResult::err("universe_closed"),
+    };
+    let vault_canon = u.vault_path.clone();
+    match resolve_under_vault(&vault_canon, &path_rel) {
+      Ok((abs, _)) => (vault_canon, abs),
+      Err(e) => return GetPdfPreviewUrlResult::err(e),
+    }
+  };
+  if probe_kind(&abs) != DocKind::Pdf {
+    return GetPdfPreviewUrlResult::err("not a pdf");
+  }
+  {
+    let mut ps = match state.pdf_server.lock() {
+      Ok(g) => g,
+      Err(_) => return GetPdfPreviewUrlResult::err("pdf server lock poisoned"),
+    };
+    if ps.is_none() {
+      *ps = match pdf_server::start_pdf_server(vault_canon) {
+        Ok(h) => Some(h),
+        Err(e) => return GetPdfPreviewUrlResult::err(format!("pdf server start failed: {e}")),
+      };
+    }
+  }
+  let g = match state.pdf_server.lock() {
+    Ok(g) => g,
+    Err(_) => return GetPdfPreviewUrlResult::err("pdf server lock poisoned"),
+  };
+  let handle = match g.as_ref() {
+    Some(h) => h,
+    None => return GetPdfPreviewUrlResult::err("pdf server unavailable"),
+  };
+  GetPdfPreviewUrlResult {
+    ok: true,
+    url: Some(pdf_server::pdf_url(handle, &path_rel)),
+    error: None,
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
