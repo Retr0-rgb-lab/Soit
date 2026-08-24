@@ -61,6 +61,44 @@ impl Universe {
     u.migrate()?;
     Ok(u)
   }
+
+  /// Open vault-bound DB read-only (reverse MCP stdio server).
+  /// No `.soit` creation, no WAL pragma, no migration; requires an existing universe.
+  pub fn open_readonly(vault: &Path) -> Result<Self, String> {
+    if !vault.is_absolute() {
+      return Err("path must be absolute".into());
+    }
+    if !vault.exists() {
+      return Err("path does not exist".into());
+    }
+    if !vault.is_dir() {
+      return Err("path is not a directory".into());
+    }
+    let canonical =
+      dunce::canonicalize(vault).map_err(|e| format!("canonicalize path: {e}"))?;
+    let path = db_path(&canonical);
+    let conn = Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+      .map_err(|e| format!("open db read-only: {e}"))?;
+    let u = Self {
+      vault_path: canonical,
+      conn,
+    };
+    let ver: Option<String> = u.get_meta("schema_version")?;
+    match ver {
+      None => Err("not a Soit universe (missing schema_version)".into()),
+      Some(s) => {
+        let v: i64 = s
+          .parse()
+          .map_err(|_| format!("invalid schema_version: {s}"))?;
+        if v > SCHEMA_VERSION {
+          return Err(format!(
+            "database schema version {v} is newer than this app ({SCHEMA_VERSION}); please upgrade Soit"
+          ));
+        }
+        Ok(u)
+      }
+    }
+  }
 }
 
 #[cfg(test)]
@@ -638,6 +676,69 @@ mod tests {
       )
       .unwrap();
     assert_eq!(v, SCHEMA_VERSION.to_string());
+    let _ = fs::remove_dir_all(&dir);
+  }
+
+  #[test]
+  fn open_readonly_snapshots_existing_universe() {
+    let dir = temp_vault("ro_snap");
+    let root_id = {
+      let mut u = Universe::open(&dir).unwrap();
+      let snap = u.create_root_inquiry("只读根", Some("问题")).unwrap();
+      snap.nodes[0].id.clone()
+    };
+    let u = Universe::open_readonly(&dir).unwrap();
+    let snap = u.snapshot().unwrap();
+    assert_eq!(snap.source, "universe");
+    assert_eq!(snap.nodes.len(), 1);
+    assert_eq!(snap.nodes[0].id, root_id);
+    let _ = fs::remove_dir_all(&dir);
+  }
+
+  #[test]
+  fn open_readonly_rejects_missing_schema() {
+    let dir = temp_vault("ro_noschema");
+    {
+      let u = Universe::open(&dir).unwrap();
+      u.conn
+        .execute("DELETE FROM meta WHERE key = 'schema_version'", [])
+        .unwrap();
+    }
+    let err = Universe::open_readonly(&dir).err().expect("must err");
+    assert!(err.contains("not a Soit universe"), "got: {err}");
+    let _ = fs::remove_dir_all(&dir);
+  }
+
+  #[test]
+  fn open_readonly_rejects_future_schema() {
+    let dir = temp_vault("ro_future");
+    {
+      let u = Universe::open(&dir).unwrap();
+      u.conn
+        .execute(
+          "UPDATE meta SET value = '999' WHERE key = 'schema_version'",
+          [],
+        )
+        .unwrap();
+    }
+    let err = Universe::open_readonly(&dir).err().expect("must err");
+    assert!(err.contains("newer"), "got: {err}");
+    let _ = fs::remove_dir_all(&dir);
+  }
+
+  #[test]
+  fn open_readonly_rejects_writes() {
+    let dir = temp_vault("ro_nowrite");
+    {
+      let mut u = Universe::open(&dir).unwrap();
+      u.create_root_inquiry("根", None).unwrap();
+    }
+    let u = Universe::open_readonly(&dir).unwrap();
+    let res = u.conn.execute(
+      "INSERT INTO cards (id,title,kind,unread,created_at,updated_at) VALUES ('c_x','x','root',0,'t','t')",
+      [],
+    );
+    assert!(res.is_err(), "read-only connection must reject writes");
     let _ = fs::remove_dir_all(&dir);
   }
 }

@@ -1,5 +1,6 @@
 mod chat_config;
 mod doc;
+pub mod mcp;
 mod obsidian;
 mod runtime;
 mod session_config;
