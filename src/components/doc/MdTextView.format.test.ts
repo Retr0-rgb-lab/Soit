@@ -51,6 +51,13 @@ describe("renderDocMd formats", () => {
     expect(html).toContain('href="./a.md"');
     expect(html).toContain("尾段");
   });
+
+  it("renders mermaid fence as diagram placeholder", () => {
+    const html = renderDocMd("```mermaid\ngraph TD; A-->B;\n```");
+    expect(html).toContain('class="soit-mermaid"');
+    expect(html).toContain("A--&gt;B");
+    expect(html).not.toContain("<pre><code>graph");
+  });
 });
 
 describe("shouldRenderAsMarkdown", () => {

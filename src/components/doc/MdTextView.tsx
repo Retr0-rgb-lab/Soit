@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { escapeHtml } from "../../lib/chat/port";
 import { protectAndRenderMath } from "../../lib/math/tex";
+import { renderMermaidBlocks } from "../../lib/mermaid";
 import type { DocKind } from "../../lib/docSession";
 
 type Props = {
@@ -56,8 +57,11 @@ export function renderDocMd(text: string): string {
     return `${PH_START}${i}${PH_END}`;
   };
 
-  s = s.replace(/```[^\n]*\n([\s\S]*?)```/g, (_m, code: string) => {
+  s = s.replace(/```([^\n]*)\n([\s\S]*?)```/g, (_m, lang: string, code: string) => {
     const inner = code.replace(/\n$/, "");
+    if ((lang ?? "").trim().toLowerCase() === "mermaid") {
+      return put(`<div class="soit-mermaid">${inner}</div>`);
+    }
     return put(`<pre><code>${inner}</code></pre>`);
   });
   s = s.replace(/`([^`\n]+)`/g, (_m, code: string) =>
@@ -281,6 +285,11 @@ export default function MdTextView({ kind, text, pathHint }: Props) {
     () => (asMd ? renderDocMd(text) : ""),
     [asMd, text],
   );
+  const mdRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (mdRef.current) void renderMermaidBlocks(mdRef.current);
+  }, [html]);
 
   if (!asMd) {
     return <pre className="md-text-view md-text-view--plain">{text}</pre>;
@@ -288,6 +297,7 @@ export default function MdTextView({ kind, text, pathHint }: Props) {
 
   return (
     <div
+      ref={mdRef}
       className="md-text-view md-text-view--md"
       data-kind={kind}
       dangerouslySetInnerHTML={{

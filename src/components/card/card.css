@@ -1659,6 +1659,30 @@ body.has-selbar .ic-turn-bar {
   font-size: inherit;
 }
 
+.ai-html .soit-mermaid {
+  margin: 0.65em 0 0.85em;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 8px;
+  background: var(--bg-card);
+  overflow-x: auto;
+}
+
+.ai-html .soit-mermaid svg {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+.ai-html .soit-mermaid.is-error {
+  white-space: pre-wrap;
+  text-align: left;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  color: var(--danger);
+}
+
 .ai-html strong {
   font-weight: 650;
 }

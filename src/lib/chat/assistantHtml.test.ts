@@ -67,6 +67,25 @@ describe("renderAssistantHtml", () => {
     expect(html).toContain("</code></pre>");
   });
 
+  it("renders mermaid fence as diagram placeholder", () => {
+    const html = renderAssistantHtml("```mermaid\ngraph TD; A-->B;\n```");
+    expect(html).toContain('class="soit-mermaid"');
+    expect(html).toContain("graph TD; A--&gt;B;");
+    expect(html).not.toContain("<pre><code>graph");
+  });
+
+  it("non-mermaid fence stays code", () => {
+    const html = renderAssistantHtml("```js\nconst a = 1;\n```");
+    expect(html).toContain("<pre><code>");
+    expect(html).not.toContain("soit-mermaid");
+  });
+
+  it("escapes html inside mermaid source", () => {
+    const html = renderAssistantHtml('```mermaid\nA["<b>"]-->B\n```');
+    expect(html).not.toContain("<b>");
+    expect(html).toContain("&lt;b&gt;");
+  });
+
   it("coexists **term** with marks", () => {
     const html = renderAssistantHtml("see **函子** here", [{ term: "函子" }]);
     expect(html).toContain("<strong>");

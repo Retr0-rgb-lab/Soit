@@ -310,6 +310,30 @@
   overflow: auto;
 }
 
+.md-text-view .soit-mermaid {
+  margin: 0 0 0.85em;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 8px;
+  background: var(--bg-card);
+  overflow-x: auto;
+}
+
+.md-text-view .soit-mermaid svg {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+.md-text-view .soit-mermaid.is-error {
+  white-space: pre-wrap;
+  text-align: left;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: 0.85em;
+  color: var(--danger);
+}
+
 .md-text-view pre code {
   padding: 0;
   background: transparent;

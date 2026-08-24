@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ProcessStep, Turn } from "../../types";
 import { isProcessBusy, processEntryLabel } from "../../lib/tools";
 import { renderAssistantHtml } from "../../lib/chat";
+import { renderMermaidBlocks } from "../../lib/mermaid";
 import {
   IconBookmark,
   IconChev,
@@ -65,6 +66,7 @@ export default function TurnItem({
   const bookOn = Boolean(turn.starred);
   /** Local UI toggle; default closed so formal output stays primary (PEL-160). */
   const [processOpen, setProcessOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const collapsed = forceExpand ? false : turn.collapsed;
   const thinkText = (turn.think ?? "").trim();
   const processSteps: ProcessStep[] =
@@ -91,6 +93,11 @@ export default function TurnItem({
     setProcessOpen(false);
   }, [turn.id]);
 
+  // Render mermaid diagrams after HTML is committed to the DOM.
+  useEffect(() => {
+    if (rootRef.current) void renderMermaidBlocks(rootRef.current);
+  }, [turn.aiHtml, thinkHtmlById, processOpen]);
+
   const onMarkPointer = (e: React.MouseEvent) => {
     const t = e.target;
     if (!(t instanceof HTMLElement)) return;
@@ -109,6 +116,7 @@ export default function TurnItem({
 
   return (
     <div
+      ref={rootRef}
       className={`ic-turn${collapsed ? " collapsed" : ""}${railTarget ? " rail-target" : ""}`}
       data-turn={turn.id}
     >

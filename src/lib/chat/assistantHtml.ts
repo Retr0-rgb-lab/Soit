@@ -38,8 +38,12 @@ export function renderAssistantHtml(text: string, marks?: ChatMark[]): string {
     return `${PH_START}${i}${PH_END}`;
   };
 
-  s = s.replace(/```[^\n]*\n([\s\S]*?)```/g, (_m, code: string) => {
+  s = s.replace(/```([^\n]*)\n([\s\S]*?)```/g, (_m, lang: string, code: string) => {
     const inner = code.replace(/\n$/, "");
+    // Mermaid fences → lazy-rendered diagram placeholder (lib/mermaid.ts).
+    if ((lang ?? "").trim().toLowerCase() === "mermaid") {
+      return put(`<div class="soit-mermaid">${inner}</div>`);
+    }
     return put(`<pre><code>${inner}</code></pre>`);
   });
   s = s.replace(/`([^`\n]+)`/g, (_m, code: string) =>
