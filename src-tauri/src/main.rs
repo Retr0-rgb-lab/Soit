@@ -10,22 +10,29 @@ fn main() {
   }
 }
 
-/// `soit mcp serve --vault <abs-path>` — read-only stdio MCP server.
-/// Accepts an optional `serve` token; `--vault` (or `--vault=<path>`) is required.
+/// `soit mcp serve [--vault <abs>]... [--vault A,B] [--allow-any]`
+///
+/// Read-only stdio MCP server. Registry = explicit `--vault` (order-preserving,
+/// dedup, not truncated) + session `recentVaults` fill (cap 8). `--allow-any`
+/// bypasses the allowlist. Default workspace = first explicit `--vault`, else
+/// `lastVault` if present in registry.
 fn run_mcp(rest: &[String]) {
-  let mut vault: Option<String> = None;
+  let mut explicit: Vec<String> = Vec::new();
+  let mut allow_any = false;
+
   let mut i = 0;
   while i < rest.len() {
     match rest[i].as_str() {
       "serve" => {}
+      "--allow-any" => allow_any = true,
       "--vault" => {
         i += 1;
         if i < rest.len() {
-          vault = Some(rest[i].clone());
+          push_vaults(&mut explicit, &rest[i]);
         }
       }
       other if other.starts_with("--vault=") => {
-        vault = Some(other["--vault=".len()..].to_string());
+        push_vaults(&mut explicit, &other["--vault=".len()..]);
       }
       other => {
         eprintln!("soit mcp: unknown argument: {other}");
@@ -34,12 +41,30 @@ fn run_mcp(rest: &[String]) {
     }
     i += 1;
   }
-  let Some(vault) = vault else {
-    eprintln!("soit mcp serve: missing required --vault <absolute vault path>");
-    std::process::exit(2);
-  };
-  if let Err(e) = app_lib::mcp::run_stdio_serve(std::path::Path::new(&vault)) {
+
+  // Relative --vault → reject (must be absolute, matching Universe::open).
+  for p in &explicit {
+    if !std::path::Path::new(p).is_absolute() {
+      eprintln!("soit mcp serve: --vault must be an absolute path: {p}");
+      std::process::exit(2);
+    }
+  }
+
+  // recents from soit-session.json (missing/malformed → empty, silent degrade).
+  let config = app_lib::mcp::McpServeConfig::from_cli(explicit, allow_any);
+
+  if let Err(e) = app_lib::mcp::run_stdio_serve(config) {
     eprintln!("soit mcp serve: {e}");
     std::process::exit(1);
+  }
+}
+
+/// Split a `--vault` value on commas (trim each) and append non-empty parts.
+fn push_vaults(out: &mut Vec<String>, value: &str) {
+  for part in value.split(',') {
+    let t = part.trim();
+    if !t.is_empty() {
+      out.push(t.to_string());
+    }
   }
 }

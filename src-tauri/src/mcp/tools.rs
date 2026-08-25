@@ -8,6 +8,7 @@
 
 use serde_json::{json, Map, Value};
 
+use super::McpState;
 use crate::mcp::clean::{ai_html_to_clean, TextMode};
 use crate::universe::{InquiryNodeDto, TurnDto, Universe, WorkspaceSnapshotDto};
 
@@ -171,8 +172,34 @@ fn render_prop() -> Value {
   })
 }
 
+fn vault_prop() -> Value {
+  json!({
+    "type": "string",
+    "description": "Optional vault path override. Defaults to the selected workspace (see select_workspace)."
+  })
+}
+
 pub fn tool_definitions() -> Vec<Value> {
   vec![
+    tool_def(
+      "list_workspaces",
+      "List registered workspaces (allowed vaults). Returns [{path, label, isLast}]. Zero DB IO — no vault opened.",
+      json!({
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }),
+    ),
+    tool_def(
+      "select_workspace",
+      "Set the current workspace for subsequent tool calls (no per-call vault param needed).",
+      json!({
+        "type": "object",
+        "properties": { "path": { "type": "string" } },
+        "required": ["path"],
+        "additionalProperties": false
+      }),
+    ),
     tool_def(
       "list_cards",
       "List all inquiry cards in the Soit universe (optionally filtered by status/kind). Each card carries turnCount, updatedAt, and sizeHint (bytes).",
@@ -180,7 +207,8 @@ pub fn tool_definitions() -> Vec<Value> {
         "type": "object",
         "properties": {
           "status": { "type": "string" },
-          "kind": { "type": "string" }
+          "kind": { "type": "string" },
+          "vault": vault_prop()
         },
         "additionalProperties": false
       }),
@@ -192,7 +220,8 @@ pub fn tool_definitions() -> Vec<Value> {
         "type": "object",
         "properties": {
           "cardId": { "type": "string" },
-          "render": render_prop()
+          "render": render_prop(),
+          "vault": vault_prop()
         },
         "required": ["cardId"],
         "additionalProperties": false
@@ -209,7 +238,8 @@ pub fn tool_definitions() -> Vec<Value> {
           "offset": { "type": "integer", "minimum": 0 },
           "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
           "includeThink": { "type": "boolean" },
-          "includeProcess": { "type": "boolean" }
+          "includeProcess": { "type": "boolean" },
+          "vault": vault_prop()
         },
         "required": ["cardId"],
         "additionalProperties": false
@@ -223,7 +253,8 @@ pub fn tool_definitions() -> Vec<Value> {
         "properties": {
           "cardId": { "type": "string" },
           "turnId": { "type": "string" },
-          "render": render_prop()
+          "render": render_prop(),
+          "vault": vault_prop()
         },
         "required": ["cardId", "turnId"],
         "additionalProperties": false
@@ -237,7 +268,8 @@ pub fn tool_definitions() -> Vec<Value> {
         "properties": {
           "query": { "type": "string" },
           "searchTurns": { "type": "boolean" },
-          "limit": { "type": "integer", "minimum": 1, "maximum": 50 }
+          "limit": { "type": "integer", "minimum": 1, "maximum": 50 },
+          "vault": vault_prop()
         },
         "required": ["query"],
         "additionalProperties": false
@@ -247,18 +279,42 @@ pub fn tool_definitions() -> Vec<Value> {
 }
 
 /// Execute one read-only tool. `name` is already validated non-empty by caller.
-pub fn call_tool(name: &str, arguments: Option<&Value>, universe: &Universe) -> ToolResult {
-  let snapshot = match universe.snapshot() {
-    Ok(s) => s,
-    Err(e) => return error_text(&format!("read universe: {e}")),
-  };
+pub fn call_tool(name: &str, arguments: Option<&Value>, state: &mut McpState) -> ToolResult {
   match name {
-    "list_cards" => list_cards(&snapshot, arguments),
-    "read_card" => read_card(&snapshot, arguments),
-    "list_turns" => list_turns(&snapshot, arguments),
-    "read_turn" => read_turn(&snapshot, arguments),
-    "search_cards" => search_cards(&snapshot, arguments),
-    _ => error_text("unknown tool"),
+    "list_workspaces" => list_workspaces(state),
+    "select_workspace" => select_workspace(state, arguments),
+    _ => {
+      let universe = match state.resolve_vault(arguments) {
+        Ok(u) => u,
+        Err(e) => return error_text(&e),
+      };
+      let snapshot = match universe.snapshot() {
+        Ok(s) => s,
+        Err(e) => return error_text(&format!("read universe: {e}")),
+      };
+      match name {
+        "list_cards" => list_cards(&snapshot, arguments),
+        "read_card" => read_card(&snapshot, arguments),
+        "list_turns" => list_turns(&snapshot, arguments),
+        "read_turn" => read_turn(&snapshot, arguments),
+        "search_cards" => search_cards(&snapshot, arguments),
+        _ => error_text("unknown tool"),
+      }
+    }
+  }
+}
+
+fn list_workspaces(state: &McpState) -> ToolResult {
+  ok_text(Value::Array(state.list_workspaces()))
+}
+
+fn select_workspace(state: &mut McpState, args: Option<&Value>) -> ToolResult {
+  let Some(path) = arg_str(args, "path") else {
+    return error_text("missing required parameter: path");
+  };
+  match state.select_workspace(&path) {
+    Ok(p) => ok_text(json!({ "ok": true, "path": p })),
+    Err(e) => error_text(&e),
   }
 }
 
@@ -400,6 +456,7 @@ fn search_cards(snapshot: &WorkspaceSnapshotDto, args: Option<&Value>) -> ToolRe
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::mcp::{McpServeConfig, McpState};
   use crate::universe::{SourceSpanDto, SpawnInquiryArgs};
   use std::path::PathBuf;
 
@@ -410,39 +467,50 @@ mod tests {
       .unwrap_or(0)
   }
 
-  fn seed_vault(label: &str) -> (PathBuf, Universe, String, String) {
+  fn seed_vault(label: &str) -> (PathBuf, McpState, String, String) {
     let dir = std::env::temp_dir().join(format!("soit_mcp_{label}_{}", now_ms()));
     std::fs::create_dir_all(&dir).unwrap();
-    let mut u = Universe::open(&dir).unwrap();
-    let root = u.create_root_inquiry("根卡", Some("什么是函子")).unwrap();
-    let root_id = root.nodes[0].id.clone();
-    u.append_turn(&root_id, None, "用户追问", None).unwrap();
-    let child = u
-      .spawn_inquiry(&SpawnInquiryArgs {
-        kind: "deepen".into(),
-        from_card_id: root_id.clone(),
-        source: SourceSpanDto {
-          turn_id: "t_src".into(),
-          text: "函子".into(),
-          mark_id: None,
-          start: None,
-          end: None,
-          doc_path: None,
-          doc_page: None,
-          doc_kind: None,
-        },
-        why: None,
-        actor: None,
-      })
-      .unwrap();
-    let child_id = child
-      .nodes
-      .iter()
-      .find(|n| n.kind == "deepen")
-      .unwrap()
-      .id
-      .clone();
-    (dir, u, root_id, child_id)
+    let root_id;
+    let child_id;
+    {
+      let mut u = Universe::open(&dir).unwrap();
+      let root = u.create_root_inquiry("根卡", Some("什么是函子")).unwrap();
+      root_id = root.nodes[0].id.clone();
+      u.append_turn(&root_id, None, "用户追问", None).unwrap();
+      let child = u
+        .spawn_inquiry(&SpawnInquiryArgs {
+          kind: "deepen".into(),
+          from_card_id: root_id.clone(),
+          source: SourceSpanDto {
+            turn_id: "t_src".into(),
+            text: "函子".into(),
+            mark_id: None,
+            start: None,
+            end: None,
+            doc_path: None,
+            doc_page: None,
+            doc_kind: None,
+          },
+          why: None,
+          actor: None,
+        })
+        .unwrap();
+      child_id = child
+        .nodes
+        .iter()
+        .find(|n| n.kind == "deepen")
+        .unwrap()
+        .id
+        .clone();
+    }
+    let canon = dir.canonicalize().unwrap().to_string_lossy().to_string();
+    let state = McpState::new(McpServeConfig {
+      registry: vec![canon],
+      allow_any: false,
+      default: None,
+      last_vault: None,
+    });
+    (dir, state, root_id, child_id)
   }
 
   fn text_of(result: &ToolResult) -> Value {
@@ -466,12 +534,25 @@ mod tests {
   }
 
   #[test]
-  fn tool_definitions_has_five() {
+  fn tool_definitions_has_seven() {
     let defs = tool_definitions();
-    assert_eq!(defs.len(), 5);
+    assert_eq!(defs.len(), 7);
     let names: Vec<&str> = defs.iter().map(|t| t["name"].as_str().unwrap()).collect();
-    for n in ["list_cards", "read_card", "list_turns", "read_turn", "search_cards"] {
+    for n in [
+      "list_workspaces",
+      "select_workspace",
+      "list_cards",
+      "read_card",
+      "list_turns",
+      "read_turn",
+      "search_cards",
+    ] {
       assert!(names.contains(&n));
+    }
+    // every read tool exposes an optional vault param
+    for n in ["list_cards", "read_card", "list_turns", "read_turn", "search_cards"] {
+      let d = defs.iter().find(|t| t["name"] == n).unwrap();
+      assert!(d["inputSchema"]["properties"].get("vault").is_some(), "{n} missing vault");
     }
   }
 
@@ -491,13 +572,13 @@ mod tests {
 
   #[test]
   fn list_cards_and_filters() {
-    let (dir, u, _root, _child) = seed_vault("list");
-    let all = call_tool("list_cards", None, &u);
+    let (dir, state, _root, _child) = seed_vault("list");
+    let all = call_tool("list_cards", None, &mut state);
     assert!(!all.is_error);
     let cards = text_of(&all);
     assert_eq!(cards.as_array().unwrap().len(), 2);
 
-    let filtered = call_tool("list_cards", Some(&json!({"kind": "deepen"})), &u);
+    let filtered = call_tool("list_cards", Some(&json!({"kind": "deepen"})), &mut state);
     let cards = text_of(&filtered);
     assert_eq!(cards.as_array().unwrap().len(), 1);
     assert_eq!(cards[0]["kind"], "deepen");
@@ -505,14 +586,14 @@ mod tests {
     assert!(cards[0].get("turnCount").is_some());
     assert!(cards[0].get("updatedAt").is_some());
     assert!(cards[0].get("sizeHint").is_some());
-    drop(u);
+    drop(state);
     let _ = std::fs::remove_dir_all(&dir);
   }
 
   #[test]
   fn read_card_returns_card_and_turns() {
-    let (dir, u, root_id, _child) = seed_vault("read");
-    let r = call_tool("read_card", Some(&json!({"cardId": root_id})), &u);
+    let (dir, state, root_id, _child) = seed_vault("read");
+    let r = call_tool("read_card", Some(&json!({"cardId": root_id})), &mut state);
     assert!(!r.is_error);
     let v = text_of(&r);
     assert_eq!(v["id"], root_id);
@@ -522,19 +603,19 @@ mod tests {
     assert!(turns[0].get("aiText").is_some());
     assert!(turns[0].get("aiHtml").is_none());
 
-    let missing = call_tool("read_card", Some(&json!({"cardId": "nope"})), &u);
+    let missing = call_tool("read_card", Some(&json!({"cardId": "nope"})), &mut state);
     assert!(missing.is_error);
-    drop(u);
+    drop(state);
     let _ = std::fs::remove_dir_all(&dir);
   }
 
   #[test]
   fn list_turns_pagination_shape() {
-    let (dir, u, root_id, _child) = seed_vault("turns");
+    let (dir, state, root_id, _child) = seed_vault("turns");
     let list = call_tool(
       "list_turns",
       Some(&json!({"cardId": root_id, "limit": 1, "offset": 0})),
-      &u,
+      &mut state,
     );
     let v = text_of(&list);
     assert!(v.get("total").is_some());
@@ -542,68 +623,68 @@ mod tests {
     assert_eq!(v["limit"], 1);
     assert_eq!(v["offset"], 0);
     assert_eq!(v["turns"].as_array().unwrap().len(), 1);
-    drop(u);
+    drop(state);
     let _ = std::fs::remove_dir_all(&dir);
   }
 
   #[test]
   fn list_turns_offset_overflow_empty() {
-    let (dir, u, root_id, _child) = seed_vault("overflow");
+    let (dir, state, root_id, _child) = seed_vault("overflow");
     let total = {
-      let list = call_tool("list_turns", Some(&json!({"cardId": root_id})), &u);
+      let list = call_tool("list_turns", Some(&json!({"cardId": root_id})), &mut state);
       text_of(&list)["total"].as_u64().unwrap()
     };
     let list = call_tool(
       "list_turns",
       Some(&json!({"cardId": root_id, "offset": total + 10})),
-      &u,
+      &mut state,
     );
     let v = text_of(&list);
     assert_eq!(v["total"], total);
     assert!(v["turns"].as_array().unwrap().is_empty());
-    drop(u);
+    drop(state);
     let _ = std::fs::remove_dir_all(&dir);
   }
 
   #[test]
   fn list_turns_default_omits_think_process() {
-    let (dir, u, root_id, _child) = seed_vault("omit");
-    let list = call_tool("list_turns", Some(&json!({"cardId": root_id})), &u);
+    let (dir, state, root_id, _child) = seed_vault("omit");
+    let list = call_tool("list_turns", Some(&json!({"cardId": root_id})), &mut state);
     let turns = text_of(&list)["turns"].clone();
     let first = &turns.as_array().unwrap()[0];
     assert!(first.get("think").is_none());
     assert!(first.get("process").is_none());
     assert!(first.get("aiText").is_some());
-    drop(u);
+    drop(state);
     let _ = std::fs::remove_dir_all(&dir);
   }
 
   #[test]
   fn list_turns_include_think_shows_think() {
-    let (dir, u, root_id, _child) = seed_vault("inclthink");
+    let (dir, state, root_id, _child) = seed_vault("inclthink");
     let list = call_tool(
       "list_turns",
       Some(&json!({"cardId": root_id, "includeThink": true})),
-      &u,
+      &mut state,
     );
     let turns = text_of(&list)["turns"].clone();
     let first = &turns.as_array().unwrap()[0];
     assert!(first.get("think").is_some());
     assert!(first.get("process").is_none());
-    drop(u);
+    drop(state);
     let _ = std::fs::remove_dir_all(&dir);
   }
 
   #[test]
   fn read_turn_full_detail() {
-    let (dir, u, root_id, _child) = seed_vault("rt");
-    let list = call_tool("list_turns", Some(&json!({"cardId": root_id})), &u);
+    let (dir, state, root_id, _child) = seed_vault("rt");
+    let list = call_tool("list_turns", Some(&json!({"cardId": root_id})), &mut state);
     let first_id = text_of(&list)["turns"][0]["id"].as_str().unwrap().to_string();
 
     let one = call_tool(
       "read_turn",
       Some(&json!({"cardId": root_id, "turnId": first_id})),
-      &u,
+      &mut state,
     );
     let v = text_of(&one);
     assert_eq!(v["id"], first_id);
@@ -611,7 +692,7 @@ mod tests {
     assert!(v.get("think").is_some());
     assert!(v.get("process").is_some());
     assert!(v.get("aiText").is_some());
-    drop(u);
+    drop(state);
     let _ = std::fs::remove_dir_all(&dir);
   }
 
@@ -673,51 +754,51 @@ mod tests {
 
   #[test]
   fn search_cards_matches_case_insensitive() {
-    let (dir, u, _root, _child) = seed_vault("search");
-    let r = call_tool("search_cards", Some(&json!({"query": "函子"})), &u);
+    let (dir, state, _root, _child) = seed_vault("search");
+    let r = call_tool("search_cards", Some(&json!({"query": "函子"})), &mut state);
     let cards = text_of(&r);
     assert!(cards.as_array().unwrap().len() >= 1);
-    drop(u);
+    drop(state);
     let _ = std::fs::remove_dir_all(&dir);
   }
 
   #[test]
   fn search_cards_turn_hit_returns_snippet() {
-    let (dir, u, _root, _child) = seed_vault("searchturns");
+    let (dir, state, _root, _child) = seed_vault("searchturns");
     let r = call_tool(
       "search_cards",
       Some(&json!({"query": "用户追问", "searchTurns": true})),
-      &u,
+      &mut state,
     );
     let cards = text_of(&r);
     let arr = cards.as_array().unwrap();
     assert!(!arr.is_empty());
     assert_eq!(arr[0]["matchedIn"], "turns");
     assert!(arr[0]["matchSnippet"].as_str().unwrap().contains("用户追问"));
-    drop(u);
+    drop(state);
     let _ = std::fs::remove_dir_all(&dir);
   }
 
   #[test]
   fn search_cards_turns_disabled() {
-    let (dir, u, _root, _child) = seed_vault("searchoff");
+    let (dir, state, _root, _child) = seed_vault("searchoff");
     let r = call_tool(
       "search_cards",
       Some(&json!({"query": "用户追问", "searchTurns": false})),
-      &u,
+      &mut state,
     );
     let cards = text_of(&r);
     assert!(cards.as_array().unwrap().is_empty());
-    drop(u);
+    drop(state);
     let _ = std::fs::remove_dir_all(&dir);
   }
 
   #[test]
   fn unknown_tool_is_error() {
-    let (dir, u, _root, _child) = seed_vault("unknown");
-    let r = call_tool("nope", None, &u);
+    let (dir, state, _root, _child) = seed_vault("unknown");
+    let r = call_tool("nope", None, &mut state);
     assert!(r.is_error);
-    drop(u);
+    drop(state);
     let _ = std::fs::remove_dir_all(&dir);
   }
 }
