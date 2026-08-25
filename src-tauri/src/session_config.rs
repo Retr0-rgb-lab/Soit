@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
 pub const MAX_RECENT_VAULTS: usize = 8;
@@ -43,6 +43,36 @@ fn config_path(app: &AppHandle) -> Result<PathBuf, String> {
     .map_err(|e| format!("app_config_dir: {e}"))?;
   fs::create_dir_all(&dir).map_err(|e| format!("create config dir: {e}"))?;
   Ok(dir.join("soit-session.json"))
+}
+
+/// `{app_config_dir}/soit-session.json` without an `AppHandle` — for the MCP
+/// CLI process (`soit mcp serve`) which runs as a bare stdio binary.
+///
+/// `dirs::config_dir()` resolves the same base dir Tauri's `app_config_dir`
+/// uses:
+///   Windows: `%APPDATA%`
+///   Linux:   `$XDG_CONFIG_HOME` or `~/.config`
+///   macOS:   `~/Library/Application Support`
+/// Identifier `lab.soit.app` is authoritative in `tauri.conf.json`.
+pub fn session_config_path_no_app() -> Option<PathBuf> {
+  dirs::config_dir().map(|d| d.join("lab.soit.app").join("soit-session.json"))
+}
+
+/// Read a session JSON file as raw `Value`; missing / unreadable / malformed
+/// → `None` (silent degrade, never crash). Split out for unit-testability
+/// without touching the real app config dir.
+pub fn read_session_file(path: &Path) -> Option<Value> {
+  if !path.exists() {
+    return None;
+  }
+  let raw = fs::read_to_string(path).ok()?;
+  serde_json::from_str::<Value>(&raw).ok()
+}
+
+/// Read `soit-session.json` raw without an `AppHandle` (MCP CLI process).
+/// Returns `None` when the file is missing / malformed / unreadable.
+pub fn read_session_raw_no_app() -> Option<Value> {
+  read_session_file(&session_config_path_no_app()?)
 }
 
 /// Trim, drop empties, dedupe (first wins), cap at MAX_RECENT_VAULTS.
@@ -331,5 +361,48 @@ mod tests {
     let out = normalize_recent_vaults(&paths);
     assert_eq!(out.len(), 8);
     assert_eq!(out[0], "P:\\v0");
+  }
+
+  #[test]
+  fn read_session_file_missing_returns_none() {
+    let p = std::env::temp_dir().join(format!(
+      "soit_session_missing_{}",
+      std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis()
+    ));
+    assert!(read_session_file(&p).is_none());
+  }
+
+  #[test]
+  fn read_session_file_malformed_returns_none() {
+    let p = std::env::temp_dir().join(format!(
+      "soit_session_bad_{}",
+      std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis()
+    ));
+    fs::write(&p, "{not json").unwrap();
+    assert!(read_session_file(&p).is_none());
+    let _ = fs::remove_file(&p);
+  }
+
+  #[test]
+  fn read_session_file_valid_returns_value() {
+    let p = std::env::temp_dir().join(format!(
+      "soit_session_ok_{}",
+      std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis()
+    ));
+    fs::write(&p, r#"{"version":1,"lastVault":"A","recentVaults":["A","B"]}"#).unwrap();
+    let v = read_session_file(&p).unwrap();
+    assert_eq!(v["lastVault"], "A");
+    let cfg = migrate_session_value(&v);
+    assert_eq!(cfg.recent_vaults, vec!["A".to_string(), "B".to_string()]);
+    let _ = fs::remove_file(&p);
   }
 }
