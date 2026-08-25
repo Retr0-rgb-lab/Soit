@@ -70,6 +70,16 @@ Doc companion FE contract: `docs/superpowers/specs/2026-08-20-doc-companion-view
 | Open, 0 cards | `empty` |
 | Open, has cards | `universe` |
 
+## MCP (`soit mcp serve`)
+
+- 只读 stdio,5 工具:list_cards / read_card / list_turns / read_turn / search_cards。
+- `list_turns` / `read_turn` / `read_card` 支持 `render=text|markdown|html`(默认 text)。
+- 转换器 `src-tauri/src/mcp/clean.rs`:仅 `ai_html` 走转换;`think` / `process` 是 raw 文本,原样输出。
+- 实体解码顺序 `&amp;` 必须最后;`data-tex` / mermaid textContent 输出前须 `html_unescape`。
+- `list_turns` 分页 `{total, offset, limit, turns}`;limit clamp 1..100;read_card 无分页。
+- `list_cards` 每卡带 `turnCount` / `updatedAt` / `sizeHint`;`search_cards` 支持 `searchTurns` / `limit`。
+- DTO 时间戳:`InquiryNodeDto.created_at/updated_at`、`TurnDto.created_at`(camelCase → createdAt/updatedAt)。
+
 ## Rules
 
 - Keep startup path light: no heavy work in `setup`; bootstrap never opens DB / never `list_runtimes` / never auto-`open_universe` from `lastVault`.
