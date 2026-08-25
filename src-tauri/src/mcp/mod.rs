@@ -3,6 +3,7 @@
 //! Read-only JSON-RPC 2.0 over newline-delimited stdio, backed by a read-only
 //! `Universe::open_readonly` connection. No write tools, no raw SQL, no HTTP.
 
+mod clean;
 mod jsonrpc;
 mod tools;
 
