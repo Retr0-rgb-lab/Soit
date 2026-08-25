@@ -72,13 +72,23 @@ Doc companion FE contract: `docs/superpowers/specs/2026-08-20-doc-companion-view
 
 ## MCP (`soit mcp serve`)
 
-- 只读 stdio,5 工具:list_cards / read_card / list_turns / read_turn / search_cards。
+- 只读 stdio,7 工具:list_workspaces / select_workspace / list_cards / read_card / list_turns / read_turn / search_cards。
 - `list_turns` / `read_turn` / `read_card` 支持 `render=text|markdown|html`(默认 text)。
 - 转换器 `src-tauri/src/mcp/clean.rs`:仅 `ai_html` 走转换;`think` / `process` 是 raw 文本,原样输出。
 - 实体解码顺序 `&amp;` 必须最后;`data-tex` / mermaid textContent 输出前须 `html_unescape`。
 - `list_turns` 分页 `{total, offset, limit, turns}`;limit clamp 1..100;read_card 无分页。
 - `list_cards` 每卡带 `turnCount` / `updatedAt` / `sizeHint`;`search_cards` 支持 `searchTurns` / `limit`。
 - DTO 时间戳:`InquiryNodeDto.created_at/updated_at`、`TurnDto.created_at`(camelCase → createdAt/updatedAt)。
+
+### 多工作区
+
+- 注册表 = 显式 `--vault`(重复/逗号、绝对路径、保序去重不截断)在前 + `soit-session.json` recents 去重补齐,总量 cap 8;纯逻辑在 `mcp/workspaces.rs`。
+- 默认选中:第一个显式 `--vault`,否则 `lastVault`(在注册表内),否则 None;单库时自动 fallback。
+- resolve 优先级:参数 `vault` > selected > 唯一白名单库 > 可读错误(list_workspaces 提示)。
+- 权限:白名单默认拒绝,不扫盘;`--allow-any` 放开;比较前双向 `dunce::canonicalize`(防 `..`/symlink/Windows 大小写);canonicalize 失败 → 拒绝。
+- 惰性 `open_readonly` + HashMap 缓存(`McpState.open`);打开失败带 path,不 crash、不缓存失败。
+- CLI 进程无 AppHandle:`session_config::session_config_path_no_app()`(dirs crate + identifier `lab.soit.app`)读 session。
+- `select_workspace` 会话态进程重启丢失(不持久化);`list_workspaces` 零 DB IO。
 
 ## Rules
 
