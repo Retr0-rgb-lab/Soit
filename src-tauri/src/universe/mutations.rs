@@ -240,6 +240,7 @@ impl Universe {
       think_open: false,
       starred: false,
       process: vec![],
+      created_at: ts,
     };
     let snapshot = self.snapshot()?;
     Ok(AppendTurnResult { turn, snapshot })

@@ -37,7 +37,8 @@ impl Universe {
     let mut stmt = self
       .conn
       .prepare(
-        "SELECT id, title, parent_id, kind, unread, status, question, stuck, next_step
+        "SELECT id, title, parent_id, kind, unread, status, question, stuck, next_step,
+                created_at, updated_at
          FROM cards ORDER BY created_at ASC, id ASC",
       )
       .map_err(|e| format!("prepare cards: {e}"))?;
@@ -55,6 +56,8 @@ impl Universe {
           question: row.get(6)?,
           stuck: row.get(7)?,
           next: row.get(8)?,
+          created_at: row.get(9)?,
+          updated_at: row.get(10)?,
         })
       })
       .map_err(|e| format!("query cards: {e}"))?
@@ -66,7 +69,7 @@ impl Universe {
       .conn
       .prepare(
         "SELECT id, card_id, title, collapsed, user_text, ai_html, think, think_open,
-                COALESCE(starred, 0), COALESCE(process_json, '[]')
+                COALESCE(starred, 0), COALESCE(process_json, '[]'), created_at
          FROM turns ORDER BY sort_order ASC, created_at ASC, id ASC",
       )
       .map_err(|e| format!("prepare turns: {e}"))?;
@@ -90,6 +93,7 @@ impl Universe {
             think_open: think_open_i != 0,
             starred: starred_i != 0,
             process,
+            created_at: row.get(10)?,
           },
         ))
       })

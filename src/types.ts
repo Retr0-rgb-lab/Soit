@@ -18,6 +18,9 @@ export interface InquiryNode {
   stuck?: string | null;
   /** Next step (Host `next_step` → FE `next`). */
   next?: string | null;
+  /** Host/DB field; optional on demo seeds */
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /** Inquiry tool / think timeline step (tools-search spec). */
@@ -51,6 +54,8 @@ export interface Turn {
   starred?: boolean;
   /** Tool/think process timeline; authoritative when present. */
   process?: ProcessStep[];
+  /** Host/DB field; optional on demo seeds */
+  createdAt?: string;
 }
 
 /** Source span on a parent turn — used for edges and return-to-source. */

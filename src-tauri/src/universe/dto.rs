@@ -18,6 +18,8 @@ pub struct InquiryNodeDto {
   pub stuck: Option<String>,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub next: Option<String>,
+  pub created_at: String,
+  pub updated_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,6 +38,7 @@ pub struct TurnDto {
   /// Tool/think process timeline (JSON array). Default empty.
   #[serde(default)]
   pub process: Vec<serde_json::Value>,
+  pub created_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
