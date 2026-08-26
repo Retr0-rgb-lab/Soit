@@ -12,7 +12,7 @@ Project-wide: root `AGENTS.md`. IPC types mirrored in `../src/types.ts` and `../
 | `src/universe/` | SQLite open/migrate/snapshot/mutations (`mod`, `dto`, `ids`, `schema`, `snapshot`, `mutations`) |
 | `src/doc/` | Vault doc resolve + UTF-8 text read (PEL-156 path sandbox; no PDF bytes) + `pdf_server.rs` (loopback PDF preview, P1) + `materials/` list/import |
 | `src/obsidian/` | `concepts/` precipitate + `inquiry/` residue (no full transcripts) |
-| `src/skills.rs` | SKILL.md index, seed, enable/disable, inject text (soft cap 32768) |
+| `src/skills.rs` | SKILL.md index, seed 4 个对话方法技能(socratic/feynman/analogy/recall), enable/disable, inject text (soft cap 32768);不内置写卡树/整理库技能(无对应工具) |
 | `src/chat_config.rs` | BYOK JSON (`soit-chat.json`) under app config dir (not universe.db); `ModelSettings` includes optional `explainModelId` |
 | `src/session_config.rs` | `soit-session.json` SessionConfig v1: lastVault + recentVaults≤8 (app config; not universe.db) |
 | `src/runtime/` | External runtime detect / `soit-runtime.json` prefs / mock handoff (P0; no shell plugin) |
