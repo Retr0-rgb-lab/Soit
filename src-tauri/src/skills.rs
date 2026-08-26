@@ -9,37 +9,73 @@ const STATE_FILE: &str = "skills_state.json";
 const SKILLS_DIR: &str = "skills";
 const PLUGINS_DIR: &str = "plugins";
 
-const SEED_ORGANIZE_CARDS: &str = r#"---
-name: organize-cards
-description: 整理卡片宇宙——归并、归档、理清树结构
+const SEED_SOCRATIC_QUESTIONING: &str = r#"---
+name: socratic-questioning
+description: 苏格拉底式提问——澄清概念、暴露假设、追问证据
 ---
 
-# 整理卡片宇宙
+# 苏格拉底式提问
 
-## Intent
-帮助用户整理当前 vault 内的探究卡片树：合并重复线、归档已完成探究、理顺 parent 关系与活线注意力。
+用提问引导用户自己厘清概念，而不是直接给答案。
 
-## Allowed tools
-- list / read inquiry cards and edges (read graph)
-- update card status (active / paused / done / stuck)
-- suggest merges or archive — do not delete cards without explicit user confirmation
+- 一次只问一个问题，等用户回答再继续，不连续轰炸。
+- 先澄清概念：让用户用自己的话定义当前讨论的关键词。
+- 追问证据与理由：「你是根据什么得出这个结论的？」
+- 暴露隐含假设：把用户话里没说出口的前提点出来，问他是否成立。
+- 用用户自己的话复述他的主张，再请他确认或修正。
+- 遇到反例或极端情况时，邀请用户一起检验原结论还站不站得住。
+- 不直接给答案、不代答；让用户在自己推导中卡住再给最小提示。
 "#;
 
-const SEED_ORGANIZE_OBSIDIAN: &str = r#"---
-name: organize-obsidian
-description: 整理 Obsidian 库——concepts / inquiry 与链接
+const SEED_FEYNMAN_EXPLANATION: &str = r#"---
+name: feynman-explanation
+description: 费曼输出评价——让用户用自己的话解释，挑出术语伪装与逻辑跳跃
 ---
 
-# 整理 Obsidian 库
+# 费曼输出评价
 
-## Intent
-帮助用户整理 vault 中给人看的 Markdown（concepts、inquiry 残渣），保持与卡片宇宙对齐，不另起第二套笔记编辑器。
+邀请用户把刚学的东西用自己的话讲出来，你负责挑毛病。
 
-## Allowed tools
-- read / list notes under vault (concepts/, inquiry/, etc.)
-- precipitate_concept / append_residue
-- link suggestions between wiki pages and cards
-- do not bulk-delete wiki pages; no code plugins in v1
+- 邀请用户「假设讲给一个完全不懂的人听」来解释概念。
+- 听时重点抓：术语伪装（堆词但没讲清）、逻辑跳跃（中间缺步骤）、卡壳点（讲不下去）。
+- 讲完给分层反馈：讲清 / 含糊 / 讲错，并指出具体在哪一段。
+- 对含糊处追问「这句话具体指什么」，逼出准确定义。
+- 给出重讲建议：建议从哪里重新组织，而不是直接替用户重讲。
+- 不代写、不直接给标准答案；用户讲错时先指错，再让用户自己再讲一遍。
+"#;
+
+const SEED_ANALOGY_TUTOR: &str = r#"---
+name: analogy-tutor
+description: 类比引导——用类比辅助理解，并检验类比的边界与失效处
+---
+
+# 类比引导
+
+用类比帮用户建立直觉，但明确类比不是定义。
+
+- 选一个用户熟悉的场景做类比，先讲清「对应关系」：哪一面对应哪一面。
+- 主动声明这个类比的边界：它在哪些地方会失效。
+- 讲完请用户用自己的话复述这个类比，检验是否真懂。
+- 当类比开始误导时，及时拉回精确定义，不要硬撑类比。
+- 鼓励用户自己提出类比，你再帮他把不成立的对应关系挑出来。
+- 类比只用于建立直觉，最终要回到概念本身的定义与性质。
+"#;
+
+const SEED_RECALL_QUIZ: &str = r#"---
+name: recall-quiz
+description: 回想式提问——间隔抽问已学内容，防「看着会、合上忘」
+---
+
+# 回想式提问
+
+主动抽问之前聊过的内容，帮用户巩固记忆。
+
+- 从「上次聊到 X」开始，请用户先不翻笔记、凭记忆回答。
+- 一次问一个点，不一次性丢出一串问题。
+- 用户答不出时给线索阶梯：先提示关键词，再提示场景，最后给一点框架。
+- 不直接给全文答案；给线索让用户自己回想出来。
+- 频率克制：用户说「停」或表现出疲惫时立即收手。
+- 用户答对后简短确认，并顺带指出可加强的薄弱点。
 "#;
 
 const PLUGINS_README: &str = r#"# plugins/
@@ -84,8 +120,10 @@ pub fn ensure_on_open(vault: &Path) -> Result<(), String> {
   let skills = soit.join(SKILLS_DIR);
   fs::create_dir_all(&skills).map_err(|e| format!("create skills: {e}"))?;
 
-  seed_skill_if_missing(&skills, "organize-cards", SEED_ORGANIZE_CARDS)?;
-  seed_skill_if_missing(&skills, "organize-obsidian", SEED_ORGANIZE_OBSIDIAN)?;
+  seed_skill_if_missing(&skills, "socratic-questioning", SEED_SOCRATIC_QUESTIONING)?;
+  seed_skill_if_missing(&skills, "feynman-explanation", SEED_FEYNMAN_EXPLANATION)?;
+  seed_skill_if_missing(&skills, "analogy-tutor", SEED_ANALOGY_TUTOR)?;
+  seed_skill_if_missing(&skills, "recall-quiz", SEED_RECALL_QUIZ)?;
 
   let plugins = soit.join(PLUGINS_DIR);
   fs::create_dir_all(&plugins).map_err(|e| format!("create plugins: {e}"))?;
@@ -349,35 +387,39 @@ mod tests {
     let vault = tmp_vault("seed");
     ensure_on_open(&vault).unwrap();
 
-    let cards = vault.join(".soit/skills/organize-cards/SKILL.md");
-    let obs = vault.join(".soit/skills/organize-obsidian/SKILL.md");
+    let socratic = vault.join(".soit/skills/socratic-questioning/SKILL.md");
+    let feynman = vault.join(".soit/skills/feynman-explanation/SKILL.md");
+    let analogy = vault.join(".soit/skills/analogy-tutor/SKILL.md");
+    let recall = vault.join(".soit/skills/recall-quiz/SKILL.md");
     let plugins = vault.join(".soit/plugins/README.md");
-    assert!(cards.is_file());
-    assert!(obs.is_file());
+    assert!(socratic.is_file());
+    assert!(feynman.is_file());
+    assert!(analogy.is_file());
+    assert!(recall.is_file());
     assert!(plugins.is_file());
     let plugins_txt = fs::read_to_string(&plugins).unwrap();
     assert!(plugins_txt.to_ascii_lowercase().contains("ignore"));
 
     let list = list_skills(&vault).unwrap();
-    assert_eq!(list.len(), 2);
+    assert_eq!(list.len(), 4);
     assert!(list.iter().all(|s| s.enabled));
 
-    let list2 = set_skill_enabled(&vault, "organize-cards", false).unwrap();
-    let cards_s = list2.iter().find(|s| s.id == "organize-cards").unwrap();
-    assert!(!cards_s.enabled);
-    let obs_s = list2.iter().find(|s| s.id == "organize-obsidian").unwrap();
-    assert!(obs_s.enabled);
+    let list2 = set_skill_enabled(&vault, "socratic-questioning", false).unwrap();
+    let socratic_s = list2.iter().find(|s| s.id == "socratic-questioning").unwrap();
+    assert!(!socratic_s.enabled);
+    let feynman_s = list2.iter().find(|s| s.id == "feynman-explanation").unwrap();
+    assert!(feynman_s.enabled);
 
     let text = get_enabled_skills_text(&vault).unwrap();
-    assert!(!text.contains("skill:organize-cards"));
-    assert!(text.contains("skill:organize-obsidian"));
-    assert!(text.contains("Allowed tools") || text.contains("allowed tools") || text.contains("Intent") || text.contains("整理"));
+    assert!(!text.contains("skill:socratic-questioning"));
+    assert!(text.contains("skill:feynman-explanation"));
+    assert!(text.contains("费曼"));
 
     // re-seed does not overwrite user file
     let marker = "USER_EDIT_MARKER";
-    fs::write(&cards, format!("---\nname: organize-cards\n---\n{marker}\n")).unwrap();
+    fs::write(&socratic, format!("---\nname: socratic-questioning\n---\n{marker}\n")).unwrap();
     ensure_on_open(&vault).unwrap();
-    let after = fs::read_to_string(&cards).unwrap();
+    let after = fs::read_to_string(&socratic).unwrap();
     assert!(after.contains(marker));
 
     let _ = fs::remove_dir_all(&vault);
@@ -408,17 +450,19 @@ mod tests {
     let vault = tmp_vault("cap");
     ensure_on_open(&vault).unwrap();
     let big = "x".repeat(40_000);
-    let path = vault.join(".soit/skills/organize-cards/SKILL.md");
+    let path = vault.join(".soit/skills/socratic-questioning/SKILL.md");
     fs::write(
       &path,
-      format!("---\nname: organize-cards\ndescription: big\n---\n\n{big}\n"),
+      format!("---\nname: socratic-questioning\ndescription: big\n---\n\n{big}\n"),
     )
     .unwrap();
-    // Disable the other seed so only the oversized body is injected.
-    set_skill_enabled(&vault, "organize-obsidian", false).unwrap();
+    // Disable the other three seeds so only the oversized body is injected.
+    set_skill_enabled(&vault, "feynman-explanation", false).unwrap();
+    set_skill_enabled(&vault, "analogy-tutor", false).unwrap();
+    set_skill_enabled(&vault, "recall-quiz", false).unwrap();
     let text = get_enabled_skills_text(&vault).unwrap();
     assert!(text.len() <= SKILLS_TEXT_SOFT_CAP);
-    assert!(text.contains("skill:organize-cards"));
+    assert!(text.contains("skill:socratic-questioning"));
     let _ = fs::remove_dir_all(&vault);
   }
 

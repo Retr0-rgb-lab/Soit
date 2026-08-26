@@ -650,11 +650,13 @@ mod tests {
     let path = dir.to_string_lossy().to_string();
     let ok = open_universe_impl(path, &state, None);
     assert!(ok.ok, "{:?}", ok.error);
-    assert!(dir.join(".soit/skills/organize-cards/SKILL.md").is_file());
-    assert!(dir.join(".soit/skills/organize-obsidian/SKILL.md").is_file());
+    assert!(dir.join(".soit/skills/socratic-questioning/SKILL.md").is_file());
+    assert!(dir.join(".soit/skills/feynman-explanation/SKILL.md").is_file());
+    assert!(dir.join(".soit/skills/analogy-tutor/SKILL.md").is_file());
+    assert!(dir.join(".soit/skills/recall-quiz/SKILL.md").is_file());
     assert!(dir.join(".soit/plugins/README.md").is_file());
     let list = with_vault_path(&state, skills::list_skills).unwrap();
-    assert_eq!(list.len(), 2);
+    assert_eq!(list.len(), 4);
     let _ = std::fs::remove_dir_all(&dir);
   }
 }
